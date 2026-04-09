@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond Next-Token Prediction — What LLMs Are Actually Doing</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:    #0e1117;
+  --ink2:   #171c26;
+  --ink3:   #1f2535;
+  --ink4:   #2a3347;
+  --dim:    #4a5568;
+  --dim2:   #718096;
+  --mist:   #e2e8f0;
+  --paper:  #f7f8fa;
+  --gold:   #f6c90e;
+  --gold2:  #d4a900;
+  --ember:  #ff6b35;
+  --ember2: #e55a28;
+  --sage:   #48bb78;
+  --sage2:  #38a169;
+  --sky:    #63b3ed;
+  --sky2:   #4299e1;
+  --violet: #b794f4;
+  --vio2:   #9f7aea;
+  --rose:   #fc8181;
+  --border: rgba(255,255,255,0.08);
+  --r:      12px;
+  --r-sm:   7px;
+}
+@keyframes fadeUp   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes glow     { 0%,100%{box-shadow:0 0 0 0 rgba(246,201,14,0)} 50%{box-shadow:0 0 20px 4px rgba(246,201,14,.18)} }
+@keyframes typeIn   { from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
+@keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.45} }
+@keyframes scanline { from{background-position:0 0} to{background-position:0 100%} }
+@keyframes emerge   { from{width:0;opacity:0} to{opacity:1} }
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Figtree',sans-serif;
+  background:var(--ink);color:var(--mist);
+  line-height:1.7;min-height:100vh;
+}
+h1,h2,h3,h4{font-family:'Instrument Serif',serif;letter-spacing:-.01em;line-height:1.2}
+code,.mono{font-family:'JetBrains Mono',monospace}
+
+/* ── Header ── */
+.hdr{
+  background:var(--ink2);border-bottom:1px solid var(--border);
+  padding:22px 30px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+  position:relative;overflow:hidden;
+}
+.hdr::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 20% 50%, rgba(246,201,14,.04) 0%, transparent 60%),
+             radial-gradient(ellipse at 80% 50%, rgba(99,179,237,.04) 0%, transparent 60%);
+  pointer-events:none;
+}
+.hdr-text h1{font-size:23px;font-weight:400;color:var(--mist);margin-bottom:4px}
+.hdr-text h1 em{font-style:italic;color:var(--gold)}
+.hdr-text p{font-size:13px;color:var(--dim2)}
+.hbadge{
+  font-size:10px;font-weight:700;padding:4px 13px;
+  border-radius:20px;background:rgba(246,201,14,.12);
+  color:var(--gold);border:1px solid rgba(246,201,14,.3);
+  letter-spacing:.06em;flex-shrink:0;align-self:flex-start;margin-top:4px;
+}
+
+/* ── Tabs ── */
+.tab-bar{
+  display:flex;background:var(--ink2);
+  border-bottom:1px solid var(--border);overflow-x:auto;
+}
+.tab{
+  padding:15px 22px;font-size:12.5px;font-weight:500;
+  cursor:pointer;border:none;border-bottom:2px solid transparent;
+  background:transparent;color:var(--dim2);
+  transition:all .18s;white-space:nowrap;font-family:'Figtree',sans-serif;
+  letter-spacing:.01em;
+}
+.tab:hover{color:var(--mist)}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+
+/* ── Panels ── */
+.panel{display:none;padding:30px;max-width:980px;margin:0 auto}
+.panel.on{display:block;animation:fadeUp .3s ease}
+
+/* ── Cards ── */
+.card{
+  background:var(--ink2);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px 22px;margin-bottom:14px;
+}
+.card-title{
+  font-size:18px;font-family:'Instrument Serif',serif;
+  color:var(--mist);margin-bottom:8px;line-height:1.3;
+}
+.card-body{font-size:13px;color:var(--dim2);line-height:1.75}
+.badge{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:3px 11px;border-radius:20px;margin-bottom:10px;
+  letter-spacing:.06em;text-transform:uppercase;
+}
+.two  {display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:600px){.two,.three{grid-template-columns:1fr}}
+.paper{
+  background:var(--ink3);border-left:3px solid var(--border);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:10px 14px;margin-bottom:8px;font-size:12px;color:var(--dim2);
+}
+.paper strong{color:var(--mist)}
+
+/* ── Section label ── */
+.sec{
+  font-size:10px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dim);
+  margin:26px 0 12px;display:flex;align-items:center;gap:10px;
+}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Stat boxes ── */
+.stat{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:16px;text-align:center;
+}
+.stat-val{font-size:26px;font-weight:700;font-family:'Instrument Serif',serif}
+.stat-lbl{font-size:11px;color:var(--dim2);margin-top:4px;line-height:1.4}
+
+/* ── Big idea callout ── */
+.idea{
+  border-radius:var(--r);padding:22px 24px;margin-bottom:14px;
+  position:relative;overflow:hidden;
+}
+.idea::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 100%);
+  pointer-events:none;
+}
+.idea-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.idea-body{font-size:14px;line-height:1.75;font-family:'Instrument Serif',serif;font-style:italic}
+
+/* ── Step navigator ── */
+.step-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.step-btn{
+  padding:8px 20px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  cursor:pointer;background:var(--ink3);color:var(--mist);
+  transition:all .15s;font-family:'Figtree',sans-serif;
+}
+.step-btn:hover:not(:disabled){background:var(--ink4);border-color:var(--dim)}
+.step-btn:disabled{opacity:.3;cursor:default}
+.step-count{font-size:12px;color:var(--dim2);font-family:'JetBrains Mono',monospace}
+.step-card{
+  background:var(--ink2);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px 22px;min-height:110px;
+}
+.step-title{font-size:17px;font-family:'Instrument Serif',serif;color:var(--mist);margin-bottom:8px}
+.step-body{font-size:13px;color:var(--dim2);line-height:1.75}
+.step-formula{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:13px 16px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  color:var(--gold);margin-top:12px;line-height:1.8;white-space:pre-wrap;
+}
+
+/* ── Emergence timeline ── */
+.timeline{position:relative;padding-left:28px}
+.timeline::before{
+  content:'';position:absolute;left:8px;top:0;bottom:0;
+  width:2px;background:linear-gradient(to bottom,var(--gold),var(--violet),var(--sage));
+}
+.tl-item{position:relative;margin-bottom:18px;animation:fadeUp .4s ease both}
+.tl-dot{
+  position:absolute;left:-24px;top:6px;
+  width:14px;height:14px;border-radius:50%;border:2px solid;
+  background:var(--ink);
+}
+.tl-scale{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:4px;font-family:'JetBrains Mono',monospace;
+}
+.tl-title{font-size:14px;font-weight:600;color:var(--mist);margin-bottom:4px}
+.tl-body{font-size:12px;color:var(--dim2);line-height:1.6}
+.tl-abilities{
+  display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;
+}
+.tl-chip{
+  font-size:10px;font-weight:600;padding:2px 9px;border-radius:10px;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* ── Emergence simulator ── */
+.sim-wrap{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;margin-bottom:14px;
+}
+.sim-header{
+  background:var(--ink4);border-bottom:1px solid var(--border);
+  padding:14px 18px;display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;
+}
+.sim-title{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim2)}
+.sim-scale-btns{display:flex;gap:6px}
+.scale-btn{
+  padding:5px 14px;font-size:11px;font-weight:600;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  cursor:pointer;background:var(--ink3);color:var(--dim2);
+  transition:all .15s;font-family:'JetBrains Mono',monospace;
+}
+.scale-btn.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+.sim-body{padding:18px}
+.sim-prompt{
+  font-size:13px;color:var(--mist);margin-bottom:10px;
+  font-family:'JetBrains Mono',monospace;
+  background:var(--ink);border-radius:var(--r-sm);
+  padding:10px 14px;border:1px solid var(--border);
+}
+.sim-prompt span{color:var(--gold)}
+.sim-tasks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.sim-tasks{grid-template-columns:1fr}}
+.sim-task{
+  background:var(--ink);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:12px;
+}
+.sim-task-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim2);margin-bottom:6px}
+.sim-task-result{
+  font-size:12px;font-family:'JetBrains Mono',monospace;
+  line-height:1.6;min-height:52px;
+}
+.sim-ability-bar{
+  height:6px;border-radius:3px;background:var(--ink4);
+  margin-top:8px;overflow:hidden;
+}
+.sim-ability-fill{
+  height:100%;border-radius:3px;
+  transition:width .8s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Iceberg metaphor viz ── */
+.iceberg{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r);padding:22px;margin-bottom:14px;
+  position:relative;overflow:hidden;
+}
+.ice-above{
+  background:rgba(99,179,237,.1);border:1px solid rgba(99,179,237,.3);
+  border-radius:var(--r-sm);padding:14px;text-align:center;margin-bottom:6px;
+}
+.ice-line{
+  height:2px;background:linear-gradient(to right,transparent,var(--sky),transparent);
+  margin:10px 0;position:relative;
+}
+.ice-line::after{
+  content:'water level';position:absolute;right:0;top:-18px;
+  font-size:9px;color:var(--dim);font-family:'JetBrains Mono',monospace;
+  letter-spacing:.06em;text-transform:uppercase;
+}
+.ice-below{
+  background:rgba(99,179,237,.05);border:1px dashed rgba(99,179,237,.2);
+  border-radius:var(--r-sm);padding:14px;
+}
+.ice-label{font-size:12px;font-weight:700;color:var(--sky);margin-bottom:6px}
+.ice-items{font-size:12px;color:var(--dim2);line-height:1.8}
+
+/* ── In-context learning demo ── */
+.icl-demo{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;margin-bottom:14px;
+}
+.icl-header{
+  padding:12px 16px;background:var(--ink4);
+  border-bottom:1px solid var(--border);
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim2);
+}
+.icl-body{padding:16px}
+.icl-shot{
+  display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;
+}
+.icl-role{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;
+  font-family:'JetBrains Mono',monospace;flex-shrink:0;letter-spacing:.04em;
+  text-transform:uppercase;margin-top:2px;
+}
+.icl-text{font-size:13px;color:var(--mist);font-family:'JetBrains Mono',monospace;line-height:1.6}
+.icl-divider{height:1px;background:var(--border);margin:10px 0}
+.icl-prediction{
+  display:flex;gap:10px;align-items:flex-start;
+  background:rgba(246,201,14,.06);border:1px solid rgba(246,201,14,.15);
+  border-radius:var(--r-sm);padding:12px;
+}
+.icl-output{font-size:13px;font-family:'JetBrains Mono',monospace;line-height:1.6}
+.icl-cursor{display:inline-block;width:8px;height:14px;background:var(--gold);animation:pulse 1s ease infinite;vertical-align:middle;margin-left:2px;border-radius:1px}
+.icl-tab-row{display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--ink4);flex-wrap:wrap}
+.icl-tab{
+  padding:4px 14px;font-size:11px;font-weight:600;border-radius:20px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--dim2);
+  transition:all .15s;font-family:'JetBrains Mono',monospace;
+}
+.icl-tab.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+
+/* ── Thinking chips ── */
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{
+  padding:6px 15px;border-radius:var(--r-sm);font-size:12px;font-weight:600;
+  cursor:pointer;border:1px solid var(--border);background:var(--ink3);color:var(--dim2);
+  transition:all .15s;font-family:'JetBrains Mono',monospace;
+}
+.chip:hover{border-color:var(--gold);color:var(--mist)}
+.chip.on{background:rgba(246,201,14,.15);color:var(--gold);border-color:rgba(246,201,14,.4)}
+.chip-detail{
+  background:var(--ink3);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:16px;font-size:13px;
+  color:var(--dim2);line-height:1.75;min-height:80px;margin-top:4px;
+}
+
+/* ── Misconception cards ── */
+.mc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:560px){.mc-grid{grid-template-columns:1fr}}
+.mc-wrong{
+  background:rgba(252,129,129,.07);border:1px solid rgba(252,129,129,.25);
+  border-radius:var(--r-sm);padding:14px;
+}
+.mc-right{
+  background:rgba(72,187,120,.07);border:1px solid rgba(72,187,120,.25);
+  border-radius:var(--r-sm);padding:14px;
+}
+.mc-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.mc-text{font-size:12px;color:var(--dim2);line-height:1.65}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-text">
+    <h1>Beyond Next-Token Prediction</h1>
+    <h1><em>What LLMs Are Actually Doing</em></h1>
+    <p style="margin-top:6px">Training objective ≠ purpose · Emergence · In-context learning · The iceberg of capability</p>
+  </div>
+  <span class="hbadge">Layer 8 — Pretraining</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">The core confusion</button>
+  <button class="tab"     onclick="showTab(1)">What the objective is</button>
+  <button class="tab"     onclick="showTab(2)">Emergence simulator</button>
+  <button class="tab"     onclick="showTab(3)">In-context learning</button>
+  <button class="tab"     onclick="showTab(4)">The iceberg</button>
+  <button class="tab"     onclick="showTab(5)">Misconceptions</button>
+</div>
+
+<!-- ══ TAB 0: CORE CONFUSION ══ -->
+<div class="panel on" id="p0">
+
+  <div class="idea" style="background:rgba(246,201,14,.07);border:1px solid rgba(246,201,14,.2)">
+    <div class="idea-label" style="color:var(--gold)">The central question</div>
+    <div class="idea-body" style="color:var(--mist)">"If an LLM is just predicting the next word — why can it reason through a maths problem, write working code, explain quantum physics, and hold a coherent conversation?"</div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:rgba(246,201,14,.15);color:var(--gold)">The distinction that matters</span>
+    <div class="card-title">Training objective ≠ emergent capability ≠ deployed purpose</div>
+    <div class="card-body">These three things are often conflated — and conflating them causes enormous confusion.<br><br>
+    <strong style="color:var(--mist)">Training objective:</strong> predict the next token. This is the loss function. The mechanism by which weights are updated. It is a mathematical operation, not a description of what the model can do.<br><br>
+    <strong style="color:var(--mist)">Emergent capability:</strong> reasoning, coding, translation, summarisation, instruction following. These were never explicitly trained for. They emerged as side effects of doing next-token prediction at scale on a sufficiently rich and diverse corpus.<br><br>
+    <strong style="color:var(--mist)">Deployed purpose:</strong> be a useful assistant, coding partner, reasoning engine, or agent. This is what the model is for — achieved through SFT and RLHF on top of the pretrained base.</div>
+  </div>
+
+  <!-- Step through the distinction -->
+  <div class="sec">A thought experiment — step by step</div>
+  <div class="step-nav">
+    <button class="step-btn" id="s0-prev" onclick="step0(-1)" disabled>← Back</button>
+    <span class="step-count" id="s0-count">1 / 6</span>
+    <button class="step-btn" id="s0-next" onclick="step0(1)">Next →</button>
+  </div>
+  <div class="step-card" id="s0-card"></div>
+
+  <div class="three" style="margin-top:18px">
+    <div class="stat">
+      <div class="stat-val" style="color:var(--gold)">Training<br>objective</div>
+      <div class="stat-lbl">Predict the next token. A mathematical loss. The vehicle, not the destination.</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:var(--violet)">Emergent<br>capability</div>
+      <div class="stat-lbl">Reasoning, coding, translation — side effects of doing prediction at scale.</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:var(--sage)">Deployed<br>purpose</div>
+      <div class="stat-lbl">Useful assistant, agent, tool. Achieved via SFT + RLHF on top of the base model.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 1: WHAT THE OBJECTIVE IS ══ -->
+<div class="panel" id="p1">
+
+  <div class="card">
+    <span class="badge" style="background:rgba(99,179,237,.15);color:var(--sky)">The objective in full</span>
+    <div class="card-title">Next-token prediction: the most powerful self-supervised objective ever discovered</div>
+    <div class="card-body">The objective is deceptively simple: given all tokens so far, assign a probability to every possible next token. Minimise cross-entropy loss. Repeat on every position in every document in a corpus of trillions of words.<br><br>What makes this objective so powerful is what it <em>implicitly requires</em>. To consistently predict the next word in a physics textbook, a model must represent physics. To predict the next line of Python code, it must understand code. To predict the next word in a conversation, it must model the speaker's intent. The objective forces the model to build an internal model of the world from which text is generated — not just to memorise patterns.</div>
+  </div>
+
+  <div class="sec">Why prediction forces understanding</div>
+  <div class="chip-row" id="why-chips">
+    <div class="chip on" onclick="showWhy(this,'physics')">Physics text</div>
+    <div class="chip" onclick="showWhy(this,'code')">Code</div>
+    <div class="chip" onclick="showWhy(this,'math')">Mathematics</div>
+    <div class="chip" onclick="showWhy(this,'dialogue')">Dialogue</div>
+    <div class="chip" onclick="showWhy(this,'logic')">Logic puzzles</div>
+    <div class="chip" onclick="showWhy(this,'multilang')">Multiple languages</div>
+  </div>
+  <div class="chip-detail" id="why-detail"></div>
+
+  <div class="sec">The self-supervision advantage</div>
+  <div class="two">
+    <div class="card" style="border-left:3px solid var(--sky)">
+      <span class="badge" style="background:rgba(99,179,237,.12);color:var(--sky)">Traditional supervised learning</span>
+      <div class="card-body">Needs human-labelled examples for every task. "This image contains a cat." "This email is spam." Requires massive annotation effort per task. Cannot generalise beyond labelled categories. Scaling requires more human work proportionally.</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <span class="badge" style="background:rgba(246,201,14,.12);color:var(--gold)">Next-token prediction</span>
+      <div class="card-body">Zero human labels needed. Any text is training data. The text itself is the supervision — the next word is always known. Scales perfectly: more data = just download more internet. The model learns to do thousands of tasks as a side effect of learning to predict text.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:rgba(72,187,120,.12);color:var(--sage)">The compression argument</span>
+    <div class="card-title">To predict well, you must compress the world into weights</div>
+    <div class="card-body">Predicting the next token in a corpus of trillions of words is an extreme compression problem. A model that merely memorises could not generalise to new sentences. A model that truly predicts must extract the deep regularities — the grammar, the facts, the causal structures, the social norms — that generate the text. The lower the loss, the richer the internal representation. In this sense, a well-trained language model is a compressed model of the world, constructed entirely from the statistics of human writing.<br><br>This is why Ilya Sutskever (OpenAI co-founder) argued: "To predict the next token well, you need to understand the world that produced that text."</div>
+  </div>
+
+  <div class="paper"><strong>Language Models are Unsupervised Multitask Learners (GPT-2)</strong> — Radford et al., OpenAI 2019. The first paper to explicitly show that next-token prediction at scale produces zero-shot task performance — translation, summarisation, QA — with no task-specific training whatsoever.</div>
+  <div class="paper"><strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361). Showed that predictive loss scales smoothly as a power law — and that better loss consistently predicts better downstream task performance across dozens of tasks.</div>
+</div>
+
+<!-- ══ TAB 2: EMERGENCE SIMULATOR ══ -->
+<div class="panel" id="p2">
+
+  <div class="card">
+    <span class="badge" style="background:rgba(183,148,244,.15);color:var(--violet)">Emergent capabilities</span>
+    <div class="card-title">Abilities that appear suddenly at scale — and were never explicitly trained for</div>
+    <div class="card-body">Emergence in AI refers to capabilities that are not present in small models but appear abruptly and unpredictably as model size increases. These abilities were not programmed, not listed as training objectives, and not present in scaled-down versions of the same architecture. They arise from the interaction of scale, data diversity, and the pressure of predicting text well. The simulator below shows what a model at different training scales can and cannot do.</div>
+  </div>
+
+  <div class="sim-wrap">
+    <div class="sim-header">
+      <div class="sim-title">Emergence simulator — select training scale</div>
+      <div class="sim-scale-btns">
+        <button class="scale-btn" onclick="setScale('1b')">1B tokens</button>
+        <button class="scale-btn" onclick="setScale('10b')">10B tokens</button>
+        <button class="scale-btn on" onclick="setScale('100b')">100B tokens</button>
+        <button class="scale-btn" onclick="setScale('1t')">1T tokens</button>
+        <button class="scale-btn" onclick="setScale('15t')">15T tokens</button>
+      </div>
+    </div>
+    <div class="sim-body">
+      <div class="sim-prompt">Context: <span id="sim-ctx">"The capital of France is Paris. The capital of Germany is Berlin. The capital of Japan is"</span></div>
+      <div class="sim-tasks" id="sim-tasks"></div>
+      <div style="margin-top:14px;font-size:12px;color:var(--dim);font-family:'JetBrains Mono',monospace" id="sim-note"></div>
+    </div>
+  </div>
+
+  <!-- Emergence timeline -->
+  <div class="sec">The emergence timeline — what appears at each scale</div>
+  <div class="timeline" id="emerge-timeline"></div>
+
+  <div class="card">
+    <span class="badge" style="background:rgba(183,148,244,.15);color:var(--violet)">Why emergence is surprising</span>
+    <div class="card-title">Loss improves smoothly — but capability appears suddenly</div>
+    <div class="card-body">This is what makes emergence scientifically fascinating. If you plot cross-entropy loss against training compute, you get a smooth power-law curve — completely predictable. But if you plot "can the model do 3-digit addition?" against compute, you get a flat line at zero... then a sudden jump to near-perfect performance. The capability was not gradually improving — it crossed some threshold and appeared.<br><br>Wei et al. (2022) documented this across 137 tasks and 8 model families. Nobody fully understands why this happens — it remains one of the deepest open questions in AI research.</div>
+  </div>
+
+  <div class="paper"><strong>Emergent Abilities of Large Language Models</strong> — Wei et al., Google Brain 2022 (arXiv:2206.07682). Documented 137 tasks where emergent abilities appear. The paper that made "emergence" a central concept in AI research.</div>
+  <div class="paper"><strong>Are Emergent Abilities of Large Language Models a Mirage?</strong> — Schaeffer et al., Stanford 2023 (arXiv:2304.15004). Important counter-argument: some apparent emergence is an artifact of evaluation metrics, not a real discontinuity in capability. The debate is ongoing.</div>
+</div>
+
+<!-- ══ TAB 3: IN-CONTEXT LEARNING ══ -->
+<div class="panel" id="p3">
+
+  <div class="card">
+    <span class="badge" style="background:rgba(72,187,120,.15);color:var(--sage)">In-context learning</span>
+    <div class="card-title">The ability that shouldn't exist — learning from examples without updating any weights</div>
+    <div class="card-body">Standard machine learning requires training: you show the model examples, run backpropagation, and update the weights. In-context learning (ICL) is different: the model is shown examples inside the prompt itself — as text — and immediately generalises to new examples without any weight updates whatsoever. No backpropagation. No gradient. The model "learns" from context that is just tokens in the input. This emerged from GPT-3 and shocked the research community.</div>
+  </div>
+
+  <!-- ICL demo -->
+  <div class="icl-demo">
+    <div class="icl-tab-row">
+      <button class="icl-tab on" onclick="setICL(this,'zero')">Zero-shot</button>
+      <button class="icl-tab" onclick="setICL(this,'one')">One-shot</button>
+      <button class="icl-tab" onclick="setICL(this,'few')">Few-shot</button>
+      <button class="icl-tab" onclick="setICL(this,'chain')">Chain-of-thought</button>
+    </div>
+    <div class="icl-header">Prompt sent to the model — no fine-tuning, no weight updates</div>
+    <div class="icl-body" id="icl-body"></div>
+  </div>
+
+  <div class="sec">How ICL works — three theories</div>
+  <div class="chip-row" id="icl-theory-chips">
+    <div class="chip on" onclick="showICLTheory(this,'locate')">Locate and copy</div>
+    <div class="chip" onclick="showICLTheory(this,'compress')">Task compression</div>
+    <div class="chip" onclick="showICLTheory(this,'meta')">Meta-learning</div>
+  </div>
+  <div class="chip-detail" id="icl-theory-detail"></div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:rgba(72,187,120,.12);color:var(--sage)">Zero-shot: no examples at all</span>
+      <div class="card-body">Just ask the model to do something. "Translate this to French." "Summarise this article." "Solve this maths problem." At sufficient scale, models can perform many tasks zero-shot — purely from the instruction and their training. GPT-3 showed this for the first time at scale. ChatGPT's conversational ability is largely zero-shot generalisation from instruction tuning.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:rgba(72,187,120,.12);color:var(--sage)">Few-shot: examples in the prompt</span>
+      <div class="card-body">Provide 3–10 (input, output) examples before the actual question. The model adapts to the pattern immediately. GPT-3's few-shot results matched or exceeded fine-tuned models on many benchmarks — without updating a single weight. This was the key result that made LLMs practically useful: no task-specific training needed for many tasks.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:rgba(72,187,120,.12);color:var(--sage)">Chain-of-thought prompting</span>
+    <div class="card-title">Showing the model how to think, not just what to answer</div>
+    <div class="card-body">Wei et al. (2022) discovered that including reasoning steps in few-shot examples dramatically improves performance on complex tasks. Instead of showing (question, answer) pairs, you show (question, step-by-step reasoning, answer) pairs. The model learns to generate its own reasoning chains before answering — and this dramatically improves accuracy on maths, logic, and multi-step problems.<br><br>This works because reasoning is text. If the model can predict text well, and reasoning appears in training text, then the model has learned to generate reasoning. The chain-of-thought examples in the prompt simply activate this latent ability. No training required — just prompting.</div>
+  </div>
+
+  <div class="paper"><strong>Language Models are Few-Shot Learners (GPT-3)</strong> — Brown et al., OpenAI 2020 (arXiv:2005.14165). Introduced the term "in-context learning." Showed that a 175B parameter model can match fine-tuned models on many tasks using only examples in the prompt.</div>
+  <div class="paper"><strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models</strong> — Wei et al., Google Brain 2022 (arXiv:2201.11903). Showed that adding reasoning steps to few-shot examples produced dramatic improvements on arithmetic, commonsense, and symbolic reasoning tasks.</div>
+</div>
+
+<!-- ══ TAB 4: THE ICEBERG ══ -->
+<div class="panel" id="p4">
+
+  <div class="card">
+    <span class="badge" style="background:rgba(99,179,237,.15);color:var(--sky)">The iceberg metaphor</span>
+    <div class="card-title">Next-token prediction is the visible tip — a vast structure of capability lies beneath</div>
+    <div class="card-body">Think of an iceberg. What is visible above the waterline is the training objective: predict the next token. What is beneath the waterline — invisible but responsible for the entire structure — is the knowledge, reasoning capacity, and world model that the model must build in order to predict well. The objective is the surface. The capability is the depth.</div>
+  </div>
+
+  <div class="iceberg">
+    <div style="text-align:center;margin-bottom:12px;font-size:12px;color:var(--dim2);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase">The LLM iceberg</div>
+
+    <div class="ice-above">
+      <div class="ice-label" style="color:var(--sky)">▲ Visible: the training objective</div>
+      <div style="font-size:16px;font-family:'Instrument Serif',serif;color:var(--mist);margin:6px 0">"Predict the next token"</div>
+      <div style="font-size:12px;color:var(--dim2)">Minimise cross-entropy loss · Self-supervised · No human labels · Runs on any text</div>
+    </div>
+
+    <div class="ice-line"></div>
+
+    <div class="ice-below">
+      <div class="ice-label">▼ Beneath: what the model must learn to predict well</div>
+      <div class="ice-items" id="iceberg-items"></div>
+    </div>
+  </div>
+
+  <!-- Step through what is built implicitly -->
+  <div class="sec">What must be learned to predict each type of text</div>
+  <div class="step-nav">
+    <button class="step-btn" id="s4-prev" onclick="step4(-1)" disabled>← Back</button>
+    <span class="step-count" id="s4-count">1 / 7</span>
+    <button class="step-btn" id="s4-next" onclick="step4(1)">Next →</button>
+  </div>
+  <div class="step-card" id="s4-card"></div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:rgba(99,179,237,.12);color:var(--sky)">The world model hypothesis</span>
+      <div class="card-body">Some researchers (Lecun, Sutskever, others) argue that a sufficiently capable language model has implicitly built a "world model" — an internal representation of causal structure, physical laws, social dynamics, and factual knowledge. The evidence: LLMs can answer counterfactual questions ("what would happen if..."), perform analogical reasoning, and generalise to tasks they were never explicitly trained on.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:rgba(99,179,237,.12);color:var(--sky)">The stochastic parrot counterargument</span>
+      <div class="card-body">Bender et al. (2021) argued that LLMs are "stochastic parrots" — sophisticated pattern matchers that reproduce statistical regularities without genuine understanding. The lack of grounding in perception and action means there is no meaning behind the tokens. The debate is unresolved — and one of the most important open questions in AI research.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>On the Dangers of Stochastic Parrots: Can Language Models Be Too Big?</strong> — Bender et al. 2021. Influential critique of scale-maximising LLM development. Argued that fluency ≠ understanding.</div>
+  <div class="paper"><strong>Emergent Abilities of Large Language Models</strong> — Wei et al. 2022 (arXiv:2206.07682). Counter-evidence: many capabilities that would require understanding appear at scale.</div>
+</div>
+
+<!-- ══ TAB 5: MISCONCEPTIONS ══ -->
+<div class="panel" id="p5">
+
+  <div class="card">
+    <span class="badge" style="background:rgba(252,129,129,.15);color:var(--rose)">Common misconceptions</span>
+    <div class="card-title">Six things people say about LLMs that are wrong — or at least incomplete</div>
+    <div class="card-body">These misconceptions are everywhere — in news articles, classroom discussions, and even some technical papers. They come from conflating the training objective with the model's capability, or from misunderstanding what "prediction" means at this scale.</div>
+  </div>
+
+  <div id="mc-container"></div>
+
+  <div class="sec">The right mental model</div>
+  <div class="idea" style="background:rgba(72,187,120,.07);border:1px solid rgba(72,187,120,.2)">
+    <div class="idea-label" style="color:var(--sage)">How to think about it</div>
+    <div class="idea-body" style="color:var(--mist)">An LLM is not a "next word predictor." It is a system trained, via next-word prediction, to build a compressed representation of human knowledge and reasoning — and then deployed, via SFT and RLHF, to make that representation useful for specific purposes. The prediction objective is the training method. The knowledge representation is the result. The assistant is the application.</div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:rgba(246,201,14,.12);color:var(--gold)">The analogy: how humans learn</span>
+    <div class="card-title">A child learns language by predicting — not because prediction is the goal</div>
+    <div class="card-body">A human child learning to speak is implicitly doing something similar. They hear language, build internal models of what words mean and what can follow what. This learning pressure builds their conceptual understanding of the world. You would not say a child's "purpose" is to predict the next word in a sentence — even though that is roughly the training signal that drove language acquisition. The same applies to LLMs. The training objective is a means to an end. The end is a rich, useful model of how language and the world work together.</div>
+  </div>
+
+  <div class="paper"><strong>Language Models are Unsupervised Multitask Learners (GPT-2)</strong> — Radford et al. 2019. First demonstration that prediction at scale produces multi-task generalisation.</div>
+  <div class="paper"><strong>Emergent Abilities of Large Language Models</strong> — Wei et al. 2022 (arXiv:2206.07682). The canonical study of what abilities appear at what scale.</div>
+  <div class="paper"><strong>Sparks of Artificial General Intelligence: Early experiments with GPT-4</strong> — Bubeck et al., Microsoft 2023 (arXiv:2303.12528). Controversial argument that GPT-4 shows "sparks" of AGI — wide-ranging capabilities far beyond its training objective.</div>
+</div>
+
+<script>
+// ══ Tab switching ══
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===0 && !s0inited){initS0();s0inited=true;}
+  if(i===2 && !simInited){initSim();simInited=true;}
+  if(i===3 && !iclInited){initICL();iclInited=true;}
+  if(i===4 && !iceInited){initIce();iceInited=true;}
+  if(i===5 && !mcInited){initMC();mcInited=true;}
+}
+let s0inited=false,simInited=false,iclInited=false,iceInited=false,mcInited=false;
+
+// ══ TAB 0: Step-through ══
+const S0_STEPS=[
+  {title:'Imagine you want to teach a child to understand the world',body:'You have a huge library of books — history, science, fiction, conversations, recipes, code, poetry, philosophy. Billions of pages. You cannot label each fact ("this is chemistry," "this is a joke"). How do you use all of this to build understanding?',formula:'Library = 15 trillion tokens of text\nLabels available = 0\nBudget for human annotation = £0'},
+  {title:'The clever trick: use the text itself as the label',body:'Every sentence contains its own labels hidden in plain sight. If you have the sentence "The capital of France is ___", the blank is the label. If you have "def factorial(n): return ___", the blank is the label. The next word is always known — it is just the next word. This is self-supervision: the data labels itself.',formula:'"The quick brown fox ___" → target: "jumps"\n"import numpy ___" → target: "as"\n"2 + 2 = ___" → target: "4"'},
+  {title:'A model trained this way must learn everything',body:'To predict "jumps" after "the quick brown fox", you do not need to know grammar explicitly — but you need to have built something that acts like grammar. To predict "as" after "import numpy", you need to understand Python import conventions. The pressure of predicting accurately at every position forces the model to internalise the structure of language and the world.',formula:'predict("The capital of France is ___") → "Paris"\n\nTo do this right, the model must know geography.\nNobody taught it geography. It learned it to predict better.'},
+  {title:'After trillions of predictions, something unexpected happens',body:'A model trained on enough data at enough scale stops being "a next word predictor" in any meaningful sense. It becomes something that has built a remarkably rich representation of human knowledge, capable of things it was never explicitly trained for: explaining its reasoning, writing poetry, solving maths problems, translating languages it saw rarely. These abilities emerge unpredictably.',formula:'Training: next-token prediction on 15T tokens\nResult: zero-shot translation, reasoning, coding,\n        summarisation, analogy, instruction following\nNone of these were listed as objectives.'},
+  {title:'But a base model is not an assistant — yet',body:'A model trained only on next-token prediction will complete your text, not answer your question. If you ask "What is the capital of France?", it may respond "What is the capital of Germany?" — because that is the kind of text it has seen. The model has no sense of "being helpful." It is predicting what text would follow your text.',formula:'Prompt: "What is the capital of France?"\nBase model: "What is the capital of Germany? What is..."\n\nThis is NOT an assistant. It is a text predictor.\nSFT and RLHF convert it into an assistant.'},
+  {title:'SFT + RLHF complete the picture',body:'Supervised Fine-Tuning (SFT) teaches the model that questions expect answers — using (prompt, completion) pairs. RLHF teaches the model what "good answers" look like — using human preference feedback. The result: an aligned model that has the world-knowledge from pretraining plus the conversational ability and helpfulness from post-training. The prediction objective built the foundation. Post-training built the purpose.',formula:'Pre-training → rich world knowledge and language model\nSFT         → learns to answer, not just complete\nRLHF / DPO  → learns what "helpful" and "safe" means\n──────────────────────────────────────────────────────\nResult      → Claude, ChatGPT, Gemini, Llama-chat'},
+];
+let s0cur=0;
+function initS0(){
+  step0(0,true);
+  // init why chips
+  showWhy(document.querySelector('#why-chips .chip'),'physics');
+}
+function step0(dir,reset=false){
+  if(reset)s0cur=0;else s0cur=Math.max(0,Math.min(S0_STEPS.length-1,s0cur+dir));
+  const s=S0_STEPS[s0cur];
+  document.getElementById('s0-card').innerHTML=`<div class="step-title">${s.title}</div><div class="step-body">${s.body}</div><div class="step-formula">${s.formula}</div>`;
+  document.getElementById('s0-prev').disabled=s0cur===0;
+  document.getElementById('s0-next').disabled=s0cur===S0_STEPS.length-1;
+  document.getElementById('s0-count').textContent=`${s0cur+1} / ${S0_STEPS.length}`;
+}
+
+// ══ TAB 1: Why chips ══
+const WHY={
+  physics:{title:'Predicting physics text forces physics knowledge',body:'A training corpus includes physics textbooks, research papers, Wikipedia articles, and Stack Exchange answers about mechanics, thermodynamics, and quantum theory. To predict "F = ma" followed by "where F is force, m is ___", the model must have built an internal representation of physical law. Random chance gives you the wrong word. Only physics knowledge gives you "mass." The prediction pressure forces the model to encode causality, units, and physical relationships.'},
+  code:{title:'Predicting code forces syntax, semantics, and algorithmic thinking',body:'Code is the richest kind of text for training because it is the most structured. A wrong token usually means the code does not compile. To predict the next line of a recursive Fibonacci function, the model must understand recursion, base cases, and stack behaviour — not just syntax. GitHub, Stack Overflow, and documentation provide billions of training examples. Models trained on this corpus can debug code they have never seen before — because the prediction objective forced the model to understand what code does, not just what it looks like.'},
+  math:{title:'Predicting maths forces multi-step reasoning',body:'Mathematics appears throughout the training corpus: textbooks, competition solutions, scientific papers, Wikipedia proofs. Each step in a proof must follow logically from previous steps — if it does not, the next token would be wrong. To predict that step 3 of a proof follows from step 2, the model must represent the logical relationship. This is why chain-of-thought reasoning is latent in large models — they have seen thousands of solved problems where intermediate steps led to correct conclusions, and learned this pattern.'},
+  dialogue:{title:'Predicting dialogue forces modelling speakers',body:'Conversation makes up a huge portion of the training corpus: forums, social media, customer support transcripts, chat logs. In dialogue, predicting the next sentence requires understanding the previous speaker\'s intent, emotional state, and what a reasonable response would be. A model that cannot model a speaker\'s intent cannot predict their words. This is why frontier models can maintain conversational context, infer unstated information, and respond appropriately to emotional cues — the prediction objective required learning to model minds.'},
+  logic:{title:'Predicting logic text forces logical structure',body:'Logic puzzles, riddles, formal proofs, and legal reasoning all appear in training data. "If all birds can fly, and penguins are birds, then penguins ___" — predicting "can fly" forces the model to represent syllogistic logic. Then fine-tuning data containing corrections ("Actually, penguins cannot fly") teaches the model to prefer accurate reasoning over strict logical application. The base model\'s logic capability emerges from prediction; its accuracy is refined by SFT.'},
+  multilang:{title:'Predicting multilingual text forces cross-lingual representations',body:'The training corpus contains text in hundreds of languages — some representing tiny fractions of the total. To predict French text well, the model learns French. But because the model shares parameters across all languages, a word learned in English implicitly informs the French representation. This is why models can do zero-shot translation between language pairs they saw rarely: the underlying semantic space is partially shared. Prediction on multilingual data forced the construction of a language-agnostic internal representation.'},
+};
+function showWhy(el,key){
+  document.querySelectorAll('#why-chips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=WHY[key];
+  document.getElementById('why-detail').innerHTML=`<strong style="color:var(--mist);font-size:14px;font-family:'Instrument Serif',serif;display:block;margin-bottom:8px">${d.title}</strong>${d.body}`;
+}
+
+// ══ TAB 2: Emergence simulator ══
+const SCALES={
+  '1b':{label:'1B tokens (~Wikipedia)',color:'var(--dim)',tasks:[
+    {task:'World capitals',result:'Paris... maybe. Inconsistent.',ability:15},
+    {task:'Simple arithmetic',result:'2+2=4. Fails on 3-digit.',ability:25},
+    {task:'Code completion',result:'Plausible-looking but usually broken.',ability:10},
+    {task:'Multi-step reasoning',result:'Loses track. Incoherent.',ability:5},
+  ],note:'At 1B tokens: strong grammar, limited facts, almost no reasoning. Looks fluent but fails on substance.'},
+  '10b':{label:'10B tokens',color:'var(--dim2)',tasks:[
+    {task:'World capitals',result:'"Tokyo." Reliable for major countries.',ability:40},
+    {task:'Simple arithmetic',result:'2-digit: good. 3-digit: unreliable.',ability:45},
+    {task:'Code completion',result:'Simple functions work. Complex logic fails.',ability:25},
+    {task:'Multi-step reasoning',result:'Single-step ok. Multiple: inconsistent.',ability:20},
+  ],note:'At 10B tokens: facts improving, basic tasks emerging. Arithmetic and reasoning not yet reliable.'},
+  '100b':{label:'100B tokens (~GPT-3 era)',color:'var(--sky)',tasks:[
+    {task:'World capitals',result:'"Tokyo." Reliable globally.',ability:75},
+    {task:'Simple arithmetic',result:'3-digit: good. Some errors on complex.',ability:70},
+    {task:'Code completion',result:'Working functions. Debugging emerging.',ability:55},
+    {task:'Multi-step reasoning',result:'Chain-of-thought prompting helps significantly.',ability:55},
+  ],note:'At 100B tokens: first emergence of in-context learning, reasoning, and coding as real capabilities.'},
+  '1t':{label:'1T tokens (~early Llama era)',color:'var(--sage)',tasks:[
+    {task:'World capitals',result:'"Tokyo." Near-perfect globally.',ability:92},
+    {task:'Simple arithmetic',result:'Multi-step: reliable. Long chains: ok.',ability:85},
+    {task:'Code completion',result:'Complex functions. Some debugging. Tests.',ability:75},
+    {task:'Multi-step reasoning',result:'Solid with chain-of-thought. AIME: ~20%.',ability:70},
+  ],note:'At 1T tokens: strong across all basic tasks. Reasoning becomes reliable with prompting. Coding usable.'},
+  '15t':{label:'15T tokens (Llama 3 scale)',color:'var(--gold)',tasks:[
+    {task:'World capitals',result:'"Tokyo." Perfect.',ability:99},
+    {task:'Simple arithmetic',result:'Excellent through 5+ digit numbers.',ability:96},
+    {task:'Code completion',result:'Production-quality. Debugging. Tests. Docs.',ability:92},
+    {task:'Multi-step reasoning',result:'AIME: ~30-70% (with GRPO training). Complex logic: strong.',ability:88},
+  ],note:'At 15T tokens (over-trained per Chinchilla): near-saturated on knowledge tasks. Reasoning still scales with RL post-training.'},
+};
+let curScale='100b';
+function initSim(){setScale('100b');buildTimeline();}
+function setScale(s){
+  curScale=s;
+  document.querySelectorAll('.scale-btn').forEach(b=>{b.classList.toggle('on',b.getAttribute('onclick').includes(`'${s}'`));});
+  const sc=SCALES[s];
+  const el=document.getElementById('sim-tasks');el.innerHTML='';
+  sc.tasks.forEach(t=>{
+    const d=document.createElement('div');d.className='sim-task';
+    d.innerHTML=`<div class="sim-task-label">${t.task}</div>
+      <div class="sim-task-result" style="color:${sc.color}">${t.result}</div>
+      <div class="sim-ability-bar"><div class="sim-ability-fill" style="width:0%;background:${sc.color}" data-w="${t.ability}%"></div></div>`;
+    el.appendChild(d);
+  });
+  document.getElementById('sim-note').textContent=sc.note;
+  setTimeout(()=>{document.querySelectorAll('.sim-ability-fill').forEach(b=>{b.style.width=b.dataset.w;});},100);
+}
+
+const EMERGE_ITEMS=[
+  {scale:'~100M params',color:'var(--dim)',dot:'var(--dim)',abilities:['Basic grammar','Spell correction','Simple word associations'],body:'Models at this scale can complete common phrases and show basic grammatical patterns. No meaningful reasoning. Cannot reliably answer factual questions.'},
+  {scale:'~1B params',color:'var(--dim2)',dot:'var(--sky)',abilities:['Factual recall (common)','Basic translation','Simple classification'],body:'Factual recall emerges for high-frequency facts. Translation becomes possible for major languages. Still fails on reasoning or multi-step tasks.'},
+  {scale:'~7B params (100B tokens)',color:'var(--sky)',dot:'var(--teal)',abilities:['In-context learning','Multi-step arithmetic','Code generation','Zero-shot task following'],body:'First emergence of in-context learning — the model can adapt its behaviour from examples in the prompt. Coding becomes useful. Zero-shot task following begins.'},
+  {scale:'~70B params (1T tokens)',color:'var(--sage)',dot:'var(--sage)',abilities:['Chain-of-thought reasoning','Complex code debugging','Analogical reasoning','Multi-lingual translation'],body:'Reliable chain-of-thought reasoning emerges. Complex coding tasks become tractable. Performance on reasoning benchmarks (MATH, GSM8K) crosses meaningful thresholds.'},
+  {scale:'~70B params (15T tokens, GRPO)',color:'var(--gold)',dot:'var(--gold)',abilities:['PhD-level science (GPQA)','Competition mathematics (AIME)','Extended reasoning traces','Self-correction mid-reasoning'],body:'With RLVR post-training (GRPO), models trained on 15T tokens develop extended reasoning, self-evaluation, and "aha moments." Competitive with the best human performance on some contest maths.'},
+];
+function buildTimeline(){
+  const el=document.getElementById('emerge-timeline');
+  EMERGE_ITEMS.forEach((item,i)=>{
+    const div=document.createElement('div');div.className='tl-item';div.style.animationDelay=i*.08+'s';
+    const chips=item.abilities.map(a=>`<span class="tl-chip" style="background:${item.color}22;color:${item.color};border:1px solid ${item.color}44">${a}</span>`).join('');
+    div.innerHTML=`<div class="tl-dot" style="border-color:${item.dot};background:${item.dot}22"></div>
+      <div class="tl-scale" style="color:${item.color}">${item.scale}</div>
+      <div class="tl-title">${item.body}</div>
+      <div class="tl-abilities">${chips}</div>`;
+    el.appendChild(div);
+  });
+}
+
+// ══ TAB 3: In-context learning ══
+const ICL_DATA={
+  zero:{header:'Zero-shot — no examples, just instruction',shots:[
+    {role:'System',text:'You are a helpful assistant.',style:'background:rgba(99,179,237,.15);color:var(--sky)'},
+    {role:'User',text:'Classify the sentiment of this review as Positive or Negative:\n"The food was cold and the service was rude."',style:'background:rgba(255,255,255,.05);color:var(--mist)'},
+  ],output:'Negative',explain:'No examples given — the model generalises directly from the instruction. Works because "sentiment" and "positive/negative" appear extensively in training data.'},
+  one:{header:'One-shot — a single example teaches the format',shots:[
+    {role:'User',text:'Classify the sentiment. Positive or Negative?\n\nReview: "Best pizza I have ever had!"\nSentiment: Positive\n\nReview: "The food was cold and the service was rude."\nSentiment:',style:'background:rgba(255,255,255,.05);color:var(--mist)'},
+  ],output:'Negative',explain:'One example shows the exact format expected. The model infers the task from the pattern and applies it to the new example — no fine-tuning needed.'},
+  few:{header:'Few-shot — multiple examples refine the pattern',shots:[
+    {role:'User',text:'Classify the sentiment. Positive or Negative?\n\nReview: "Best pizza I have ever had!"\nSentiment: Positive\n\nReview: "Waited 40 minutes and the food was wrong."\nSentiment: Negative\n\nReview: "Decent place, nothing special."\nSentiment: Neutral\n\nReview: "The food was cold and the service was rude."\nSentiment:',style:'background:rgba(255,255,255,.05);color:var(--mist)'},
+  ],output:'Negative',explain:'Multiple examples introduce nuance — the model learns the three-class distinction (including Neutral) purely from examples. This matches fine-tuned model performance on many tasks.'},
+  chain:{header:'Chain-of-thought — showing the reasoning process',shots:[
+    {role:'User',text:'Q: Roger has 5 tennis balls. He buys 2 more cans of balls. Each can has 3 balls. How many balls does he have?\nA: Roger starts with 5 balls. 2 cans × 3 balls = 6 balls. 5 + 6 = 11 balls. The answer is 11.\n\nQ: The cafeteria had 23 apples. If they used 20 to make lunch and bought 6 more, how many apples do they have?\nA:',style:'background:rgba(255,255,255,.05);color:var(--mist)'},
+  ],output:'They started with 23 apples. They used 20, leaving 23 − 20 = 3 apples. Then they bought 6 more: 3 + 6 = 9 apples. The answer is 9.',explain:'Chain-of-thought examples activate the model\'s latent reasoning ability. The model generates its own reasoning chain before answering — dramatically improving accuracy on multi-step problems.'},
+};
+let iclMode='zero';
+function initICL(){
+  setICL(document.querySelector('.icl-tab'),'zero');
+  showICLTheory(document.querySelector('#icl-theory-chips .chip'),'locate');
+}
+function setICL(el,mode){
+  iclMode=mode;
+  document.querySelectorAll('.icl-tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const d=ICL_DATA[mode];
+  let html=`<div class="icl-header">${d.header}</div>`;
+  d.shots.forEach(s=>{
+    html+=`<div class="icl-shot">
+      <div class="icl-role" style="${s.style};padding:2px 8px;border-radius:4px">${s.role||'User'}</div>
+      <div class="icl-text">${s.text.replace(/\n/g,'<br>')}</div>
+    </div>`;
+  });
+  html+=`<div class="icl-divider"></div>
+    <div class="icl-prediction">
+      <div class="icl-role" style="background:rgba(72,187,120,.15);color:var(--sage)">Model</div>
+      <div class="icl-output">${d.output}<span class="icl-cursor"></span></div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--dim2);padding:10px;background:var(--ink4);border-radius:var(--r-sm)">💡 ${d.explain}</div>`;
+  document.getElementById('icl-body').innerHTML=html;
+}
+const ICL_THEORIES={
+  locate:{title:'Theory 1 — Locate and copy',body:'The model finds similar patterns in its training data and copies the format. If you show it (English, French translation) examples, it locates "translation" patterns from training and applies them. This theory is supported by evidence that ICL fails when the task format is genuinely novel — i.e., unlike anything in training data. It suggests ICL is sophisticated retrieval, not true learning.'},
+  compress:{title:'Theory 2 — Task compression',body:'The in-context examples compress a task description into the model\'s attention weights for that forward pass. The examples act as a "task vector" that shifts the model\'s behaviour without updating weights. Supported by experiments showing that random labels (wrong answers in examples) barely affect ICL performance — what matters is the format, not the content. The model is reading the task format, not learning from the specific examples.'},
+  meta:{title:'Theory 3 — Meta-learning',body:'The model has learned to learn during pretraining. It has seen so many (problem, solution) pairs that it has learned the general skill of inferring patterns from examples. ICL is the application of this meta-skill at inference time. Supported by the fact that ICL ability scales with model size — a meta-learning skill requires more capacity to execute. The Transformer\'s attention mechanism may implement a form of gradient descent implicitly.'},
+};
+function showICLTheory(el,key){
+  document.querySelectorAll('#icl-theory-chips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=ICL_THEORIES[key];
+  document.getElementById('icl-theory-detail').innerHTML=`<strong style="color:var(--mist);font-family:'Instrument Serif',serif;font-size:14px;display:block;margin-bottom:8px">${d.title}</strong>${d.body}`;
+}
+
+// ══ TAB 4: Iceberg ══
+const ICEBERG_ITEMS=[
+  {cat:'Language structure',items:['Grammar and syntax of 100+ languages','Morphology and word formation','Discourse structure and coherence','Pragmatics and implicature']},
+  {cat:'Factual knowledge',items:['World geography, history, science','People, organisations, events','Causal relationships between entities','Temporal and spatial relationships']},
+  {cat:'Reasoning capacity',items:['Multi-step deductive logic','Analogical and abductive reasoning','Mathematical and algebraic manipulation','Counterfactual thinking']},
+  {cat:'Social and cultural knowledge',items:['Conversational norms and politeness','Humour, irony, and sarcasm','Domain conventions (legal, medical, technical)','Implicit social rules and expectations']},
+  {cat:'Programming and formal systems',items:['Syntax and semantics of 50+ languages','Algorithms and data structures','Debugging patterns and common errors','API conventions and library usage']},
+];
+function initIce(){
+  const el=document.getElementById('iceberg-items');
+  let html='';
+  ICEBERG_ITEMS.forEach(cat=>{
+    html+=`<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:var(--sky);margin-bottom:3px;letter-spacing:.05em">${cat.cat}</div>`;
+    cat.items.forEach(item=>{html+=`<div style="font-size:12px;color:var(--dim2);margin-left:12px;line-height:1.7">· ${item}</div>`;});
+    html+='</div>';
+  });
+  el.innerHTML=html;
+  step4(0,true);
+}
+const S4_STEPS=[
+  {title:'To predict news articles, the model must know current events and facts',body:'News text is full of proper nouns, places, dates, and causal chains. "The Federal Reserve raised interest rates by 25 basis points, causing bond yields to ___". Predicting "rise" requires understanding the relationship between interest rates and bond markets. The model never took an economics class — it learned this from millions of articles where these patterns co-occurred.',formula:'Pattern learned: rate_increase → yield_increase\nSource: ~millions of financial news articles in training data\nRequired knowledge: bond market mechanics, yield relationships'},
+  {title:'To predict fiction, the model must understand character, motivation, and narrative',body:'In a novel, the next sentence follows from character psychology, plot logic, and genre conventions. "The detective examined the footprint. She knew ___". Predicting what the detective knows requires understanding detective fiction tropes, deductive reasoning, and what footprints might reveal. The model has read thousands of mystery novels.',formula:'Pattern learned: detective + evidence → deduction\nSource: crime fiction, procedural TV transcripts, true crime\nRequired: theory of mind, narrative causality, genre conventions'},
+  {title:'To predict scientific papers, the model must learn scientific method',body:'Scientific papers have rigid structure: hypothesis, method, results, discussion, conclusion. Each section must logically follow the previous. Predicting the results section requires understanding what an experiment measures. Predicting the conclusion requires understanding what results imply. The model has read millions of papers across all scientific disciplines.',formula:'Pattern: abstract→introduction→methods→results→conclusion\nRequired: scientific reasoning, statistical inference, domain knowledge\nResult: model can reason about experiments it has never seen'},
+  {title:'To predict programming forums, the model must debug code mentally',body:'Stack Overflow contains billions of (broken code, explanation, fixed code) triplets. To predict the explanation of why code fails, the model must understand what the code does. To predict the fix, it must understand what should happen differently. This is why LLMs can debug novel code — they have seen so many debugging patterns that they can apply the meta-skill.',formula:'Pattern: error_message + broken_code → explanation + fix\nSource: Stack Overflow, GitHub Issues, code review comments\nRequired: code execution semantics, error type recognition'},
+  {title:'To predict mathematical proofs, the model must follow logical derivation',body:'A mathematical proof is a chain where each step follows necessarily from previous steps. If step 3 does not follow from step 2, the model would assign it low probability. Training on proofs from textbooks, competition solutions, and research papers teaches the model to represent logical necessity — even without formal logic training.',formula:'Pattern: premise → derivation_step → conclusion\nRequired: understanding of logical implication, proof techniques\nResult: model can complete novel proofs when pattern-matched to trained structure'},
+  {title:'To predict dialogue, the model must model other minds',body:'In conversation, each utterance is a response to the previous speaker\'s goals and beliefs. To predict "You\'re right, but ___" the model must represent what the current speaker believes and why they are partially agreeing but about to disagree. This is a rudimentary form of Theory of Mind — modelling what another agent knows and intends. It emerges from predicting dialogue at scale.',formula:'Pattern: speaker_belief + context → appropriate_response\nRequired: theory of mind, conversational implicature, social norms\nSource: books, Reddit, Twitter, forums, movie scripts'},
+  {title:'To predict all of this simultaneously, the model must unify it in one representation',body:'The most remarkable thing: a single set of weights learns to do all of this. Physics prediction and fiction prediction and code prediction all run through the same transformer. This suggests the model is building a shared representational substrate — abstract concepts that apply across domains. Whether this constitutes "understanding" is the open question that divides AI researchers today.',formula:'Shared weights handle:\nPhysics ↔ Maths ↔ Code ↔ Language ↔ Reasoning ↔ Social knowledge\n\nOne model. One objective. Trillion-scale emergent compression.'},
+];
+let s4cur=0;
+function step4(dir,reset=false){
+  if(reset)s4cur=0;else s4cur=Math.max(0,Math.min(S4_STEPS.length-1,s4cur+dir));
+  const s=S4_STEPS[s4cur];
+  document.getElementById('s4-card').innerHTML=`<div class="step-title">${s.title}</div><div class="step-body">${s.body}</div><div class="step-formula">${s.formula}</div>`;
+  document.getElementById('s4-prev').disabled=s4cur===0;
+  document.getElementById('s4-next').disabled=s4cur===S4_STEPS.length-1;
+  document.getElementById('s4-count').textContent=`${s4cur+1} / ${S4_STEPS.length}`;
+}
+
+// ══ TAB 5: Misconceptions ══
+const MISCONCEPTIONS=[
+  {wrong:'"LLMs just predict the next word"',right:'Technically true about the training objective. Completely misleading about the result. By this logic, "humans just fire neurons." The training signal and the emergent capability are different things.'},
+  {wrong:'"LLMs have no real understanding — just pattern matching"',right:'The distinction between "real understanding" and "sophisticated pattern matching" is philosophically unclear. Pattern matching on the structure of physics, logic, and language — at sufficient scale and richness — may be indistinguishable from understanding in practical terms.'},
+  {wrong:'"LLMs cannot reason — they just autocomplete"',right:'Autocomplete on a corpus that includes mathematical proofs, scientific derivations, and logical arguments forces the representation of reasoning. Whether this is "real" reasoning or simulated reasoning produces the same outputs on most tasks.'},
+  {wrong:'"LLMs will hallucinate because they are just predicting likely text"',right:'Hallucination happens — but not because prediction is the objective. It happens because the model\'s internal representation of facts is imperfect and because it is trained to generate fluent text (which conflicts with saying "I don\'t know"). The prediction framing does not explain or predict when hallucination occurs.'},
+  {wrong:'"A bigger model is just a better next-word predictor"',right:'Bigger models achieve lower perplexity (better prediction) — but they also acquire qualitatively new capabilities that smaller models lack entirely. The relationship between prediction quality and capability is non-linear and involves discontinuous phase transitions.'},
+  {wrong:'"The model is not sentient — it cannot think"',right:'Nothing about next-token prediction as a training objective can answer this question. Consciousness and sentience are not well-defined enough scientifically to evaluate from training objectives. This question remains genuinely open and should not be confidently answered in either direction.'},
+];
+function initMC(){
+  const el=document.getElementById('mc-container');
+  MISCONCEPTIONS.forEach(m=>{
+    const div=document.createElement('div');div.className='mc-grid';
+    div.innerHTML=`
+      <div class="mc-wrong">
+        <div class="mc-label" style="color:var(--rose)">❌ Misconception</div>
+        <div class="mc-text" style="color:var(--mist);font-weight:500;margin-bottom:6px">${m.wrong}</div>
+      </div>
+      <div class="mc-right">
+        <div class="mc-label" style="color:var(--sage)">✓ More accurate</div>
+        <div class="mc-text">${m.right}</div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+// Init visible tab
+initS0();
+</script>
+</body>
+</html>
