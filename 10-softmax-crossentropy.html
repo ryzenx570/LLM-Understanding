@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Softmax & Cross-Entropy — The Math Behind Every LLM Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #faf9f6;
+  --bg2:   #f0ede6;
+  --bg3:   #e6e1d8;
+  --text:  #1c1a16;
+  --text2: #6b6760;
+  --text3: #a8a49e;
+  --border:rgba(0,0,0,0.1);
+  --r:     12px;
+  --r-sm:  7px;
+  /* accent palette */
+  --red:   #e63b2e;
+  --red-l: #fde8e6;
+  --amber: #d97706;
+  --amb-l: #fef3c7;
+  --teal:  #0e9e88;
+  --tea-l: #d1faf5;
+  --blue:  #2563eb;
+  --blu-l: #dbeafe;
+  --purple:#7c3aed;
+  --pur-l: #ede9fe;
+  --green: #16a34a;
+  --gre-l: #dcfce7;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#18171a;--bg2:#221f26;--bg3:#2c2832;
+    --text:#f0edea;--text2:#9e9a95;--text3:#5c5956;
+    --border:rgba(255,255,255,0.08);
+    --red:#f87171;--red-l:#3b0f0f;
+    --amber:#fbbf24;--amb-l:#3b2508;
+    --teal:#2dd4bf;--tea-l:#042e28;
+    --blue:#60a5fa;--blu-l:#0d1f4a;
+    --purple:#c4b5fd;--pur-l:#2e1a5e;
+    --green:#4ade80;--gre-l:#052e16;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);color:var(--text);
+  line-height:1.65;padding-bottom:40px;
+}
+h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.02em}
+
+/* ── Header ── */
+.site-header{
+  background:var(--bg);border-bottom:1px solid var(--border);
+  padding:20px 28px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+}
+.site-header h1{font-size:22px;font-weight:700;line-height:1.2;margin-bottom:3px}
+.site-header p{font-size:13px;color:var(--text2)}
+.hbadge{
+  font-size:10px;font-weight:600;padding:4px 12px;
+  border-radius:20px;background:var(--amb-l);color:var(--amber);
+  border:1px solid var(--amber);letter-spacing:.05em;flex-shrink:0
+}
+
+/* ── Tabs ── */
+.tab-bar{
+  display:flex;background:var(--bg);
+  border-bottom:1px solid var(--border);overflow-x:auto;
+}
+.tab{
+  padding:14px 22px;font-size:13px;font-weight:500;
+  cursor:pointer;border:none;border-bottom:3px solid transparent;
+  background:transparent;color:var(--text2);
+  transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif;
+}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--red);border-bottom-color:var(--red);font-weight:600}
+
+/* ── Panels ── */
+.panel{display:none;padding:28px;max-width:940px;margin:0 auto}
+.panel.on{display:block;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Cards ── */
+.card{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px 20px;margin-bottom:14px;
+}
+.card-title{font-size:16px;font-weight:600;font-family:'Fraunces',serif;margin-bottom:6px;line-height:1.3}
+.card-body{font-size:13px;color:var(--text2);line-height:1.7}
+.badge{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:3px 10px;border-radius:20px;margin-bottom:8px;
+  letter-spacing:.05em;text-transform:uppercase
+}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:580px){.two,.three{grid-template-columns:1fr}}
+.paper{
+  background:var(--bg2);border-left:3px solid var(--border);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:10px 14px;margin-bottom:8px;font-size:12px;color:var(--text2);
+}
+.paper strong{color:var(--text)}
+
+/* ── Section label ── */
+.sec{
+  font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text3);
+  margin:24px 0 10px;
+}
+
+/* ── Interactive viz container ── */
+.viz{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px;margin-bottom:14px;
+}
+.viz-title{
+  font-size:13px;font-weight:600;color:var(--text2);
+  font-family:'DM Mono',monospace;margin-bottom:14px;
+}
+
+/* ── Softmax bar chart ── */
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:180px;margin-bottom:10px}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.bar-track{
+  width:100%;flex:1;border-radius:var(--r-sm) var(--r-sm) 0 0;
+  position:relative;display:flex;align-items:flex-end;
+  background:var(--bg3);border-radius:var(--r-sm);overflow:hidden;
+}
+.bar-fill{
+  width:100%;border-radius:var(--r-sm);
+  position:absolute;bottom:0;transition:height .35s cubic-bezier(.4,0,.2,1);
+}
+.bar-val{
+  position:absolute;top:6px;width:100%;text-align:center;
+  font-size:11px;font-weight:700;font-family:'DM Mono',monospace;
+}
+.bar-label{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;text-align:center}
+.bar-logit{font-size:10px;color:var(--text3);text-align:center;font-family:'DM Mono',monospace}
+
+/* ── Logit sliders ── */
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.slider-label{width:60px;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;flex-shrink:0}
+.slider-wrap{flex:1;position:relative}
+input[type=range]{
+  width:100%;-webkit-appearance:none;height:6px;
+  border-radius:3px;outline:none;cursor:pointer;background:var(--bg3);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  cursor:pointer;transition:transform .1s;border:2px solid white;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.slider-val{
+  width:44px;text-align:right;font-size:12px;
+  font-weight:600;font-family:'DM Mono',monospace;flex-shrink:0;
+}
+
+/* ── Temperature slider ── */
+.temp-display{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:12px 16px;
+  margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.temp-label{font-size:12px;color:var(--text2)}
+.temp-val{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--red)}
+.temp-effect{font-size:12px;color:var(--text2);flex:1}
+
+/* ── Cross-entropy loss meter ── */
+.loss-meter{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;margin:10px 0;
+}
+.loss-track{
+  height:24px;border-radius:12px;background:var(--bg3);
+  overflow:hidden;position:relative;margin:8px 0;
+}
+.loss-fill{
+  height:100%;border-radius:12px;
+  transition:width .4s cubic-bezier(.4,0,.2,1), background .4s;
+  display:flex;align-items:center;padding-left:10px;
+}
+.loss-fill span{font-size:11px;font-weight:700;color:#fff;font-family:'DM Mono',monospace;white-space:nowrap}
+.loss-val{font-size:28px;font-weight:700;font-family:'Fraunces',serif}
+.loss-label{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── Token distribution ── */
+.token-dist{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.tok-item{
+  display:flex;align-items:center;gap:6px;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;padding:5px 10px;font-size:12px;
+  font-family:'DM Mono',monospace;
+}
+.tok-prob{
+  width:40px;height:8px;border-radius:4px;
+  transition:width .35s cubic-bezier(.4,0,.2,1);
+}
+.tok-word{color:var(--text);font-weight:500}
+.tok-pct{color:var(--text2);font-size:11px}
+
+/* ── Step-through ── */
+.step-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.step-btn{
+  padding:7px 18px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  cursor:pointer;background:var(--bg);color:var(--text);
+  transition:all .15s;font-family:'DM Sans',sans-serif;
+}
+.step-btn:hover{background:var(--bg2)}
+.step-btn:disabled{opacity:.3;cursor:default}
+.step-count{font-size:12px;color:var(--text2);font-family:'DM Mono',monospace}
+.step-card{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px 18px;min-height:100px;
+}
+.step-card-title{font-size:15px;font-weight:600;font-family:'Fraunces',serif;margin-bottom:6px}
+.step-card-body{font-size:13px;color:var(--text2);line-height:1.7}
+.step-formula{
+  background:var(--bg2);border-radius:var(--r-sm);
+  padding:12px 16px;font-family:'DM Mono',monospace;
+  font-size:14px;color:var(--text);margin:10px 0;text-align:center;
+  border:1px solid var(--border);
+}
+
+/* ── Word prediction interactive ── */
+.word-choice{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.word-btn{
+  padding:7px 16px;border-radius:20px;font-size:13px;font-weight:500;
+  cursor:pointer;border:2px solid var(--border);background:var(--bg2);
+  color:var(--text);transition:all .15s;font-family:'DM Mono',monospace;
+}
+.word-btn:hover{border-color:var(--teal);color:var(--teal)}
+.word-btn.correct{background:var(--gre-l);border-color:var(--green);color:var(--green)}
+.word-btn.wrong{background:var(--red-l);border-color:var(--red);color:var(--red)}
+.word-btn.target{background:var(--tea-l);border-color:var(--teal);color:var(--teal);font-weight:700}
+
+/* ── Connection diagram ── */
+.connect-box{
+  border-radius:var(--r-sm);padding:10px 14px;font-size:12px;
+  border:1px solid;text-align:center;font-family:'DM Mono',monospace;
+}
+.connect-arr{text-align:center;font-size:18px;color:var(--text3);padding:4px 0}
+
+/* ── Summary table ── */
+.sum-table{width:100%;border-collapse:collapse;font-size:13px}
+.sum-table th{padding:10px 12px;text-align:left;background:var(--bg2);border:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text2)}
+.sum-table td{padding:10px 12px;border:1px solid var(--border);color:var(--text2);vertical-align:top}
+.sum-table tr:hover td{background:var(--bg2)}
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div>
+    <h1>Softmax &amp; Cross-Entropy</h1>
+    <p>The math behind every LLM prediction — Layer 6 of the transformer pipeline</p>
+  </div>
+  <span class="hbadge">Layer 6 — output head</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">What problem they solve</button>
+  <button class="tab"     onclick="showTab(1)">Softmax — live playground</button>
+  <button class="tab"     onclick="showTab(2)">Temperature</button>
+  <button class="tab"     onclick="showTab(3)">Cross-entropy loss</button>
+  <button class="tab"     onclick="showTab(4)">How training uses them</button>
+  <button class="tab"     onclick="showTab(5)">In attention too</button>
+</div>
+
+<!-- ══ TAB 0: WHAT PROBLEM ══ -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--amb-l);color:var(--amber)">The big picture</span>
+    <div class="card-title">The output head must answer one question: what word comes next?</div>
+    <div class="card-body">After the transformer processes your input through N attention blocks, you have a vector of numbers (the hidden state). But you need a word — not a vector. Two mathematical tools bridge this gap every single time the model generates a token: <strong>softmax</strong> converts raw scores into a proper probability distribution, and <strong>cross-entropy</strong> measures how wrong that distribution was during training. Every word you have ever seen from ChatGPT, Claude, or Llama came through these two functions.</div>
+  </div>
+
+  <!-- Step-through explainer -->
+  <div class="sec">The pipeline — step by step</div>
+  <div class="step-nav">
+    <button class="step-btn" id="intro-prev" onclick="stepIntro(-1)" disabled>← Back</button>
+    <span class="step-count" id="intro-count">Step 1 of 6</span>
+    <button class="step-btn" id="intro-next" onclick="stepIntro(1)">Next →</button>
+  </div>
+  <div class="step-card" id="intro-card"></div>
+
+  <div class="sec" style="margin-top:24px">Where each function lives in the LLM</div>
+  <div style="display:flex;flex-direction:column;gap:4px;max-width:480px">
+    <div class="connect-box" style="background:var(--blu-l);border-color:var(--blue);color:var(--blue)">Transformer blocks × N<br><span style="font-size:10px;opacity:.8">Attention + FFN — processes meaning</span></div>
+    <div class="connect-arr">↓</div>
+    <div class="connect-box" style="background:var(--bg2);border-color:var(--border);color:var(--text2)">Linear projection: hidden_state (D) → logits (V)<br><span style="font-size:10px">D ≈ 4,096  →  V ≈ 128,000 raw scores</span></div>
+    <div class="connect-arr">↓ <strong style="color:var(--red)">SOFTMAX</strong></div>
+    <div class="connect-box" style="background:var(--red-l);border-color:var(--red);color:var(--red)">Probability distribution over all vocab words<br><span style="font-size:10px">128,000 numbers that sum to exactly 1.0</span></div>
+    <div class="connect-arr">↓ sample one token</div>
+    <div class="connect-box" style="background:var(--gre-l);border-color:var(--green);color:var(--green)">Next token chosen — one word generated<br><span style="font-size:10px">Training: compare to true token with <strong>cross-entropy</strong></span></div>
+    <div class="connect-arr">↓ <strong style="color:var(--amber)">CROSS-ENTROPY</strong> (training only)</div>
+    <div class="connect-box" style="background:var(--amb-l);border-color:var(--amber);color:var(--amber)">Loss = −log(probability assigned to correct word)<br><span style="font-size:10px">Gradient flows back — weights update — model improves</span></div>
+  </div>
+</div>
+
+<!-- ══ TAB 1: SOFTMAX PLAYGROUND ══ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--red-l);color:var(--red)">Softmax</span>
+    <div class="card-title">Softmax turns raw scores into a probability distribution</div>
+    <div class="card-body">The model produces one raw score (logit) per vocabulary word — but raw scores can be any number: positive, negative, very large, very small. Softmax converts them to a clean probability distribution where every number is between 0 and 1, and all numbers sum to exactly 1. The formula: for each logit zᵢ, compute e^zᵢ / Σ(e^zⱼ for all j). Try dragging the sliders below — watch the bars respond instantly.</div>
+  </div>
+
+  <div class="viz">
+    <div class="viz-title">LIVE PLAYGROUND — drag the logit sliders to reshape the distribution</div>
+
+    <!-- Bar chart -->
+    <div class="bar-chart" id="sm-bars"></div>
+
+    <!-- Sliders -->
+    <div id="sm-sliders"></div>
+
+    <!-- Formula display -->
+    <div class="step-formula" id="sm-formula" style="font-size:12px;text-align:left;line-height:1.8"></div>
+
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+      <button class="step-btn" onclick="setSMPreset('flat')">Flat logits</button>
+      <button class="step-btn" onclick="setSMPreset('one')">One winner</button>
+      <button class="step-btn" onclick="setSMPreset('two')">Two contenders</button>
+      <button class="step-btn" onclick="setSMPreset('random')">Random</button>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--red-l);color:var(--red)">Why e^x — why not just normalize?</span>
+      <div class="card-body">You could divide each score by the sum (like a simple ratio). But e^x does something better: it <strong>amplifies differences</strong>. If one logit is 3 and another is 1, their ratio is 3:1 — but e³:e¹ = 20:2.7 ≈ 7.5:1. The exponential makes the most confident prediction stand out more sharply, while never allowing any probability to reach exactly 0. Every word stays in the game — just with a very tiny probability.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--red-l);color:var(--red)">What "probability distribution" means</span>
+      <div class="card-body">A probability distribution is a list of numbers that all add up to 1.0. If the model assigns probability 0.7 to "cat", that means: if you let this model pick a word thousands of times from this exact state, about 700 out of 1,000 times it would choose "cat". Softmax guarantees this mathematical property — the output is always a valid distribution, regardless of what the raw logits look like.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--red-l);color:var(--red)">Numerical stability trick — subtract the max</span>
+    <div class="card-title">Real implementations use a small but critical fix</div>
+    <div class="card-body">If a logit is very large (e.g. 1,000), computing e^1000 overflows to infinity on any computer. Real implementations first subtract the maximum logit from all logits before exponentiating: softmax(z)ᵢ = e^(zᵢ−max(z)) / Σe^(zⱼ−max(z)). This produces exactly the same probabilities — because subtracting a constant from all logits cancels out — but prevents numerical overflow. This trick is in every deep learning framework.</div>
+  </div>
+</div>
+
+<!-- ══ TAB 2: TEMPERATURE ══ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--pur-l);color:var(--purple)">Temperature</span>
+    <div class="card-title">Temperature controls how "confident" the distribution looks</div>
+    <div class="card-body">Before applying softmax, every logit is divided by a temperature value T. At T=1 (default), softmax runs normally. At T&lt;1, logits get amplified — the distribution sharpens into a spike and the model becomes very "decisive." At T&gt;1, logits get compressed — the distribution flattens and the model becomes more random and "creative." This is the single number behind every "creativity" slider you've seen in AI tools.</div>
+  </div>
+
+  <div class="viz">
+    <div class="viz-title">LIVE — drag temperature and watch the distribution reshape</div>
+
+    <!-- Temperature slider -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--text2)">Temperature T =</span>
+      <input type="range" id="temp-slider" min="10" max="300" value="100" step="5"
+        style="flex:1;min-width:160px;accent-color:var(--purple)"
+        oninput="updateTemp()">
+      <span id="temp-val" style="font-size:20px;font-weight:700;font-family:'Fraunces',serif;color:var(--purple);width:48px">1.0</span>
+    </div>
+
+    <div class="bar-chart" id="temp-bars" style="height:160px"></div>
+
+    <div class="temp-display">
+      <div>
+        <div class="temp-label">Effect at T = <span id="temp-label-val" style="font-weight:600">1.0</span></div>
+        <div id="temp-effect" style="font-size:13px;color:var(--text);margin-top:3px"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <button class="step-btn" onclick="setTemp(30)">T = 0.3 — very focused</button>
+      <button class="step-btn" onclick="setTemp(100)">T = 1.0 — default</button>
+      <button class="step-btn" onclick="setTemp(200)">T = 2.0 — very random</button>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--pur-l);color:var(--purple)">Low T — code generation</span>
+      <div class="card-body">When writing code, you want predictable, correct syntax. Temperature 0.1–0.4 makes the model focus on the single most-likely next token. In most code generators, there is exactly one right way to close a bracket or continue a function signature. Low temperature exploits this — the model acts almost deterministically.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--pur-l);color:var(--purple)">High T — creative writing</span>
+      <div class="card-body">When writing a poem or brainstorming, you want surprising word choices. Temperature 0.8–1.2 flattens the distribution so lower-probability (unexpected) words get a real chance of being selected. This is why "creative mode" in LLM tools tends to produce more vivid, unusual language — the math of temperature makes it genuinely sample from the long tail.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--pur-l);color:var(--purple)">Top-p sampling (nucleus sampling)</span>
+    <div class="card-title">A smarter alternative to temperature</div>
+    <div class="card-body">Top-p sampling (Holtzman et al. 2020) takes the smallest set of tokens whose cumulative probability exceeds p (e.g. p=0.9), then samples only from that set. This adapts dynamically — when the model is confident, the nucleus is small (just a few words). When uncertain, the nucleus is large (many plausible words). This prevents both the rigidity of low temperature and the incoherence of high temperature, giving better results on most creative tasks than temperature alone.</div>
+  </div>
+</div>
+
+<!-- ══ TAB 3: CROSS-ENTROPY ══ -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--amb-l);color:var(--amber)">Cross-entropy loss</span>
+    <div class="card-title">Cross-entropy measures how wrong the model's probability was</div>
+    <div class="card-body">During training, we know the correct next word. Cross-entropy asks: what probability did the model assign to that correct word? The formula is simply <strong>−log(p_correct)</strong>. If the model was very confident and correct (p≈1.0), the loss is near 0. If the model was confident but wrong (p≈0.0), the loss is very large. The gradient of this loss tells every weight in the network which direction to move to become more correct next time.</div>
+  </div>
+
+  <!-- Loss meter demo -->
+  <div class="viz">
+    <div class="viz-title">LIVE — watch the loss change as model confidence changes</div>
+
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      Correct next word: <strong style="color:var(--teal)">"sat"</strong> &nbsp;·&nbsp; Context: "The cat ___"
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--text2)">Probability assigned to "sat" =</span>
+      <input type="range" id="loss-slider" min="1" max="99" value="50" step="1"
+        style="flex:1;min-width:160px;accent-color:var(--amber)"
+        oninput="updateLoss()">
+      <span id="loss-prob-val" style="font-size:20px;font-weight:700;font-family:'Fraunces',serif;color:var(--amber);width:52px">0.50</span>
+    </div>
+
+    <!-- Token distribution display -->
+    <div class="token-dist" id="loss-token-dist"></div>
+
+    <!-- Loss value -->
+    <div class="loss-meter">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
+        <div class="loss-val" id="loss-val" style="color:var(--amber)">0.69</div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Cross-entropy loss</div>
+          <div style="font-size:11px;color:var(--text2)">= −log(<span id="loss-prob-inline">0.50</span>) = <span id="loss-formula-val">0.693</span></div>
+        </div>
+      </div>
+      <div class="loss-track">
+        <div class="loss-fill" id="loss-fill"><span id="loss-fill-label"></span></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:4px">
+        <span>Perfect (p=1.0, loss=0)</span>
+        <span>Terrible (p=0.01, loss=4.6)</span>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <button class="step-btn" onclick="setLoss(95)">p=0.95 — very confident ✓</button>
+      <button class="step-btn" onclick="setLoss(60)">p=0.60 — somewhat sure</button>
+      <button class="step-btn" onclick="setLoss(25)">p=0.25 — uncertain</button>
+      <button class="step-btn" onclick="setLoss(5)">p=0.05 — confidently wrong</button>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--amb-l);color:var(--amber)">Why −log(p)?</span>
+      <div class="card-body">The negative log has exactly the right shape: when p=1.0, −log(1)=0 (no loss — perfect). When p=0.5, −log(0.5)=0.69 (moderate loss). When p=0.01, −log(0.01)=4.6 (high loss). And as p→0, the loss approaches infinity — the model is punished extremely harshly for being confident and wrong. This asymmetry is intentional: being certain and wrong is much worse than being uncertain.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--amb-l);color:var(--amber)">Perplexity = exp(loss)</span>
+      <div class="card-body">Perplexity is the standard metric for language model quality. It equals e raised to the average cross-entropy loss. Intuitively, perplexity is "how many words was the model choosing between on average?" A perplexity of 10 means the model was effectively guessing among 10 equally likely words at each step. Lower is better. GPT-2 on Wikipedia: ~35. GPT-4 estimated: ~5. A perfect model would have perplexity 1.0.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 4: HOW TRAINING USES THEM ══ -->
+<div class="panel" id="p4">
+  <div class="card">
+    <span class="badge" style="background:var(--tea-l);color:var(--teal)">Training loop</span>
+    <div class="card-title">Softmax + cross-entropy together form the training loop's feedback signal</div>
+    <div class="card-body">During training, the model processes a sentence and must predict each next word. Softmax converts its raw scores to probabilities. Cross-entropy compares those probabilities to the actual correct words. The resulting loss flows backwards through every weight in the network — nudging each weight slightly so the model would make a better prediction next time. This happens millions of times per second across thousands of GPUs. Every ability the model has came from this loop.</div>
+  </div>
+
+  <!-- Interactive word prediction -->
+  <div class="viz">
+    <div class="viz-title">INTERACTIVE — The model predicts the next word. Click to see the loss.</div>
+    <div style="font-size:14px;color:var(--text);margin-bottom:12px">
+      Context: <strong style="font-family:'DM Mono',monospace">"The cat sat on the ___"</strong>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">The model's top predictions (click one to see what the loss would be):</div>
+    <div class="word-choice" id="word-choice"></div>
+    <div id="word-result" style="margin-top:12px;padding:12px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:13px;color:var(--text2);display:none"></div>
+  </div>
+
+  <!-- Step-through: full training pass -->
+  <div class="sec">One training step — what actually happens</div>
+  <div class="step-nav">
+    <button class="step-btn" id="train-prev" onclick="stepTrain(-1)" disabled>← Back</button>
+    <span class="step-count" id="train-count">Step 1 of 7</span>
+    <button class="step-btn" id="train-next" onclick="stepTrain(1)">Next →</button>
+  </div>
+  <div class="step-card" id="train-card"></div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="card">
+      <span class="badge" style="background:var(--tea-l);color:var(--teal)">SFT: train on completions only</span>
+      <div class="card-body">During supervised fine-tuning, cross-entropy loss is computed ONLY on the assistant's response tokens, not on the user's prompt. The model is taught to generate good answers — not to reproduce questions. This is the <code>train_on_responses_only</code> setting in TRL's SFTTrainer. Without this, the model wastes capacity trying to predict the prompt it was given.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--tea-l);color:var(--teal)">Loss curves — what good training looks like</span>
+      <div class="card-body">During healthy training, the loss should decrease smoothly over time. Training loss dropping below 0.2 is a sign of potential overfitting — the model is memorising examples rather than learning generalisable patterns. Validation loss rising while training loss falls confirms overfitting. The ideal: both curves decrease together, converging to a low stable value.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Cross-entropy loss is the backbone of the entire LLM field.</strong> Every pre-trained model from GPT-2 to Llama 3 was trained to minimise cross-entropy on next-token prediction. Every SFT fine-tune uses cross-entropy on completions. Even DPO and GRPO implicitly rely on log-probabilities which are just a step away from cross-entropy. Understanding this loss is understanding the foundation everything else is built on.</div>
+</div>
+
+<!-- ══ TAB 5: IN ATTENTION TOO ══ -->
+<div class="panel" id="p5">
+  <div class="card">
+    <span class="badge" style="background:var(--blu-l);color:var(--blue)">Softmax in attention</span>
+    <div class="card-title">Softmax appears twice — once in attention, once in the output head</div>
+    <div class="card-body">Most students learn about softmax only at the output layer. But it plays an equally critical role deep inside every transformer block — in the attention mechanism itself. The attention softmax and the output softmax solve the same problem (turn raw scores into a valid distribution) but serve completely different purposes.</div>
+  </div>
+
+  <div class="two">
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <span class="badge" style="background:var(--blu-l);color:var(--blue)">Softmax in attention — Layer 3</span>
+      <div class="card-title">Attention weights: how much to look at each past word</div>
+      <div class="card-body">In attention, Q·Kᵀ / √d_k produces a score for every pair of tokens (how relevant is token j to token i?). These raw scores are then passed through softmax to become attention weights — a probability distribution over all positions. This tells the model: "when thinking about position i, spend 40% of your attention on position 3, 35% on position 7, etc." The weights sum to 1 per query position, just like the output probabilities sum to 1.</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--red)">
+      <span class="badge" style="background:var(--red-l);color:var(--red)">Softmax in output head — Layer 6</span>
+      <div class="card-title">Token probabilities: what word to generate next</div>
+      <div class="card-body">At the output, the linear projection produces one logit per vocabulary word (~128,000 logits). Softmax converts these to token probabilities — the distribution you sample from to choose the next word. This softmax produces the probability that you see during training (cross-entropy uses −log of this) and at inference (temperature scales this before sampling).</div>
+    </div>
+  </div>
+
+  <!-- Summary comparison table -->
+  <div class="sec">Side-by-side comparison</div>
+  <table class="sum-table">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th style="color:var(--blue)">Attention softmax (Layer 3)</th>
+        <th style="color:var(--red)">Output softmax (Layer 6)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Input</strong></td>
+        <td>Dot products Q·Kᵀ / √d_k — one per (query, key) pair</td>
+        <td>Linear projection logits — one per vocabulary word</td>
+      </tr>
+      <tr>
+        <td><strong>Output size</strong></td>
+        <td>Sequence_length scores per query position (e.g. 2,048)</td>
+        <td>Vocabulary size probabilities (e.g. 128,000)</td>
+      </tr>
+      <tr>
+        <td><strong>What it means</strong></td>
+        <td>How much attention to pay to each past position</td>
+        <td>Probability of each word being the correct next token</td>
+      </tr>
+      <tr>
+        <td><strong>Used for</strong></td>
+        <td>Weighted sum of Value vectors V — contextualises the representation</td>
+        <td>Sampling the next token (inference) or computing loss (training)</td>
+      </tr>
+      <tr>
+        <td><strong>Temperature</strong></td>
+        <td>Not directly used (but FlashAttention scales the pre-softmax scores)</td>
+        <td>Yes — logits divided by T before softmax to control sharpness</td>
+      </tr>
+      <tr>
+        <td><strong>Cross-entropy?</strong></td>
+        <td>No — attention weights are not compared to a target</td>
+        <td>Yes — −log(p_correct) is the training loss</td>
+      </tr>
+      <tr>
+        <td><strong>Key formula</strong></td>
+        <td style="font-family:'DM Mono',monospace">softmax(Q·Kᵀ / √d_k) · V</td>
+        <td style="font-family:'DM Mono',monospace">softmax(W_out · h) then sample</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card" style="margin-top:14px">
+    <span class="badge" style="background:var(--blu-l);color:var(--blue)">The causal mask + softmax interaction</span>
+    <div class="card-title">Why the mask uses −∞, not 0</div>
+    <div class="card-body">In decoder-only models, tokens can only attend to past tokens — not future ones. The causal mask sets future positions to −∞ (negative infinity) before the attention softmax. When you compute e^(−∞), you get exactly 0 — meaning those future positions receive zero attention weight after softmax. If you used 0 instead of −∞, e^0 = 1, and future tokens would still receive a small (unwanted) weight. The −∞ trick ensures the mask is mathematically perfect.</div>
+  </div>
+
+  <div class="paper"><strong>Attention Is All You Need</strong> — Vaswani et al. 2017. Introduced both uses of softmax: in scaled dot-product attention and in the output distribution. Section 3.2.1 defines the attention softmax explicitly.</div>
+  <div class="paper"><strong>The Curious Case of Neural Text Degeneration</strong> — Holtzman et al. 2020 (arXiv:1904.09751). Introduced nucleus (top-p) sampling — showed that sampling from the full softmax distribution causes repetition and degeneration; nucleus sampling fixes this.</div>
+</div>
+
+<script>
+// ══ Tab switching ══
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===1) initSoftmax();
+  if(i===2) initTemp();
+  if(i===3) initLoss();
+  if(i===4) initTrain();
+}
+
+// ══ TAB 0: Intro stepper ══
+const INTRO_STEPS=[
+  {title:'The model produces raw numbers called logits',
+   body:'After N transformer blocks, the model maps the final hidden state through a linear layer to produce one raw score per vocabulary word. For Llama 3 with a vocabulary of 128,000 words, that is 128,000 numbers. These numbers are called <strong>logits</strong>. They can be any value — positive, negative, huge, tiny — they have no constraint yet.',
+   formula:'logits = W_out × hidden_state &nbsp;→&nbsp; shape: [128,000]'},
+  {title:'Problem: logits are not probabilities',
+   body:'You cannot directly use logits to choose a word. They are not constrained to be between 0 and 1, and they do not sum to 1. If you have logits [2.1, -0.4, 0.8, 1.3], what does that tell you? Which word should be chosen? The numbers are meaningless without a reference point.',
+   formula:'Logit example: ["cat"=2.1, "dog"=-0.4, "sat"=0.8, "the"=1.3]\n→ What do these mean? We cannot tell yet.'},
+  {title:'Softmax: convert logits to probabilities',
+   body:'Softmax applies e^z to each logit, then divides by the sum. This guarantees two things: (1) every output is between 0 and 1, and (2) all outputs sum to exactly 1.0. Now we have a proper probability distribution — we know how likely each word is.',
+   formula:'softmax(zᵢ) = e^zᵢ / Σ e^zⱼ\n\nExample: [2.1→0.53, -0.4→0.04, 0.8→0.14, 1.3→0.23, others→0.06]'},
+  {title:'Sample one token from the distribution',
+   body:'The model randomly samples one word from this distribution. Words with higher probability are more likely to be chosen, but lower-probability words can still be picked. This is why the same prompt can produce different outputs — the sampling step introduces randomness. (Greedy decoding always picks the highest probability word.)',
+   formula:'P("cat")=0.53, P("the")=0.23, P("sat")=0.14, P("dog")=0.04\n→ Random sample → "cat" chosen (53% likely on this step)'},
+  {title:'During training: compare to the correct word',
+   body:'At training time, we know what the correct next word actually was (from the real text). We take the probability the model assigned to that correct word and ask: "how close to 1.0 was it?" Cross-entropy loss measures this with −log(p_correct). If the model assigned 0.90 probability to the right word, the loss is −log(0.90)=0.10 (low, good). If it assigned 0.01, the loss is −log(0.01)=4.6 (high, bad).',
+   formula:'Cross-entropy = −log(p_correct)\n\nGood: p=0.90 → loss = 0.105\nBad:  p=0.01 → loss = 4.605'},
+  {title:'Backpropagation: update all the weights',
+   body:'The loss value flows backwards through the entire network — through the output layer, through all N transformer blocks, all the way to the first embedding layer. Each weight receives a gradient telling it: "move in this direction, by this much, to reduce the loss." After billions of such updates across trillions of training examples, the model learns to assign high probabilities to correct words — and every ability you see in frontier models emerges from this.',
+   formula:'For each weight w: w ← w − lr × ∂Loss/∂w\n\nRepeated ~10²² times during pretraining of a frontier model.'},
+];
+let introCur=0;
+function stepIntro(dir){
+  introCur=Math.max(0,Math.min(INTRO_STEPS.length-1,introCur+dir));
+  const s=INTRO_STEPS[introCur];
+  document.getElementById('intro-card').innerHTML=`
+    <div class="step-card-title">${s.title}</div>
+    <div class="step-card-body">${s.body}</div>
+    <div class="step-formula">${s.formula}</div>`;
+  document.getElementById('intro-prev').disabled=introCur===0;
+  document.getElementById('intro-next').disabled=introCur===INTRO_STEPS.length-1;
+  document.getElementById('intro-count').textContent=`Step ${introCur+1} of ${INTRO_STEPS.length}`;
+}
+stepIntro(0);
+
+// ══ TAB 1: Softmax playground ══
+const SM_WORDS=['cat','dog','sat','the','mat'];
+const SM_COLORS=['#e63b2e','#2563eb','#0e9e88','#d97706','#7c3aed'];
+let smLogits=[2.0,-0.5,1.2,0.8,-1.0];
+
+function softmax(logits,T=1){
+  const scaled=logits.map(x=>x/T);
+  const maxL=Math.max(...scaled);
+  const exps=scaled.map(x=>Math.exp(x-maxL));
+  const sum=exps.reduce((a,b)=>a+b,0);
+  return exps.map(x=>x/sum);
+}
+
+function initSoftmax(){
+  if(document.getElementById('sm-bars').children.length) return;
+  buildSMBars();buildSMSliders();updateSM();
+}
+function buildSMBars(){
+  const el=document.getElementById('sm-bars');
+  SM_WORDS.forEach((w,i)=>{
+    const col=document.createElement('div');col.className='bar-col';
+    col.innerHTML=`
+      <div class="bar-track">
+        <div class="bar-fill" id="smbar-${i}" style="background:${SM_COLORS[i]}22;border:2px solid ${SM_COLORS[i]};height:0%">
+          <span class="bar-val" id="smval-${i}" style="color:${SM_COLORS[i]}"></span>
+        </div>
+      </div>
+      <div class="bar-label" style="color:${SM_COLORS[i]}">${w}</div>
+      <div class="bar-logit" id="smlogit-${i}"></div>`;
+    el.appendChild(col);
+  });
+}
+function buildSMSliders(){
+  const el=document.getElementById('sm-sliders');
+  SM_WORDS.forEach((w,i)=>{
+    const row=document.createElement('div');row.className='slider-row';
+    row.innerHTML=`
+      <div class="slider-label" style="color:${SM_COLORS[i]}">${w}</div>
+      <div class="slider-wrap">
+        <input type="range" id="smsl-${i}" min="-40" max="40" value="${Math.round(smLogits[i]*10)}"
+          style="accent-color:${SM_COLORS[i]}" oninput="smSlide(${i},this.value)">
+      </div>
+      <div class="slider-val" id="smslval-${i}" style="color:${SM_COLORS[i]}">${smLogits[i].toFixed(1)}</div>`;
+    el.appendChild(row);
+  });
+}
+function smSlide(i,v){smLogits[i]=v/10;updateSM();}
+function updateSM(){
+  const probs=softmax(smLogits);
+  const exps=smLogits.map(z=>Math.exp(z-Math.max(...smLogits)));
+  const sum=exps.reduce((a,b)=>a+b,0);
+  SM_WORDS.forEach((w,i)=>{
+    const pct=Math.round(probs[i]*100);
+    document.getElementById('smbar-'+i).style.height=Math.max(pct,2)+'%';
+    document.getElementById('smval-'+i).textContent=pct>6?pct+'%':'';
+    document.getElementById('smlogit-'+i).textContent='z='+smLogits[i].toFixed(1);
+    const sv=document.getElementById('smslval-'+i);if(sv)sv.textContent=smLogits[i].toFixed(1);
+  });
+  const formulaParts=SM_WORDS.map((w,i)=>`e^${smLogits[i].toFixed(1)} = ${exps[i].toFixed(2)}`).join('  |  ');
+  document.getElementById('sm-formula').textContent=
+    `Step 1: exponentiate each logit\n${formulaParts}\n\nStep 2: sum = ${sum.toFixed(2)}\n\nStep 3: divide each by sum → probabilities: ${SM_WORDS.map((w,i)=>`${w}=${(probs[i]*100).toFixed(1)}%`).join(', ')}`;
+}
+function setSMPreset(name){
+  const presets={flat:[0,0,0,0,0],one:[4,-2,-1,-1,-2],two:[3,3,-1,-1,-2],random:[Math.random()*6-3,Math.random()*6-3,Math.random()*6-3,Math.random()*6-3,Math.random()*6-3]};
+  smLogits=presets[name];
+  SM_WORDS.forEach((w,i)=>{const sl=document.getElementById('smsl-'+i);if(sl)sl.value=Math.round(smLogits[i]*10);});
+  updateSM();
+}
+
+// ══ TAB 2: Temperature ══
+const TEMP_WORDS=['mat','floor','floor','chair','ground'];
+const TEMP_LOGITS=[3.2,1.8,1.1,0.6,-0.2];
+const TEMP_COLS=['#e63b2e','#2563eb','#0e9e88','#d97706','#7c3aed'];
+
+function initTemp(){
+  if(document.getElementById('temp-bars').children.length) return;
+  const el=document.getElementById('temp-bars');
+  ['mat','floor','rug','chair','ground'].forEach((w,i)=>{
+    const col=document.createElement('div');col.className='bar-col';
+    col.innerHTML=`
+      <div class="bar-track">
+        <div class="bar-fill" id="tb-${i}" style="background:${TEMP_COLS[i]}22;border:2px solid ${TEMP_COLS[i]};height:0%">
+          <span class="bar-val" id="tv-${i}" style="color:${TEMP_COLS[i]}"></span>
+        </div>
+      </div>
+      <div class="bar-label" style="color:${TEMP_COLS[i]}">${w}</div>`;
+    el.appendChild(col);
+  });
+  updateTemp();
+}
+function updateTemp(){
+  const T=document.getElementById('temp-slider').value/100;
+  document.getElementById('temp-val').textContent=T.toFixed(1);
+  document.getElementById('temp-label-val').textContent=T.toFixed(1);
+  const probs=softmax(TEMP_LOGITS,T);
+  ['mat','floor','rug','chair','ground'].forEach((w,i)=>{
+    const pct=Math.round(probs[i]*100);
+    const bar=document.getElementById('tb-'+i);
+    const val=document.getElementById('tv-'+i);
+    if(bar){bar.style.height=Math.max(pct,1.5)+'%';}
+    if(val){val.textContent=pct>6?pct+'%':'';}
+  });
+  const ef=document.getElementById('temp-effect');
+  if(T<0.5) ef.innerHTML=`<strong>Very focused (T=${T.toFixed(1)})</strong> — logits are amplified, distribution sharpens to a spike. The model is almost certain about its top choice. Good for code, factual questions, structured outputs.`;
+  else if(T<1.1) ef.innerHTML=`<strong>Default behaviour (T=${T.toFixed(1)})</strong> — softmax runs with its natural sharpness. The model's training-time confidence is preserved. Most production LLMs use T=1.0.`;
+  else ef.innerHTML=`<strong>Creative mode (T=${T.toFixed(1)})</strong> — logits are compressed, distribution flattens. Low-probability words get a real chance. Good for brainstorming, poetry, and variety — but increases incoherence at very high values.`;
+}
+function setTemp(v){document.getElementById('temp-slider').value=v;updateTemp();}
+
+// ══ TAB 3: Cross-entropy loss ══
+const LOSS_TOKENS=[
+  {w:'"sat"',correct:true},
+  {w:'"on"',correct:false},
+  {w:'"down"',correct:false},
+  {w:'"up"',correct:false},
+  {w:'"there"',correct:false},
+];
+function initLoss(){
+  updateLoss();
+  const dist=document.getElementById('loss-token-dist');
+  if(dist.children.length) return;
+  LOSS_TOKENS.forEach(t=>{
+    const item=document.createElement('div');item.className='tok-item';
+    item.innerHTML=`<div class="tok-prob" id="ltp-${t.w}" style="background:${t.correct?'#0e9e88':'#e63b2e'}"></div><span class="tok-word">${t.w}</span><span class="tok-pct" id="ltpct-${t.w}"></span>`;
+    dist.appendChild(item);
+  });
+  updateLoss();
+}
+function updateLoss(){
+  const p=document.getElementById('loss-slider').value/100;
+  const loss=-Math.log(p);
+  const maxLoss=4.605;
+  const pct=Math.min(loss/maxLoss*100,100);
+  document.getElementById('loss-prob-val').textContent=p.toFixed(2);
+  document.getElementById('loss-prob-inline').textContent=p.toFixed(2);
+  document.getElementById('loss-formula-val').textContent=loss.toFixed(3);
+  document.getElementById('loss-val').textContent=loss.toFixed(3);
+  const hue=Math.round(120*(1-pct/100)); // green→red
+  const col=`hsl(${hue},70%,45%)`;
+  const fill=document.getElementById('loss-fill');
+  if(fill){
+    fill.style.width=Math.max(pct,3)+'%';
+    fill.style.background=col;
+    const lbl=document.getElementById('loss-fill-label');
+    if(lbl)lbl.textContent=pct>20?`Loss: ${loss.toFixed(2)}`:'';
+  }
+  document.getElementById('loss-val').style.color=col;
+  // Update token dist
+  const rest=(1-p)/4;
+  LOSS_TOKENS.forEach(t=>{
+    const prob=t.correct?p:rest;
+    const bar=document.getElementById('ltp-'+t.w);
+    const pctEl=document.getElementById('ltpct-'+t.w);
+    if(bar)bar.style.width=Math.round(prob*100)+'px';
+    if(pctEl)pctEl.textContent=(prob*100).toFixed(1)+'%';
+  });
+}
+function setLoss(v){document.getElementById('loss-slider').value=v;updateLoss();}
+
+// ══ TAB 4: Training loop ══
+const WORD_CHOICES=[
+  {w:'mat',p:0.72,correct:true},
+  {w:'chair',p:0.11,correct:false},
+  {w:'floor',p:0.09,correct:false},
+  {w:'roof',p:0.04,correct:false},
+  {w:'table',p:0.03,correct:false},
+  {w:'window',p:0.01,correct:false},
+];
+function initTrain(){
+  const el=document.getElementById('word-choice');
+  if(el.children.length){stepTrain(0,true);return;}
+  WORD_CHOICES.forEach(w=>{
+    const btn=document.createElement('button');
+    btn.className='word-btn';btn.textContent=`${w.w} (${Math.round(w.p*100)}%)`;
+    btn.onclick=()=>selectWord(w);el.appendChild(btn);
+  });
+  stepTrain(0,true);
+}
+function selectWord(w){
+  const loss=(-Math.log(w.p)).toFixed(3);
+  const ppl=Math.round(Math.exp(-Math.log(w.p)));
+  const r=document.getElementById('word-result');r.style.display='block';
+  if(w.correct){
+    r.style.background='var(--gre-l)';r.style.borderColor='var(--green)';
+    r.innerHTML=`<strong style="color:var(--green)">✓ "${w.w}" is the correct next word!</strong><br>
+    The model assigned it p=${(w.p*100).toFixed(0)}% probability.<br>
+    Cross-entropy loss = −log(${w.p}) = <strong>${loss}</strong> — relatively low. The model was right and fairly confident. Good training signal.`;
+  } else {
+    r.style.background='var(--red-l)';r.style.borderColor='var(--red)';
+    r.innerHTML=`<strong style="color:var(--red)">"${w.w}" is wrong</strong> — the correct word was <strong style="color:var(--green)">"mat"</strong> (p=72%).<br>
+    The model gave "${w.w}" only ${(w.p*100).toFixed(0)}% probability.<br>
+    Loss computed on correct word: −log(0.72) = <strong>0.329</strong><br>
+    The gradient tells every weight: adjust so "mat" gets higher probability next time this context appears.`;
+  }
+}
+
+const TRAIN_STEPS=[
+  {title:'Step 1 — Forward pass begins',
+   body:'The training example is the sentence "The cat sat on the mat." The tokeniser converts this to token IDs. The embedding layer looks up each token\'s vector. These vectors enter the first of N transformer blocks.',
+   formula:'Input: ["The","cat","sat","on","the","mat"] → token IDs → embedding vectors [D×6]\nEach token is now a point in D-dimensional space (D=4096 for Llama 3).'},
+  {title:'Step 2 — Attention layers process context',
+   body:'Through N attention blocks, each token builds a contextual representation by attending to all previous tokens. "mat" attends heavily to "cat" and "sat" — learning that something animate sat on something. The feed-forward networks apply non-linear transformations to each position. At each layer, the representation gets richer.',
+   formula:'After N=32 blocks, hidden_state: shape [6 × D]\nEach position\'s vector now encodes its meaning in full context.'},
+  {title:'Step 3 — Output head produces logits',
+   body:'For each position, the final hidden state is projected to vocabulary size. At position 5 (the word before "mat"), the model must predict "mat." The linear layer produces 128,000 raw scores — one per vocab word. These are the logits.',
+   formula:'logits = W_out @ hidden_state[5]  →  shape [128,000]\nRaw values: ..., "cat"=1.2, "mat"=3.8, "dog"=-0.4, "floor"=2.1, ...'},
+  {title:'Step 4 — Softmax converts logits to probabilities',
+   body:'Softmax is applied to the 128,000 logits. The result is a probability distribution — 128,000 numbers between 0 and 1 that sum to 1.0. "mat" receives probability 0.72. This represents the model\'s current best guess about what word comes next.',
+   formula:'softmax([..., 3.8_mat, 2.1_floor, 1.2_cat, ...]) → [... 0.72_mat, 0.09_floor, 0.04_cat, ...]'},
+  {title:'Step 5 — Cross-entropy loss computed',
+   body:'The correct word is "mat" with p=0.72. Cross-entropy loss = −log(0.72) = 0.33. This is a relatively low loss — the model already had "mat" as its top prediction. If the model had assigned p=0.01 to "mat", the loss would be −log(0.01)=4.6 — a much stronger error signal.',
+   formula:'loss = −log(p_correct) = −log(0.72) = 0.329\n\nThis single number encodes how wrong the model was on this position.'},
+  {title:'Step 6 — Backward pass (backpropagation)',
+   body:'The loss of 0.329 flows backwards through the entire network. Using the chain rule of calculus, the gradient of the loss with respect to every single weight is computed. This tells each weight: "if you increase slightly, does the loss go up or down, and by how much?" The gradient points in the direction of steepest loss increase.',
+   formula:'∂loss/∂W_out, ∂loss/∂W_attention, ∂loss/∂W_embedding, ...\n\nEach weight gets a gradient — a signed number indicating which direction hurts.'},
+  {title:'Step 7 — Optimizer updates all weights',
+   body:'The optimizer (AdamW) uses the gradients to update every weight. Each weight is nudged in the opposite direction of its gradient — the direction that reduces loss. The learning rate controls how large the step is. After this update, the model is very slightly better at predicting "mat" in this context. Repeat this across 15 trillion tokens — that is pretraining.',
+   formula:'w ← w − lr × gradient(w)\n\nFor a 7B model: ~7 billion weight updates per training step.\nAt 1 million steps × 1 million tokens/batch = 10²¹ total gradient updates.'},
+];
+let trainCur=0;
+function stepTrain(dir,reset=false){
+  if(reset)trainCur=0;else trainCur=Math.max(0,Math.min(TRAIN_STEPS.length-1,trainCur+dir));
+  const s=TRAIN_STEPS[trainCur];
+  document.getElementById('train-card').innerHTML=`
+    <div class="step-card-title">${s.title}</div>
+    <div class="step-card-body">${s.body}</div>
+    <div class="step-formula">${s.formula}</div>`;
+  document.getElementById('train-prev').disabled=trainCur===0;
+  document.getElementById('train-next').disabled=trainCur===TRAIN_STEPS.length-1;
+  document.getElementById('train-count').textContent=`Step ${trainCur+1} of ${TRAIN_STEPS.length}`;
+}
+
+// Init
+stepIntro(0);
+</script>
+</body>
+</html>

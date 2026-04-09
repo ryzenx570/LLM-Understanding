@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRL & GRPO — Post-Training the Modern Way</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0d0e12;
+  --bg2:    #13151c;
+  --bg3:    #1a1d27;
+  --bg4:    #212436;
+  --line:   rgba(255,255,255,0.07);
+  --line2:  rgba(255,255,255,0.14);
+  --text:   #e8e6de;
+  --text2:  #8e8c84;
+  --text3:  #4e4c46;
+  --gold:   #f5c842;
+  --gold2:  #e0a820;
+  --teal:   #2dd4bf;
+  --teal2:  #14b8a6;
+  --purple: #a78bfa;
+  --purple2:#7c3aed;
+  --coral:  #fb7185;
+  --coral2: #e11d48;
+  --blue:   #60a5fa;
+  --blue2:  #2563eb;
+  --green:  #4ade80;
+  --green2: #16a34a;
+  --orange: #fb923c;
+  --orange2:#ea580c;
+  --r:      10px;
+  --r-sm:   6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+code, .mono { font-family: 'DM Mono', monospace; }
+
+/* ── Header ── */
+.site-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line2);
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.site-header h1 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.site-header p  { font-size: 12px; color: var(--text2); }
+.hbadge {
+  font-size: 10px; font-weight: 600; padding: 3px 10px;
+  border-radius: 4px; background: var(--gold); color: #0d0e12;
+  letter-spacing: .04em;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex; background: var(--bg2);
+  border-bottom: 1px solid var(--line2);
+  overflow-x: auto; gap: 0;
+}
+.tab {
+  padding: 13px 20px; font-size: 12px; font-weight: 500;
+  cursor: pointer; border: none; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--text2);
+  transition: all .15s; white-space: nowrap; letter-spacing: .01em;
+}
+.tab:hover { color: var(--text); }
+.tab.on    { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ── Panels ── */
+.panel { display: none; padding: 28px; max-width: 960px; margin: 0 auto; }
+.panel.on { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2); border: 1px solid var(--line2);
+  border-radius: var(--r); padding: 16px 18px; margin-bottom: 12px;
+}
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+.card-body  { font-size: 13px; color: var(--text2); line-height: 1.65; }
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; margin-bottom: 6px;
+  letter-spacing: .04em;
+}
+.two   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.three { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 12px; }
+@media(max-width:600px) { .two, .three { grid-template-columns: 1fr; } }
+.paper {
+  background: var(--bg3); border-left: 3px solid var(--line2);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 9px 13px; margin-bottom: 7px; font-size: 12px; color: var(--text2);
+}
+.paper strong { color: var(--text); }
+
+/* ── Section label ── */
+.sec-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text3);
+  margin: 22px 0 10px;
+}
+.sec-label:first-child { margin-top: 0; }
+
+/* ── Stat boxes ── */
+.stat {
+  background: var(--bg3); border: 1px solid var(--line2);
+  border-radius: var(--r-sm); padding: 14px; text-align: center;
+}
+.stat-val  { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; }
+.stat-lbl  { font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+
+/* ── Infographic containers ── */
+.infog {
+  background: var(--bg3); border: 1px solid var(--line2);
+  border-radius: var(--r); padding: 20px; margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.infog-title {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 16px;
+}
+
+/* ── Flow boxes ── */
+.flow { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 0 8px; }
+.fbox {
+  flex-shrink: 0; padding: 9px 14px; border-radius: var(--r-sm);
+  border: 1px solid; font-size: 11px; font-weight: 600;
+  text-align: center; line-height: 1.3; font-family: 'DM Mono', monospace;
+}
+.farr { flex-shrink: 0; padding: 0 8px; color: var(--text3); font-size: 18px; }
+
+/* ── Architecture stack (infog 1) ── */
+.arch-stack { display: flex; flex-direction: column; gap: 6px; }
+.arch-row {
+  border-radius: var(--r-sm); border: 1px solid;
+  padding: 12px 16px; position: relative;
+}
+.arch-row-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; font-family: 'DM Mono', monospace; }
+.arch-row-sub   { font-size: 11px; color: var(--text2); line-height: 1.5; }
+.arch-connector { text-align: center; color: var(--text3); font-size: 16px; line-height: 1; padding: 2px 0; }
+
+/* ── Pipeline flow (infog 2) ── */
+.pipeline {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.pipe-row { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: center; flex-wrap: wrap; }
+.pipe-box {
+  border-radius: var(--r-sm); border: 1px solid; padding: 10px 18px;
+  font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace;
+  text-align: center; min-width: 120px;
+}
+.pipe-down { color: var(--text3); font-size: 20px; text-align: center; line-height: 1.2; padding: 4px 0; }
+.pipe-split { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; width: 100%; }
+.pipe-side-label { font-size: 10px; color: var(--text2); text-align: center; margin-bottom: 4px; }
+
+/* ── GRPO 5-step ── */
+.grpo-steps { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; }
+@media(max-width:700px){ .grpo-steps { grid-template-columns:1fr 1fr; } }
+.grpo-step {
+  background: var(--bg4); border-radius: var(--r-sm);
+  border: 1px solid var(--line2); padding: 12px 10px;
+  text-align: center; position: relative;
+}
+.grpo-step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; display: flex;
+  align-items: center; justify-content: center;
+  margin: 0 auto 8px; border: 2px solid;
+}
+.grpo-step-title { font-size: 11px; font-weight: 700; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+.grpo-step-body  { font-size: 10px; color: var(--text2); line-height: 1.5; }
+
+/* ── PPO vs GRPO comparison ── */
+.model-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media(max-width:580px){ .model-compare { grid-template-columns:1fr; } }
+.model-box {
+  border-radius: var(--r-sm); border: 1px solid;
+  padding: 14px;
+}
+.model-box-title { font-size: 12px; font-weight: 700; margin-bottom: 10px; font-family: 'DM Mono', monospace; }
+.model-node {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 5px; margin-bottom: 5px;
+  font-size: 11px; font-weight: 500; border: 1px solid;
+}
+.model-node.crossed { opacity: .35; text-decoration: line-through; }
+
+/* ── Reward rubric viz ── */
+.rubric-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rubric-table th { padding: 8px 10px; text-align: left; background: var(--bg4); border: 1px solid var(--line2); font-size: 11px; letter-spacing: .03em; color: var(--text2); }
+.rubric-table td { padding: 8px 10px; border: 1px solid var(--line2); color: var(--text2); vertical-align: top; font-family: 'DM Mono', monospace; }
+.rubric-table tr:hover td { background: var(--bg4); }
+
+/* ── VRAM bar ── */
+.vram-row { display: flex; align-items: flex-end; gap: 10px; margin: 12px 0 6px; }
+.vram-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.vram-bar { border-radius: 4px 4px 0 0; width: 54px; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; font-size: 10px; font-weight: 700; color: #fff; font-family: 'DM Mono', monospace; }
+.vram-label { font-size: 10px; color: var(--text2); text-align: center; line-height: 1.4; }
+
+/* ── Chip selector ── */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip {
+  padding: 5px 14px; border-radius: var(--r-sm); font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--line2); background: var(--bg3);
+  color: var(--text2); transition: all .15s; font-family: 'DM Mono', monospace;
+}
+.chip:hover { border-color: var(--gold); color: var(--text); }
+.chip.on    { background: var(--gold); color: #0d0e12; border-color: var(--gold); }
+.chip-detail {
+  background: var(--bg3); border: 1px solid var(--line2);
+  border-radius: var(--r-sm); padding: 14px; font-size: 13px;
+  color: var(--text2); line-height: 1.65; min-height: 80px; margin-top: 4px;
+}
+
+/* ── Patience tree viz ── */
+.tree-viz {
+  background: var(--bg4); border-radius: var(--r-sm);
+  border: 1px solid var(--line2); padding: 16px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  overflow-x: auto;
+}
+.tree-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.tree-node {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; flex-shrink: 0;
+}
+.tree-outcome { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+
+/* Breadth table */
+.breadth-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+.breadth-table th { padding:9px 12px; background:var(--bg4); border:1px solid var(--line2); color:var(--text2); font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.breadth-table td { padding:9px 12px; border:1px solid var(--line2); color:var(--text2); vertical-align:top; }
+.breadth-table .hi { color:var(--gold); font-weight:600; }
+.breadth-table .lo { color:var(--text3); }
+
+/* Pulse animation for new token */
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+.panel.on { animation: fadeUp .25s ease; }
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div>
+    <h1>TRL &amp; GRPO — Post-Training the Modern Way</h1>
+    <p>Transformers Reinforcement Learning · Hugging Face v1.0.0 · April 2026</p>
+  </div>
+  <span class="hbadge">Layers 10 – 12</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">What is TRL?</button>
+  <button class="tab"     onclick="showTab(1)">Alignment pipeline</button>
+  <button class="tab"     onclick="showTab(2)">GRPO deep dive</button>
+  <button class="tab"     onclick="showTab(3)">PPO vs GRPO</button>
+  <button class="tab"     onclick="showTab(4)">Reward design</button>
+  <button class="tab"     onclick="showTab(5)">Unsloth &amp; efficiency</button>
+</div>
+
+<!-- ══ TAB 0: WHAT IS TRL ══ -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--gold);color:#0d0e12">Full-stack post-training</span>
+    <div class="card-title">TRL turns a raw pre-trained LLM into an aligned reasoning agent</div>
+    <div class="card-body">TRL (Transformers Reinforcement Learning) is Hugging Face's production-grade library for every stage of post-training: from supervised fine-tuning through offline preference optimisation and highly scalable online GRPO. Every trainer is a thin subclass of transformers.Trainer — familiar API, production performance.</div>
+  </div>
+
+  <!-- INFOGRAPHIC 1 — Architecture Stack -->
+  <div class="infog">
+    <div class="infog-title">Infographic 1 — TRL architecture &amp; dependency stack</div>
+    <div class="arch-stack">
+
+      <div class="arch-row" style="background:#1a1500;border-color:var(--gold2)">
+        <div class="arch-row-title" style="color:var(--gold)">⬡ Incubation layer</div>
+        <div class="arch-row-sub">Experimental trainers not yet stable for production: <code>OnlineDPO</code>, <code>NashMD</code>, <code>PRM</code> (process reward models). Opt-in only — subject to breaking changes.</div>
+      </div>
+
+      <div class="arch-connector">↓</div>
+
+      <div class="arch-row" style="background:#16113a;border-color:var(--purple);border-width:2px">
+        <div class="arch-row-title" style="color:var(--purple)">★ Core TRL API — stable trainers</div>
+        <div class="arch-row-sub" style="color:var(--text)">
+          <span style="color:var(--teal)">SFTTrainer</span> &nbsp;·&nbsp; <span style="color:var(--blue)">DPOTrainer</span> &nbsp;·&nbsp; <span style="color:var(--coral)">GRPOTrainer</span> &nbsp;·&nbsp; <span style="color:var(--orange)">RewardTrainer</span>
+          <br><span style="color:var(--text2);font-size:11px">+ <code>_BaseConfig</code> — all hyperparameters live in CLI-serialisable @dataclass configs</span>
+        </div>
+      </div>
+
+      <div class="arch-connector">↓</div>
+
+      <div class="arch-row" style="background:#001a16;border-color:var(--teal2)">
+        <div class="arch-row-title" style="color:var(--teal)">⚡ Accelerators (optional but critical)</div>
+        <div class="arch-row-sub">
+          <strong style="color:var(--text)">vLLM</strong> — fast rollout generation (up to 86× faster online RL completions)<br>
+          <strong style="color:var(--text)">Liger Kernel</strong> — fused CUDA kernels for cross-entropy, RoPE, SwiGLU<br>
+          <strong style="color:var(--text)">Unsloth</strong> — memory + context optimisations, patches GRPO kernels, 90% VRAM reduction
+        </div>
+      </div>
+
+      <div class="arch-connector">↓</div>
+
+      <div class="arch-row" style="background:var(--bg4);border-color:var(--line2)">
+        <div class="arch-row-title" style="color:var(--text2)">Base dependencies</div>
+        <div class="arch-row-sub"><code>transformers ≥ 4.x</code> &nbsp;·&nbsp; <code>torch</code> &nbsp;·&nbsp; <code>accelerate</code> (DeepSpeed / FSDP) &nbsp;·&nbsp; <code>datasets</code> &nbsp;·&nbsp; <code>peft</code> (LoRA / QLoRA)</div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div class="stat" style="border-color:var(--purple)"><div class="stat-val" style="color:var(--purple);font-size:16px">Minimal wrapper</div><div class="stat-lbl">Every trainer is a thin subclass of transformers.Trainer</div></div>
+      <div class="stat" style="border-color:var(--teal)"><div class="stat-val" style="color:var(--teal);font-size:16px">Config-first</div><div class="stat-lbl">Hyperparameters in CLI-serialisable @dataclass configs</div></div>
+      <div class="stat" style="border-color:var(--blue)"><div class="stat-val" style="color:var(--blue);font-size:16px">Memory-efficient</div><div class="stat-lbl">Native PEFT/LoRA, gradient checkpointing, padding-free modes</div></div>
+      <div class="stat" style="border-color:var(--orange)"><div class="stat-val" style="color:var(--orange);font-size:16px">Agentic</div><div class="stat-lbl">Tool-calling and OpenEnv integrations built-in</div></div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>huggingface/trl</strong> — v1.0.0, April 2026. Apache 2.0 · Python 99.9%</div>
+</div>
+
+<!-- ══ TAB 1: ALIGNMENT PIPELINE ══ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--teal);color:#0d0e12">The modern alignment pipeline</span>
+    <div class="card-title">Three stages transform a raw pre-trained LLM into an aligned reasoning agent</div>
+    <div class="card-body">Every frontier assistant model goes through this pipeline. TRL covers all three stages with production-grade trainers. The key insight: alignment is not a single step — it is a staged progression from imitation (SFT) to preference learning (DPO/reward model) to reinforcement optimisation (GRPO/PPO).</div>
+  </div>
+
+  <!-- INFOGRAPHIC 2 — Pipeline flowchart -->
+  <div class="infog">
+    <div class="infog-title">Infographic 2 — The modern alignment pipeline (redrawn)</div>
+
+    <!-- Stage 1 -->
+    <div style="text-align:center;margin-bottom:6px">
+      <div class="fbox" style="display:inline-block;background:#001a16;border-color:var(--teal);color:var(--teal)">Pre-trained LLM (raw base model)</div>
+    </div>
+    <div style="text-align:center;color:var(--text3);font-size:18px;margin-bottom:6px">↓</div>
+
+    <div style="background:#001a16;border:1px solid var(--teal2);border-radius:var(--r-sm);padding:12px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:700;color:var(--teal);margin-bottom:3px;font-family:'DM Mono',monospace">Phase 1 — SFTTrainer</div>
+      <div style="font-size:12px;color:var(--text2)">Supervised Fine-Tuning: teaches the model to follow instructions using (prompt, completion) pairs. Cross-entropy loss on completions only. Establishes the baseline capability needed before any RL.</div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <span style="font-size:10px;padding:2px 8px;background:var(--teal2);color:#fff;border-radius:3px;font-weight:600">⚡ vLLM Support</span>
+        <span style="font-size:10px;padding:2px 8px;background:#2d1a00;color:var(--orange);border-radius:3px;border:1px solid var(--orange2);font-weight:600">🔴 Liger Fused Kernels</span>
+        <span style="font-size:10px;padding:2px 8px;background:var(--bg4);color:var(--text2);border-radius:3px;font-weight:600">Best-Fit-Decreasing packing</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--text3);font-size:18px;margin-bottom:6px">↓</div>
+
+    <!-- Stage 2 split -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+      <!-- Offline path -->
+      <div style="background:#001a2e;border:1px solid var(--blue2);border-radius:var(--r-sm);padding:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Offline preference</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--blue);margin-bottom:4px">DPO / KTO / CPO / ORPO</div>
+        <div style="font-size:11px;color:var(--text2)">Direct Preference Optimisation — no separate reward model. Trains on static (chosen, rejected) pairs. Simpler, more stable, but can't explore beyond fixed dataset.</div>
+      </div>
+      <!-- Online path -->
+      <div style="background:#1a0012;border:1px solid var(--coral2);border-radius:var(--r-sm);padding:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Online RL</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--coral);margin-bottom:4px">RewardTrainer</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Trains preference model (Bradley-Terry) to distinguish good from bad outputs → numerical reward signal.</div>
+        <div style="text-align:center;color:var(--text3);font-size:14px">↓</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--coral);text-align:center;margin-top:4px">GRPO / RLOO / PPO</div>
+        <div style="font-size:11px;color:var(--text2);text-align:center">Online RL with reward model or verifiable rewards</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--text3);font-size:18px;margin-bottom:6px">↓</div>
+    <div style="text-align:center">
+      <div class="fbox" style="display:inline-block;background:#0d2200;border-color:var(--green);color:var(--green)">[ Aligned LLM — reasoning agent ]</div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3);text-align:center">
+      🦥 Unsloth Optimised — GRPOTrainer + SFTTrainer with 90% VRAM reduction
+    </div>
+  </div>
+
+  <!-- TRL vs Unsloth breadth table -->
+  <div class="infog">
+    <div class="infog-title">Infographic 10 — Framework relationship: breadth vs depth</div>
+    <table class="breadth-table">
+      <thead>
+        <tr>
+          <th>Framework</th>
+          <th>SFT</th>
+          <th>Reward Modeling</th>
+          <th>Online RL (PPO/GRPO)</th>
+          <th>Offline RL (DPO/KTO)</th>
+          <th>Focus</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--gold)">TRL</strong></td>
+          <td class="hi">✓ SFTTrainer</td>
+          <td class="hi">✓ RewardTrainer</td>
+          <td class="hi">✓ PPOTrainer / GRPOTrainer</td>
+          <td class="hi">✓ DPOTrainer / ORPOTrainer</td>
+          <td style="color:var(--text)">Full pipeline coverage</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--orange)">Unsloth RL</strong></td>
+          <td class="hi">✓ (patched)</td>
+          <td class="lo">— (not covered)</td>
+          <td class="hi">✓ GRPOTrainer only</td>
+          <td class="lo">— (not covered)</td>
+          <td style="color:var(--text)">Speed + memory for GRPO</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px;background:#0d1a2e;border:1px solid var(--blue2);border-radius:var(--r-sm);padding:10px;font-size:12px;color:var(--blue)">
+      <strong>Key insight:</strong> Unsloth does NOT replace TRL. It is a localised speed and memory patch deployed specifically within TRL's GRPOTrainer ecosystem. They are complementary — TRL provides the API, Unsloth patches the kernel.
+    </div>
+  </div>
+
+  <div class="paper"><strong>TRL Modern Alignment Pipeline</strong> — Hugging Face 2025. SFT → Reward → GRPO path is now the dominant approach for open-weight reasoning models.</div>
+</div>
+
+<!-- ══ TAB 2: GRPO DEEP DIVE ══ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--coral);color:#0d0e12">Group Relative Policy Optimisation</span>
+    <div class="card-title">GRPO eliminates the value model from PPO — reducing VRAM by up to 90%</div>
+    <div class="card-body">GRPO generates a group of completions for each prompt, scores them with a verifier, then uses the group's own average reward as the baseline — no separate value model needed. This single change eliminates PPO's biggest memory bottleneck while preserving the full RL signal.</div>
+  </div>
+
+  <!-- INFOGRAPHIC 6 — GRPO 5 steps -->
+  <div class="infog">
+    <div class="infog-title">Infographic 6 — GRPO: the AI reasoning engine — 5 steps</div>
+    <div class="grpo-steps">
+      <div class="grpo-step">
+        <div class="grpo-step-num" style="border-color:var(--teal);color:var(--teal);background:#001a16">1</div>
+        <div class="grpo-step-title" style="color:var(--teal)">Group sampling</div>
+        <div class="grpo-step-body">Generate G outputs per prompt (G=8–64). Each is a different "reasoning path" to the same answer. More paths = more stable advantage estimate.</div>
+      </div>
+      <div class="grpo-step">
+        <div class="grpo-step-num" style="border-color:var(--blue);color:var(--blue);background:#001a2e">2</div>
+        <div class="grpo-step-title" style="color:var(--blue)">Score each output</div>
+        <div class="grpo-step-body">Run each through a verifier (math check, code compiler, rubric). Get reward r₁…rG. Binary: 1 = correct, 0 = wrong. No learned reward model needed.</div>
+      </div>
+      <div class="grpo-step">
+        <div class="grpo-step-num" style="border-color:var(--gold);color:var(--gold);background:#1a1500">3</div>
+        <div class="grpo-step-title" style="color:var(--gold)">Group advantage</div>
+        <div class="grpo-step-body">Â_i = (rᵢ − mean(r)) / std(r). Z-score standardisation. Above average → reinforce. Below average → suppress. The group IS the baseline.</div>
+      </div>
+      <div class="grpo-step">
+        <div class="grpo-step-num" style="border-color:var(--purple);color:var(--purple);background:#16113a">4</div>
+        <div class="grpo-step-title" style="color:var(--purple)">Clipped update</div>
+        <div class="grpo-step-body">L = min(r_t·Â, clip(r_t,1−ε,1+ε)·Â) − β·KL(π_θ‖π_ref). Clip ratio ε=0.2. KL coefficient β=0.04 prevents reward hacking drift.</div>
+      </div>
+      <div class="grpo-step">
+        <div class="grpo-step-num" style="border-color:var(--coral);color:var(--coral);background:#1a0012">5</div>
+        <div class="grpo-step-title" style="color:var(--coral)">No value model</div>
+        <div class="grpo-step-body">PPO needs a 3rd model to predict future reward. GRPO uses group statistics instead. Eliminates 40–90% VRAM overhead. Scales to single-GPU training.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFOGRAPHIC 5 — RLVR & Patience -->
+  <div class="infog">
+    <div class="infog-title">Infographic 5 — RLVR &amp; patience is all you need</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div class="tree-viz">
+          <div class="tree-row">
+            <div class="tree-node" style="border-color:var(--text3);color:var(--text3);background:var(--bg)">○</div>
+            <div style="color:var(--text3)">─────────────</div>
+            <span style="color:var(--text3)">prompt: "2+2"</span>
+          </div>
+          <div style="margin-left:20px">
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--coral);color:var(--coral);background:#1a0012">0</div><span class="tree-outcome" style="background:#1a0012;color:var(--coral)">X (wrong)</span></div>
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--coral);color:var(--coral);background:#1a0012">0</div><span class="tree-outcome" style="background:#1a0012;color:var(--coral)">cat (wrong)</span></div>
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--coral);color:var(--coral);background:#1a0012">0</div><span class="tree-outcome" style="background:#1a0012;color:var(--coral)">X (wrong)</span></div>
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--teal);color:var(--teal);background:#001a16">1</div><span class="tree-outcome" style="background:#001a16;color:var(--teal)">4 ✓ correct!</span><span style="color:var(--gold);font-size:10px;margin-left:6px">← RL reinforces this path</span></div>
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--coral);color:var(--coral);background:#1a0012">0</div><span class="tree-outcome" style="background:#1a0012;color:var(--coral)">X (wrong)</span></div>
+            <div class="tree-row"><div class="tree-node" style="border-color:var(--coral);color:var(--coral);background:#1a0012">0</div><span class="tree-outcome" style="background:#1a0012;color:var(--coral)"># (wrong)</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:8px">
+          <div class="badge" style="background:var(--teal);color:#0d0e12">The Concept</div>
+          <div class="card-body">If the probability of the correct answer is &gt; 0, an untrained model called infinitely will eventually guess correctly ("Patience is All You Need"). RL accelerates this by actively learning from bad signals (0s) to prune the output distribution away from wrong answers.</div>
+        </div>
+        <div style="background:#1a1000;border:1px solid var(--gold2);border-radius:var(--r-sm);padding:12px;font-size:12px;color:var(--gold)">
+          <strong>⚠ The Constraint:</strong> If the initial probability is 0, RL will never work. This is why GRPO is applied to SFT models, not raw base models. The SFT phase ensures every correct answer has p &gt; 0.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>DeepSeekMath: Pushing the Limits of Mathematical Reasoning</strong> — Shao et al. 2024 (arXiv:2402.03300). Introduced GRPO. DeepSeek-R1 extended this to full reasoning model training.</div>
+</div>
+
+<!-- ══ TAB 3: PPO VS GRPO ══ -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--purple);color:#0d0e12">PPO vs GRPO</span>
+    <div class="card-title">PPO is the heavyweight predecessor — GRPO is the lightweight successor</div>
+    <div class="card-body">Both are on-policy RL algorithms that keep the model close to a reference policy via KL regularisation. The critical difference: PPO needs a separate value model to estimate future rewards. GRPO eliminates this by using group statistics as the baseline instead.</div>
+  </div>
+
+  <!-- INFOGRAPHIC 7 + 9 combined -->
+  <div class="infog">
+    <div class="infog-title">Infographic 7/9 — PPO architecture vs GRPO architecture</div>
+    <div class="model-compare">
+      <!-- PPO -->
+      <div class="model-box" style="border-color:var(--purple);background:#16113a">
+        <div class="model-box-title" style="color:var(--purple)">PPO — Heavyweight predecessor</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:10px">3 models required simultaneously</div>
+        <div class="model-node" style="background:#001a16;border-color:var(--teal);color:var(--teal)">
+          <span>🧠</span><div><strong>Generating policy π_θ</strong><div style="font-size:10px;color:var(--text2)">Current model — weights updated</div></div>
+        </div>
+        <div class="model-node" style="background:var(--bg4);border-color:var(--line2);color:var(--text2)">
+          <span>⚓</span><div><strong>Reference policy π_ref</strong><div style="font-size:10px;color:var(--text2)">Frozen SFT model — KL anchor</div></div>
+        </div>
+        <div class="model-node" style="background:#1a0012;border-color:var(--coral);color:var(--coral)">
+          <span>📈</span><div><strong>Value model V_γ</strong><div style="font-size:10px;color:var(--text2)">Reward estimator — weights updated</div></div>
+        </div>
+        <div style="margin-top:12px;background:var(--bg4);border-radius:var(--r-sm);padding:10px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px"><strong style="color:var(--text)">Stability through proximal clipping</strong> — ratio clipped to 1±ε prevents excessively large weight updates.</div>
+          <div style="font-size:11px;color:var(--text2)"><strong style="color:var(--text)">KL divergence safety anchor</strong> — β coefficient keeps new model mathematically close to the reference policy.</div>
+        </div>
+        <div style="margin-top:8px;background:#1a0012;border-radius:var(--r-sm);padding:8px;font-size:11px;color:var(--coral);text-align:center">
+          ≥ 510 GB VRAM at 8B / 20K context
+        </div>
+      </div>
+
+      <!-- GRPO -->
+      <div class="model-box" style="border-color:var(--teal);background:#001a16">
+        <div class="model-box-title" style="color:var(--teal)">GRPO — Lightweight successor</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:10px">2 models — value model eliminated</div>
+        <div class="model-node" style="background:#001a16;border-color:var(--teal);color:var(--teal)">
+          <span>🧠</span><div><strong>Generating policy π_θ</strong><div style="font-size:10px;color:var(--text2)">Current model — weights updated</div></div>
+        </div>
+        <div class="model-node" style="background:var(--bg4);border-color:var(--line2);color:var(--text2)">
+          <span>⚓</span><div><strong>Reference policy π_ref</strong><div style="font-size:10px;color:var(--text2)">Frozen SFT model — KL anchor</div></div>
+        </div>
+        <div class="model-node crossed" style="background:var(--bg4);border-color:var(--line2);color:var(--text3)">
+          <span>📈</span><div><strong>Value model</strong><div style="font-size:10px">Replaced by group statistics</div></div>
+        </div>
+        <div style="margin-top:12px;background:#001a16;border:1px solid var(--teal2);border-radius:var(--r-sm);padding:10px">
+          <div style="font-size:11px;color:var(--text);font-weight:600;margin-bottom:4px">Group relative advantage</div>
+          <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold)">Â_i = (rᵢ − μ_group) / σ_group</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">Same information as a value model — estimated from the group itself. No extra parameters.</div>
+        </div>
+        <div style="margin-top:8px;background:#001a16;border-radius:var(--r-sm);border:1px solid var(--teal2);padding:8px;font-size:11px;color:var(--teal);text-align:center">
+          54 GB VRAM at 8B / 20K context (Unsloth)
+        </div>
+      </div>
+    </div>
+
+    <!-- VRAM comparison bar -->
+    <div class="infog-title" style="margin-top:16px">VRAM comparison — 8B model, 20K context window</div>
+    <div class="vram-row" style="align-items:flex-end;justify-content:center;gap:30px">
+      <div class="vram-col">
+        <div class="vram-bar" style="background:#7c3aed;height:200px">510 GB</div>
+        <div class="vram-label">Standard TRL<br>+ Flash Attention 2</div>
+      </div>
+      <div style="font-size:28px;color:var(--text3);padding-bottom:30px">→</div>
+      <div class="vram-col">
+        <div class="vram-bar" style="background:var(--teal2);height:53px">54 GB</div>
+        <div class="vram-label">TRL + Unsloth<br>(patched GRPO)</div>
+      </div>
+      <div style="padding-bottom:10px">
+        <div style="font-size:28px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace">90%</div>
+        <div style="font-size:11px;color:var(--text2)">VRAM reduction</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--purple);color:#0d0e12">PPO — what the value model does</span>
+      <div class="card-body">The value model V(s) predicts total future reward from each token position. This lets PPO compute accurate advantage estimates at every step. Training the value model alongside the policy doubles VRAM usage and adds instability — it must be trained at the same time as the policy it is trying to evaluate.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--teal);color:#0d0e12">GRPO — why group statistics work</span>
+      <div class="card-body">Instead of predicting future reward, GRPO observes multiple complete trajectories for the same prompt. The group average reward is a Monte Carlo estimate of expected reward — simpler, more direct, and needing no separate network. Key: G ≥ 8, typically 16–64. More samples = more stable advantage estimates.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Proximal Policy Optimization Algorithms</strong> — Schulman et al., OpenAI 2017 (arXiv:1707.06347). PPO — the algorithm that trained InstructGPT / ChatGPT.</div>
+</div>
+
+<!-- ══ TAB 4: REWARD DESIGN ══ -->
+<div class="panel" id="p4">
+  <div class="card">
+    <span class="badge" style="background:var(--gold);color:#0d0e12">Designing reward functions &amp; verifiers</span>
+    <div class="card-title">The secret to robust GRPO is a rubric — not a single reward</div>
+    <div class="card-body">The biggest practical lesson from training reasoning models: a single "correct/incorrect" reward is too sparse. The model gets no signal until it reaches the final answer. A rubric — a stack of smaller verifiable rewards — gives the model richer feedback at every step and leads to dramatically more stable training.</div>
+  </div>
+
+  <!-- INFOGRAPHIC 4 — Reward rubric -->
+  <div class="infog">
+    <div class="infog-title">Infographic 4 — Designing reward functions &amp; verifiers</div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px">
+      <div>
+        <div style="background:var(--bg4);border-radius:var(--r-sm);padding:12px;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Verifier</div>
+          <div style="font-size:11px;color:var(--text2)">Checks absolute correctness. Assigns no numerical score. Returns <strong style="color:var(--teal)">True</strong> or <strong style="color:var(--coral)">False</strong>. Example: executing Python code and checking if it raises no errors.</div>
+        </div>
+        <div style="background:var(--bg4);border-radius:var(--r-sm);padding:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Reward Function</div>
+          <div style="font-size:11px;color:var(--text2)">Converts verification into a numerical score. Can apply penalties for style, formatting, length, or verbosity. Multiple reward functions can be stacked (rubric).</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:'DM Mono',monospace">Prompt: "What is 2 + 2?"</div>
+        <table class="rubric-table">
+          <thead><tr><th>Reward component</th><th>Condition</th><th>Score</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong style="color:var(--blue)">Reward 1 — Format</strong></td>
+              <td>Number detected in response</td>
+              <td style="color:var(--teal)">+1</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td>No number in response</td>
+              <td style="color:var(--coral)">−1</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--purple)">Reward 2 — Accuracy</strong></td>
+              <td>Response matches "4"</td>
+              <td style="color:var(--teal)">+3</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td>Response is incorrect</td>
+              <td style="color:var(--coral)">−3</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:11px;color:var(--text2)">
+          Total reward range: −4 to +4 &nbsp;·&nbsp; Stacked rewards create complex behaviour
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;background:#1a1500;border:2px solid var(--gold2);border-radius:var(--r-sm);padding:12px">
+      <strong style="color:var(--gold)">Key Insight:</strong>
+      <span style="font-size:13px;color:var(--text2);margin-left:6px">The trick to robust GRPO is defining a <strong style="color:var(--gold)">rubric</strong> — a list of smaller verifiable rewards — rather than a single all-consuming reward. Each component rewards a specific desirable behaviour (format, brevity, accuracy, chain-of-thought) and they stack to create nuanced overall feedback.</span>
+    </div>
+  </div>
+
+  <div class="sec-label">Reward component types — click to explore</div>
+  <div class="chip-row" id="reward-chips">
+    <div class="chip on" onclick="showReward(this,'accuracy')">Accuracy</div>
+    <div class="chip" onclick="showReward(this,'format')">Format</div>
+    <div class="chip" onclick="showReward(this,'length')">Length</div>
+    <div class="chip" onclick="showReward(this,'code')">Code execution</div>
+    <div class="chip" onclick="showReward(this,'cot')">Chain-of-thought</div>
+  </div>
+  <div class="chip-detail" id="reward-detail"></div>
+
+  <div class="paper"><strong>DeepSeek-R1</strong> — DeepSeek-AI 2025 (arXiv:2501.12948). Uses 4 reward components: accuracy, format (&lt;think&gt; tags), length, and language consistency. The rubric approach produces dramatically more stable GRPO training than a single binary reward.</div>
+</div>
+
+<!-- ══ TAB 5: UNSLOTH & EFFICIENCY ══ -->
+<div class="panel" id="p5">
+  <div class="card">
+    <span class="badge" style="background:var(--orange);color:#0d0e12">Unsloth RL — efficiency breakthrough</span>
+    <div class="card-title">From dual A100s to a single 8 GB consumer GPU — same model, same task</div>
+    <div class="card-body">Unsloth patches TRL's GRPOTrainer kernels to avoid materialising massive logit tensors, implements Standby Mode KV-Cache (releasing vLLM's KV cache during training to reclaim memory), and uses ultra-long context optimisations (dynamic flattened sequence chunking + offloading log-softmax activations). The result: 90% VRAM reduction on 8B models.</div>
+  </div>
+
+  <!-- INFOGRAPHIC 8/9 combined — TRL efficiency stack -->
+  <div class="infog">
+    <div class="infog-title">Infographic 8/9 — TRL + Unsloth efficiency stack</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div style="background:var(--bg4);border-radius:var(--r-sm);border:1px solid var(--line2);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:4px;font-family:'DM Mono',monospace">90% Memory Reduction</div>
+        <div style="font-size:11px;color:var(--text2)">Unsloth patches GRPO kernels to avoid materialising massive logit tensors. 510 GB → 54 GB for an 8B model at 20K context.</div>
+      </div>
+      <div style="background:var(--bg4);border-radius:var(--r-sm);border:1px solid var(--line2);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--teal);margin-bottom:4px;font-family:'DM Mono',monospace">Standby KV-Cache</div>
+        <div style="font-size:11px;color:var(--text2)">Implements dynamic GPU memory management — releases vLLM's KV cache during training steps to reclaim memory, restores before next rollout.</div>
+      </div>
+      <div style="background:var(--bg4);border-radius:var(--r-sm);border:1px solid var(--line2);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:4px;font-family:'DM Mono',monospace">380K Context Window</div>
+        <div style="font-size:11px;color:var(--text2)">Ultra-long reasoning traces: dynamic flattened sequence chunking + offloading log-softmax activations. Up to 7× longer than standard TRL.</div>
+      </div>
+    </div>
+
+    <!-- Hardware requirement comparison -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:#1a0012;border:1px solid var(--coral2);border-radius:var(--r-sm);padding:14px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:var(--coral);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Previous requirement</div>
+        <div style="font-size:22px;font-weight:700;color:var(--coral);font-family:'DM Mono',monospace">Dual A100s</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">160 GB VRAM (1,600B total)<br>~$30,000 / month cloud cost</div>
+      </div>
+      <div style="background:#001a16;border:1px solid var(--teal2);border-radius:var(--r-sm);padding:14px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:var(--teal);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">With Unsloth</div>
+        <div style="font-size:22px;font-weight:700;color:var(--teal);font-family:'DM Mono',monospace">Single 8 GB GPU</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">RTX 3070 / 4060 sufficient<br>Desktop-level training</div>
+      </div>
+    </div>
+
+    <!-- vLLM rollout speedup -->
+    <div style="margin-top:12px;background:var(--bg4);border:1px solid var(--line2);border-radius:var(--r-sm);padding:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">vLLM Rollout Generation — up to 86× faster completions</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="font-size:11px;color:var(--text2);width:100px;flex-shrink:0">Standard TRL</div>
+        <div style="height:16px;background:var(--coral2);border-radius:3px;width:40px;flex-shrink:0"></div>
+        <div style="font-size:10px;color:var(--text2)">1× baseline</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:11px;color:var(--text2);width:100px;flex-shrink:0">TRL + vLLM</div>
+        <div style="height:16px;background:var(--teal2);border-radius:3px;width:100%;max-width:400px;flex-shrink:0;display:flex;align-items:center;padding-left:8px">
+          <span style="font-size:10px;color:#fff;font-weight:700">up to 86× faster during online RL rollout phase</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--blue);color:#0d0e12">Desktop-level training — what this enables</span>
+    <div class="card-body">Before Unsloth, GRPO training an 8B reasoning model required institutional compute. After Unsloth: a researcher with an RTX 3070 can fine-tune an 8B model with GRPO on math or coding tasks. This democratises reasoning model training the same way QLoRA democratised SFT in 2023. DeepSeek-R1-level capabilities are now accessible on a gaming PC after ~100 training steps.</div>
+  </div>
+
+  <div class="paper"><strong>Unsloth RL: Transforming LLMs Into Reasoning Models With GRPO</strong> — Unsloth AI 2025. 90% VRAM reduction on GRPOTrainer. 380K context window. Desktop-level reasoning model training.</div>
+  <div class="paper"><strong>TRL: Transformer Reinforcement Learning</strong> — von Werra et al., Hugging Face 2020. v1.0.0 released April 2026. Apache 2.0.</div>
+</div>
+
+<script>
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===3) initRewardChip();
+}
+
+// Reward chip definitions
+const REWARDS = {
+  accuracy: {
+    title: 'Accuracy reward — the primary signal',
+    body: 'The core reward: is the final answer correct? For math: does the output exactly match the ground-truth numeric answer? For code: do all unit tests pass? Binary (+1 / −1 or +3 / −3 as shown). The most important component but insufficient alone — needs format rewards to prevent the model from hedging or producing malformed answers.'
+  },
+  format: {
+    title: 'Format reward — shape the output structure',
+    body: 'Rewards the model for using the correct output structure. Example: does the response use <think>…</think> reasoning tags? Is the final answer boxed as \\boxed{4}? Does it avoid using a non-target language? Format rewards ensure the model\'s reasoning traces are parseable and structured — essential for chain-of-thought training. DeepSeek-R1 uses a language consistency format reward that penalises code-switching mid-reasoning.'
+  },
+  length: {
+    title: 'Length reward — prevent verbosity and padding',
+    body: 'Penalises excessively long responses that pad to fill a context window, and may reward concise correct answers. Without a length penalty, models learn to generate extremely long chains of thought regardless of problem difficulty — wasting compute and hiding uncertainty in verbosity. Typical: subtract δ × (token_count − target_length) if the response is above a threshold.'
+  },
+  code: {
+    title: 'Code execution reward — the cleanest verifiable reward',
+    body: 'The gold standard of verifiable rewards. Generate Python/C++/Java code, execute it in a sandbox, capture stdout/stderr, run unit tests. Reward = fraction of tests passed. This reward cannot be faked or gamed — the code either runs correctly or it does not. Used in coding benchmark training (HumanEval, LiveCodeBench). The sandbox must be fast (< 1 second per execution) to keep training throughput high.'
+  },
+  cot: {
+    title: 'Chain-of-thought reward — reward the reasoning process itself',
+    body: 'Instead of only rewarding the final answer, a CoT reward scores the intermediate reasoning steps. A process reward model (PRM) reads the thinking trace and assigns a score to each step\'s logical validity. Harder to implement (needs a PRM, which itself needs training) but produces more reliable and interpretable reasoning. DeepSeek uses a mixture: verifiable accuracy rewards (no PRM) + format rewards, relying on the group-based advantage to implicitly select for good reasoning chains.'
+  }
+};
+
+function showReward(el, key){
+  document.querySelectorAll('#reward-chips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=REWARDS[key];
+  document.getElementById('reward-detail').innerHTML=`<strong style="color:var(--text);font-size:13px;display:block;margin-bottom:6px">${d.title}</strong>${d.body}`;
+}
+
+function initRewardChip(){
+  const first=document.querySelector('#reward-chips .chip');
+  if(first) showReward(first,'accuracy');
+}
+
+// init reward chip on load
+showReward(document.querySelector('#reward-chips .chip'),'accuracy');
+</script>
+</body>
+</html>
