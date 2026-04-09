@@ -78,7 +78,7 @@ header p{font-size:13px;color:var(--text2)}
     <h1>LLM Curriculum — Complete Layer Map</h1>
     <p>Every topic from this course placed at the layer where it operates — 15 layers, L0 → L14</p>
   </div>
-  <span class="badge-header">15 Layers · L0 → L14</span>
+  <span class="badge-header">16 Layers · L0 → L15</span>
 </header>
 
 <div id="app">
@@ -98,8 +98,9 @@ header p{font-size:13px;color:var(--text2)}
   <button class="layer-btn" style="--accent:#639922;color:var(--green-t)" onclick="show('l10')"><span class="layer-num">Layer 10 — supervised FT</span>SFT, LoRA, QLoRA, PEFT</button>
   <button class="layer-btn" style="--accent:#534AB7;color:var(--purple-t)" onclick="show('l11')"><span class="layer-num">Layer 11 — alignment</span>RLHF, PPO, DPO</button>
   <button class="layer-btn" style="--accent:#993556;color:var(--pink-t)" onclick="show('l12')"><span class="layer-num">Layer 12 — reasoning</span>GRPO, RLVR, benchmarks</button>
-  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-t)" onclick="show('l13')"><span class="layer-num">Layer 13 — modalities</span>Vision &amp; speech</button>
-  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-t)" onclick="show('l14')"><span class="layer-num">Layer 14 — VAE / diffusion</span>Generative image models</button>
+  <button class="layer-btn" style="--accent:#EF9F27;color:var(--amber-t)" onclick="show('l13')"><span class="layer-num">Layer 13 — frameworks &amp; tooling<span class="new-badge">NEW</span></span>TRL · SFTTrainer · GRPOTrainer · Unsloth</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-t)" onclick="show('l14')"><span class="layer-num">Layer 14 — modalities</span>Vision &amp; speech</button>
+  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-t)" onclick="show('l15')"><span class="layer-num">Layer 15 — VAE / diffusion</span>Generative image models</button>
 
   <div class="file-nav-label">Course files — in order</div>
   <a class="file-link" href="05-embedding-deepdive.html" target="_blank" style="border-left-color:#7F77DD"><span class="file-link-num" style="background:var(--purple-f);color:var(--purple-t)">L0–1</span><span class="file-link-body">Embedding deep-dive<span class="file-link-sub">Tokens · Position · Semantics · Scale</span></span></a>
@@ -108,15 +109,16 @@ header p{font-size:13px;color:var(--text2)}
   <a class="file-link" href="08-llm-inference.html" target="_blank" style="border-left-color:#378ADD"><span class="file-link-num" style="background:var(--blue-f);color:var(--blue-t)">L7</span><span class="file-link-body">LLM Inference ★ NEW<span class="file-link-sub">KV cache · Quantization · Speculative</span></span></a>
   <a class="file-link" href="02-pretraining-pipeline.html" target="_blank" style="border-left-color:#EF9F27"><span class="file-link-num" style="background:var(--amber-f);color:var(--amber-t)">L8–10</span><span class="file-link-body">Training pipeline<span class="file-link-sub">Pretraining · Optimizations · SFT · PEFT</span></span></a>
   <a class="file-link" href="03-rlhf-reasoning.html" target="_blank" style="border-left-color:#7F77DD"><span class="file-link-num" style="background:var(--purple-f);color:var(--purple-t)">L11–12</span><span class="file-link-body">RLHF &amp; Reasoning<span class="file-link-sub">PPO · DPO · GRPO · Benchmarks</span></span></a>
-  <a class="file-link" href="04-vision-speech.html" target="_blank" style="border-left-color:#1D9E75"><span class="file-link-num" style="background:var(--teal-f);color:var(--teal-t)">L13</span><span class="file-link-body">Vision &amp; Speech<span class="file-link-sub">ViT · CLIP · Whisper · Wav2Vec</span></span></a>
+  <a class="file-link" href="09-trl-grpo.html" target="_blank" style="border-left-color:#EF9F27"><span class="file-link-num" style="background:var(--amber-f);color:var(--amber-t)">L13</span><span class="file-link-body">TRL &amp; GRPO ★ NEW<span class="file-link-sub">Frameworks · Alignment pipeline · Unsloth</span></span></a>
+  <a class="file-link" href="04-vision-speech.html" target="_blank" style="border-left-color:#1D9E75"><span class="file-link-num" style="background:var(--teal-f);color:var(--teal-t)">L14</span><span class="file-link-body">Vision &amp; Speech<span class="file-link-sub">ViT · CLIP · Whisper · Wav2Vec</span></span></a>
 </div>
 
 <div id="content">
 
 <!-- OVERVIEW -->
 <div class="panel on" id="panel-overview">
-  <div class="panel-title">Complete LLM curriculum — 15 layers</div>
-  <div class="panel-sub">Every topic placed at the layer where it actually operates. Layer 7 (Inference &amp; Deployment) is new — inserted between the output head and pretraining to reflect that inference is what connects a trained model to the real world. Click any layer or block to explore.</div>
+  <div class="panel-title">Complete LLM curriculum — 16 layers</div>
+  <div class="panel-sub">Every topic placed at the layer where it actually operates. Layer 7 (Inference &amp; Deployment) and Layer 13 (Frameworks &amp; Tooling) are new — inserted to bridge the gap between conceptual algorithms and real-world implementation. Click any layer or block to explore.</div>
   <div class="overview-wrap"><div id="stack"></div></div>
 </div>
 
@@ -301,9 +303,9 @@ header p{font-size:13px;color:var(--text2)}
   <div class="paper"><strong>DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via RL</strong> — DeepSeek-AI 2025 (arXiv:2501.12948).</div>
 </div>
 
-<!-- L13 (was L12) -->
-<div class="panel" id="panel-l13">
-  <div class="panel-title" style="color:var(--teal-t)">Layer 13 — multimodal: vision &amp; speech</div>
+<!-- L14 (was L13) -->
+<div class="panel" id="panel-l14">
+  <div class="panel-title" style="color:var(--teal-t)">Layer 14 — multimodal: vision &amp; speech</div>
   <div class="panel-sub">The same transformer architecture extended to images and audio by changing only the input tokenisation layer. Everything after that is identical.</div>
   <div class="topic-grid">
     <div class="topic" style="--accent:#1D9E75"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">ViT</span><div class="topic-title">Vision Transformer patches</div><div class="topic-body">224×224 image → 196 patches of 16×16px. Each patch flattened to 768 numbers → linear projection → D-dim embedding + learned position encoding. [CLS] token gathers global image representation for classification.</div></div>
@@ -317,9 +319,9 @@ header p{font-size:13px;color:var(--text2)}
   <div class="paper"><strong>wav2vec 2.0</strong> — Baevski et al., Meta 2020 (arXiv:2006.11477).</div>
 </div>
 
-<!-- L14 (was L13) -->
-<div class="panel" id="panel-l14">
-  <div class="panel-title" style="color:var(--amber-t)">Layer 14 — VAE &amp; stable diffusion</div>
+<!-- L15 (was L14) -->
+<div class="panel" id="panel-l15">
+  <div class="panel-title" style="color:var(--amber-t)">Layer 15 — VAE &amp; stable diffusion</div>
   <div class="panel-sub">Generative image models that combine a VAE for compression, a U-Net diffusion process for denoising, and a CLIP text encoder for guidance.</div>
   <div class="topic-grid">
     <div class="topic" style="--accent:#BA7517"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">VAE</span><div class="topic-title">Variational autoencoder</div><div class="topic-body">Encoder compresses image to latent distribution (mean μ, std σ). Decoder reconstructs from sampled z = μ + σ·ε. Loss = reconstruction + KL divergence from N(0,1). Reparameterisation trick enables backpropagation through sampling.</div></div>
@@ -329,6 +331,23 @@ header p{font-size:13px;color:var(--text2)}
   </div>
   <div class="paper"><strong>Auto-Encoding Variational Bayes (VAE)</strong> — Kingma &amp; Welling 2013 (arXiv:1312.6114). Invented VAEs and the reparameterisation trick.</div>
   <div class="paper"><strong>High-Resolution Image Synthesis with Latent Diffusion Models</strong> — Rombach et al., CVPR 2022 (arXiv:2112.10752). The Stable Diffusion paper.</div>
+</div>
+
+<!-- L13 NEW — Frameworks & Tooling -->
+<div class="panel" id="panel-l13">
+  <div class="panel-title" style="color:var(--amber-t)">Layer 13 — frameworks &amp; tooling <span class="new-badge">NEW</span></div>
+  <div class="panel-sub">Where conceptual algorithms become running code. TRL (Transformers Reinforcement Learning) is the production library that implements everything in Layers 10–12 — SFT, reward modelling, DPO, GRPO, and PPO — in one unified, stable API. Unsloth patches TRL's GRPO kernels to achieve 90% VRAM reduction, enabling desktop-level reasoning model training.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">TRL</span><div class="topic-title">Transformers Reinforcement Learning</div><div class="topic-body">Full-stack post-training library by Hugging Face. Covers the entire alignment pipeline: SFTTrainer → RewardTrainer → GRPOTrainer / PPOTrainer / DPOTrainer. Every trainer is a thin subclass of transformers.Trainer with @dataclass config. v1.0.0, April 2026. Apache 2.0.</div></div>
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Pipeline</span><div class="topic-title">Modern alignment pipeline</div><div class="topic-body">Pre-trained LLM → SFTTrainer (instruction following) → two paths: (1) Offline: DPOTrainer / KTO / ORPO — no reward model, trains on static preference pairs. (2) Online: RewardTrainer → GRPOTrainer / PPOTrainer — generates rollouts, verifiable rewards or reward model signal.</div></div>
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Unsloth</span><div class="topic-title">90% VRAM reduction for GRPO</div><div class="topic-body">Unsloth patches TRL's GRPOTrainer kernels — avoids materialising massive logit tensors, implements Standby Mode KV-Cache, supports 380K token context windows. 8B model at 20K context: 510 GB (standard) → 54 GB (Unsloth). Single 8 GB consumer GPU now sufficient for GRPO training.</div></div>
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Rubric</span><div class="topic-title">Reward design: rubrics over scalars</div><div class="topic-body">The practical lesson from TRL/GRPO deployments: a single correct/incorrect reward is too sparse. A rubric — stacked smaller verifiable rewards (format, accuracy, length, chain-of-thought) — gives the model richer feedback at each step and produces dramatically more stable training convergence.</div></div>
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">vLLM</span><div class="topic-title">Fast rollout generation</div><div class="topic-body">Online RL (GRPO) requires generating thousands of completions per training step — the most expensive part. TRL integrates vLLM as the inference backend for rollout generation, achieving up to 86× faster completion generation compared to standard HuggingFace inference during online RL.</div></div>
+    <div class="topic" style="--accent:#EF9F27"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">RLVR</span><div class="topic-title">Patience is all you need</div><div class="topic-body">Core insight behind RLVR: if the initial probability of the correct answer is &gt; 0, RL will eventually find it by pruning bad paths. This is why GRPO must be applied to SFT models (not raw base models) — SFT ensures p(correct) &gt; 0 before RL begins. RL then amplifies what is already latent.</div></div>
+  </div>
+  <div class="paper"><strong>TRL: Transformer Reinforcement Learning</strong> — von Werra et al., Hugging Face 2020–2026. v1.0.0 April 2026. Apache 2.0. github.com/huggingface/trl</div>
+  <div class="paper"><strong>Unsloth RL: Transforming LLMs Into Reasoning Models With GRPO</strong> — Unsloth AI 2025. 90% VRAM reduction. 380K context support. Desktop-level reasoning model training.</div>
+  <div class="paper"><strong>DeepSeekMath: Pushing the Limits of Mathematical Reasoning in LLMs</strong> — Shao et al. 2024 (arXiv:2402.03300). Introduced GRPO as implemented in TRL's GRPOTrainer.</div>
 </div>
 
 </div><!-- /content -->
@@ -350,8 +369,9 @@ const LAYERS=[
   {id:'l10',h:'Layer 10 — SFT &amp; PEFT',                 color:'#639922', topics:['Supervised fine-tuning','LoRA low-rank adaptation','QLoRA 4-bit quantized','Adapters · DoRA · rsLoRA']},
   {id:'l11',h:'Layer 11 — alignment (RLHF)',               color:'#534AB7', topics:['Bradley-Terry reward model','Best-of-N rejection sampling','PPO-KL and PPO-Clip','Direct preference optimisation']},
   {id:'l12',h:'Layer 12 — reasoning training (RLVR)',      color:'#993556', topics:['GRPO algorithm','Verifiable rewards','Emergent reasoning behaviours','AIME / MATH / GPQA benchmarks']},
-  {id:'l13',h:'Layer 13 — vision &amp; speech',            color:'#1D9E75', topics:['ViT image patches + CLS token','CLIP contrastive pretraining','Log-Mel spectrogram','Whisper encoder-decoder ASR']},
-  {id:'l14',h:'Layer 14 — VAE &amp; stable diffusion',     color:'#BA7517', topics:['Variational autoencoder','Latent space structure','Denoising diffusion process','Stable Diffusion (latent DM)']},
+  {id:'l13',h:'Layer 13 — frameworks &amp; tooling',        color:'#EF9F27', topics:['TRL full-stack alignment library','SFTTrainer → RewardTrainer → GRPOTrainer','Unsloth: 90% VRAM reduction','Reward rubrics · vLLM rollout · RLVR patience'], isNew:true},
+  {id:'l14',h:'Layer 14 — vision &amp; speech',            color:'#1D9E75', topics:['ViT image patches + CLS token','CLIP contrastive pretraining','Log-Mel spectrogram','Whisper encoder-decoder ASR']},
+  {id:'l15',h:'Layer 15 — VAE &amp; stable diffusion',     color:'#BA7517', topics:['Variational autoencoder','Latent space structure','Denoising diffusion process','Stable Diffusion (latent DM)']},
 ];
 
 function buildStack(){
