@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBOW & Skip-gram — How Word Embeddings Are Learned</title>
+<style>
+:root{
+  --bg:#fff;--bg2:#f5f4f0;--bg3:#eeedea;--text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.12);--radius:10px;--radius-sm:6px;
+  --purple-f:#EEEDFE;--purple-s:#7F77DD;--purple-t:#3C3489;
+  --teal-f:#E1F5EE;--teal-s:#1D9E75;--teal-t:#085041;
+  --amber-f:#FAEEDA;--amber-s:#EF9F27;--amber-t:#633806;
+  --blue-f:#E6F1FB;--blue-s:#378ADD;--blue-t:#0C447C;
+  --coral-f:#FAECE7;--coral-s:#D85A30;--coral-t:#4A1B0C;
+  --green-f:#EAF3DE;--green-s:#639922;--green-t:#27500A;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+    --border:rgba(255,255,255,0.1);
+    --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+    --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+    --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+    --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+    --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+    --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg3);color:var(--text);line-height:1.6;padding-bottom:30px}
+header{background:var(--bg);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;font-weight:500}
+header p{font-size:12px;color:var(--text2)}
+.tab-bar{display:flex;background:var(--bg);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:11px 18px;font-size:13px;font-weight:500;cursor:pointer;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text2);transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--text)}
+.panel{display:none;padding:20px;max-width:900px;margin:0 auto}
+.panel.on{display:block}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.card-body{font-size:13px;color:var(--text2);line-height:1.65}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:560px){.two{grid-template-columns:1fr}}
+.paper{background:var(--bg2);border-left:3px solid var(--border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:9px 12px;margin-bottom:6px;font-size:12px;color:var(--text2)}
+.paper strong{color:var(--text);font-weight:500}
+
+/* sentence stepper */
+.sentence{display:flex;flex-wrap:wrap;gap:6px;padding:14px;background:var(--bg2);border-radius:var(--radius-sm);margin-bottom:10px;align-items:center;min-height:52px}
+.word-tok{padding:6px 12px;border-radius:6px;font-size:14px;font-weight:500;border:2px solid transparent;transition:all .25s;cursor:default}
+.word-tok.context{background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)}
+.word-tok.target{background:var(--purple-s);border-color:#534AB7;color:#fff;transform:scale(1.08)}
+.word-tok.neutral{background:var(--bg);border-color:var(--border);color:var(--text2)}
+.word-tok.negative{background:var(--bg2);border-color:var(--border);color:var(--text3);opacity:.5}
+
+/* step nav */
+.step-nav{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.step-btn{padding:6px 16px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg);color:var(--text);transition:background .15s}
+.step-btn:hover{background:var(--bg2)}
+.step-btn:disabled{opacity:.35;cursor:default}
+.step-lbl{font-size:12px;color:var(--text2)}
+
+/* neural network diagram */
+.nn-wrap{background:var(--bg2);border-radius:var(--radius);padding:14px;margin-bottom:10px;overflow-x:auto}
+.nn{display:flex;align-items:center;justify-content:center;gap:0;min-height:160px}
+.nn-layer{display:flex;flex-direction:column;align-items:center;gap:6px}
+.nn-layer-label{font-size:10px;font-weight:600;color:var(--text3);text-align:center;margin-bottom:4px;width:80px}
+.nn-nodes{display:flex;flex-direction:column;gap:5px;align-items:center}
+.nn-node{width:32px;height:32px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;transition:all .3s}
+.nn-edges{width:50px;display:flex;align-items:center;justify-content:center;position:relative;min-height:130px}
+.nn-edges svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}
+
+/* negative sampling viz */
+.neg-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.neg-label{font-size:12px;width:80px;flex-shrink:0;text-align:right;color:var(--text2)}
+.neg-bar{height:20px;border-radius:3px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;color:#fff;transition:width .4s}
+.neg-note{font-size:11px;color:var(--text3);margin-left:6px}
+
+/* comparison table */
+.cmp{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.cmp th{padding:8px 12px;text-align:left;background:var(--bg2);border:1px solid var(--border);font-weight:600}
+.cmp td{padding:7px 12px;border:1px solid var(--border);color:var(--text2);vertical-align:top}
+
+/* timeline */
+.timeline{position:relative;padding-left:20px;margin:10px 0}
+.timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:14px;padding-left:16px}
+.tl-dot{position:absolute;left:-14px;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid}
+.tl-year{font-size:10px;font-weight:600;color:var(--text3)}
+.tl-title{font-size:13px;font-weight:500;color:var(--text)}
+.tl-body{font-size:12px;color:var(--text2)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>CBOW &amp; Skip-gram</h1><p>How word embeddings are learned — the algorithms behind Word2Vec, GloVe, and FastText</p></div>
+  <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Layer 2</span>
+</header>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">CBOW</button>
+  <button class="tab"     onclick="showTab(1)">Skip-gram</button>
+  <button class="tab"     onclick="showTab(2)">Side-by-side</button>
+  <button class="tab"     onclick="showTab(3)">Family tree</button>
+</div>
+
+<!-- ══ TAB 0: CBOW ══ -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Continuous Bag of Words</span>
+    <div class="card-title">Many → One: use the surrounding words to predict the missing word</div>
+    <div class="card-body">CBOW takes a window of context words around a gap and predicts what word belongs in the gap. The "bag" in the name means the order of context words doesn't matter — only their average embedding does. Training millions of these predictions forces the model to learn that similar words appear in similar contexts, which is exactly what makes embeddings useful.</div>
+  </div>
+
+  <div class="step-nav">
+    <button class="step-btn" id="cbow-prev" onclick="stepCBOW(-1)" disabled>← Prev</button>
+    <span class="step-lbl" id="cbow-lbl">Step 1 of 5</span>
+    <button class="step-btn" id="cbow-next" onclick="stepCBOW(1)">Next →</button>
+  </div>
+
+  <div class="sentence" id="cbow-sentence"></div>
+  <div class="card" id="cbow-explain" style="margin-bottom:10px"></div>
+
+  <div class="nn-wrap">
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px;text-align:center">CBOW network — context words averaged → hidden layer → predict target</div>
+    <div class="nn" id="cbow-nn"></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">How training works</span>
+      <div class="card-body">For each position in the corpus, the algorithm slides a window (typically 5 words wide: 2 left + target + 2 right). The context words are embedded, averaged together, and passed through a two-layer network. The output is a probability over all vocabulary words. Loss = cross-entropy between predicted distribution and the actual target word.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Connection to BERT</span>
+      <div class="card-body">BERT's Masked Language Modelling (MLM) is CBOW scaled up. Instead of a 2-word context window, BERT uses the full sentence. Instead of averaging embeddings, BERT uses deep transformer attention. Instead of a shallow network, BERT uses 12–24 transformer layers. Same idea, massively more powerful execution.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 1: SKIP-GRAM ══ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Skip-gram</span>
+    <div class="card-title">One → Many: use one word to predict all its surrounding context words</div>
+    <div class="card-body">Skip-gram inverts CBOW: given one input word, predict each context word in the surrounding window. For a window of ±2, each input word generates 4 training examples. This means rare words get many more training signals than in CBOW, making Skip-gram much better at learning embeddings for rare or technical vocabulary.</div>
+  </div>
+
+  <div class="step-nav">
+    <button class="step-btn" id="sg-prev" onclick="stepSG(-1)" disabled>← Prev</button>
+    <span class="step-lbl" id="sg-lbl">Step 1 of 5</span>
+    <button class="step-btn" id="sg-next" onclick="stepSG(1)">Next →</button>
+  </div>
+
+  <div class="sentence" id="sg-sentence"></div>
+  <div class="card" id="sg-explain" style="margin-bottom:10px"></div>
+
+  <div class="nn-wrap">
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px;text-align:center">Skip-gram network — input word → hidden layer → predict each context word separately</div>
+    <div class="nn" id="sg-nn"></div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Negative sampling — the key speedup</span>
+    <div class="card-title">Why training on all 50,000 words per step is impractical — and how to fix it</div>
+    <div class="card-body">Without negative sampling, every training step requires computing a softmax over the entire vocabulary (50,000+ items) — enormously slow. Negative sampling instead updates weights for just the correct context word (positive) plus 5–20 randomly chosen wrong words (negatives). The model learns to distinguish real context from random noise. This makes training ~1,000× faster with minimal quality loss.</div>
+    <div style="margin-top:12px">
+      <div class="neg-row">
+        <div class="neg-label">positive</div>
+        <div class="neg-bar" style="width:200px;background:var(--teal-s)">"sat" (correct context)</div>
+        <span class="neg-note">score → high</span>
+      </div>
+      <div class="neg-row">
+        <div class="neg-label">negative ×5</div>
+        <div class="neg-bar" style="width:70px;background:var(--text3)">"democracy"</div>
+        <span class="neg-note">score → low</span>
+      </div>
+      <div class="neg-row">
+        <div class="neg-label"></div>
+        <div class="neg-bar" style="width:70px;background:var(--text3)">"algorithm"</div>
+        <span class="neg-note">score → low</span>
+      </div>
+      <div class="neg-row">
+        <div class="neg-label"></div>
+        <div class="neg-bar" style="width:70px;background:var(--text3)">"umbrella"</div>
+        <span class="neg-note">score → low</span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:6px">Update only 6 word vectors per step instead of 50,000 — same learning signal, 1,000× faster.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 2: COMPARISON ══ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">CBOW vs Skip-gram — when to use each</span>
+    <div class="card-title">Two algorithms, different strengths</div>
+    <div class="card-body">Both CBOW and Skip-gram learn the same kind of embedding — dense vectors where similar words end up nearby. But they differ in speed, quality for rare words, and what they are optimised for. In practice, Skip-gram with negative sampling tends to produce better embeddings for most tasks, especially when rare words matter.</div>
+  </div>
+
+  <table class="cmp">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th style="color:var(--teal-t)">CBOW</th>
+        <th style="color:var(--purple-t)">Skip-gram</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Direction</strong></td><td style="color:var(--teal-t)">Context → Target (many→one)</td><td style="color:var(--purple-t)">Target → Context (one→many)</td></tr>
+      <tr><td><strong>Training signals</strong></td><td>1 prediction per position</td><td style="color:var(--purple-t)">2×window predictions per position</td></tr>
+      <tr><td><strong>Frequent words</strong></td><td style="color:var(--teal-t)">Better (smoothed by averaging)</td><td>Good</td></tr>
+      <tr><td><strong>Rare words</strong></td><td>Weaker</td><td style="color:var(--purple-t)">Better (more training signals)</td></tr>
+      <tr><td><strong>Training speed</strong></td><td style="color:var(--teal-t)">Faster</td><td>Slower (but still fast)</td></tr>
+      <tr><td><strong>Best for</strong></td><td style="color:var(--teal-t)">Large corpora, frequent words</td><td style="color:var(--purple-t)">Small corpora, rare/technical words</td></tr>
+      <tr><td><strong>Modern equivalent</strong></td><td>BERT MLM</td><td>Contrastive learning (CLIP, SimCSE)</td></tr>
+      <tr><td><strong>Context order matters?</strong></td><td>No (bag = unordered)</td><td>No (predicts each separately)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="two" style="margin-top:10px">
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">What they share</span>
+      <div class="card-body">Both use a two-layer neural network with no hidden-layer activation function. Both learn two embedding matrices: one for input words, one for output words. Both are trained with stochastic gradient descent. Both produce the same quality of final embeddings — the difference is in training efficiency and which words benefit most.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Window size tradeoff</span>
+      <div class="card-body">Smaller window (±1–2): embeddings capture syntactic relationships — words that appear in similar grammatical positions become similar. Larger window (±5–10): embeddings capture semantic/topical relationships — words used in similar topic contexts become similar. Most Word2Vec implementations default to ±5.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Efficient Estimation of Word Representations in Vector Space (Word2Vec)</strong> — Mikolov et al., Google 2013 (arXiv:1301.3781). Introduced both CBOW and Skip-gram in a single paper. Demonstrated the vector arithmetic properties that made embeddings famous.</div>
+  <div class="paper"><strong>Distributed Representations of Words and Phrases and their Compositionality</strong> — Mikolov et al., Google 2013 (arXiv:1310.4546). Follow-up paper introducing negative sampling and subsampling of frequent words, making training practical at scale.</div>
+</div>
+
+<!-- ══ TAB 3: FAMILY TREE ══ -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The embedding algorithm family tree — 1986 to 2024</span>
+    <div class="card-title">Every major word representation method and how they connect</div>
+    <div class="card-body">The history of word embeddings is a story of increasing expressiveness: from manually crafted features, to static vectors, to context-dependent representations, to the trillion-parameter transformers that are now the embedding layer of every frontier LLM.</div>
+  </div>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--text3);background:var(--text3)"></div>
+      <div class="tl-year">1986</div>
+      <div class="tl-title">Distributed representations (Hinton)</div>
+      <div class="tl-body">First proposal that words should be represented as vectors rather than atomic symbols. Purely theoretical — no practical training at scale yet.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--text3);background:var(--bg2)"></div>
+      <div class="tl-year">1990s–2000s</div>
+      <div class="tl-title">One-hot encoding &amp; count matrices</div>
+      <div class="tl-body">Words represented as sparse binary vectors (one 1 among 50,000 zeros). Word co-occurrence matrices (LSA, PMI). Very high-dimensional, no arithmetic properties.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--teal-s);background:var(--teal-f)"></div>
+      <div class="tl-year">2013</div>
+      <div class="tl-title" style="color:var(--teal-t)">Word2Vec — CBOW and Skip-gram (Mikolov et al.)</div>
+      <div class="tl-body">First practical, scalable dense embeddings. Trained on 100B words in hours. Vector arithmetic emerged: king−man+woman≈queen. The moment everyone took embeddings seriously.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--amber-s);background:var(--amber-f)"></div>
+      <div class="tl-year">2014</div>
+      <div class="tl-title" style="color:var(--amber-t)">GloVe (Pennington et al., Stanford)</div>
+      <div class="tl-body">Global co-occurrence matrix factorisation. More stable training than Word2Vec. Better at capturing word analogies. Still widely used as a baseline today.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--blue-s);background:var(--blue-f)"></div>
+      <div class="tl-year">2017</div>
+      <div class="tl-title" style="color:var(--blue-t)">FastText (Joulin et al., Meta)</div>
+      <div class="tl-body">Extends Skip-gram with character n-gram subwords. "running" → "run" + "unn" + "nni" + "nin" + "ing". Can represent unseen words. Essential for morphologically rich languages.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--coral-s);background:var(--coral-f)"></div>
+      <div class="tl-year">2018</div>
+      <div class="tl-title" style="color:var(--coral-t)">ELMo (Peters et al., AI2)</div>
+      <div class="tl-body">First contextual embeddings. Uses a bidirectional LSTM — the same word gets different vectors depending on context. "bank" near "river" ≠ "bank" near "money".</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--purple-s);background:var(--purple-f)"></div>
+      <div class="tl-year">2018</div>
+      <div class="tl-title" style="color:var(--purple-t)">BERT (Devlin et al., Google)</div>
+      <div class="tl-body">Transformer-based contextual embeddings. Masked language modelling (CBOW at scale with full attention). Every token's representation depends on the full sentence. Set state of the art on 11 NLP tasks simultaneously.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--teal-s);background:var(--teal-f)"></div>
+      <div class="tl-year">2021</div>
+      <div class="tl-title" style="color:var(--teal-t)">CLIP (Radford et al., OpenAI)</div>
+      <div class="tl-body">Extends contrastive learning to images. The same embedding space holds both word vectors and image vectors. Enabled text-to-image generation — words and images now in the same coordinate system.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="border-color:var(--purple-s);background:var(--purple-s)"></div>
+      <div class="tl-year">2022–2024</div>
+      <div class="tl-title" style="color:var(--purple-t)">Frontier LLM embeddings</div>
+      <div class="tl-body">The embedding layer is now a 12,288-dimensional lookup table of 100K+ tokens, trained on 15T+ tokens. The embedding algorithms of 2013 evolved into the first and last layers of every model that powers AI assistants today. CBOW and Skip-gram are inside every modern LLM — just at a much larger scale.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===0){buildCBOWNN();stepCBOW(0,true);}
+  if(i===1){buildSGNN();stepSG(0,true);}
+}
+
+const SENTENCE=['The','cat','sat','on','the','mat'];
+
+// ── CBOW steps ──
+const CBOW_STEPS=[
+  {target:2,ctx:[0,1,3,4],title:'Window slides to position 3 ("sat")',body:'The training window is centred on "sat" (position 3). The context words within window size ±2 are: "The" (left-2), "cat" (left-1), "on" (right+1), "the" (right+2). These four context words will be used to predict the target.'},
+  {target:2,ctx:[0,1,3,4],title:'Step 1 — Look up context word embeddings',body:'Each context word is converted to a dense vector by looking up its row in the embedding matrix W (vocab_size × embed_dim). We now have four vectors: v("The"), v("cat"), v("on"), v("the"). Each is a point in a high-dimensional space.'},
+  {target:2,ctx:[0,1,3,4],title:'Step 2 — Average the context embeddings',body:'The four context vectors are averaged element-by-element into a single "context vector". This is the "bag" operation — order is lost, only the average meaning remains. This averaged vector enters the network\'s hidden layer.'},
+  {target:2,ctx:[0,1,3,4],title:'Step 3 — Predict the target word',body:'The averaged context vector is multiplied by an output embedding matrix W\' to produce a score (logit) for every word in the vocabulary. Softmax converts these scores to probabilities. The model is trained to make P("sat") as high as possible.'},
+  {target:2,ctx:[0,1,3,4],title:'Step 4 — Backpropagate and update',body:'The loss (cross-entropy between predicted probability distribution and the one-hot target) is computed. Gradients flow back through the network, updating W and W\'. After millions of such updates across the corpus, similar words end up in similar positions in the embedding space.'},
+];
+let cbowCur=0;
+function renderSentence(elId,target,ctx,neg=[]){
+  const el=document.getElementById(elId);
+  el.innerHTML='';
+  SENTENCE.forEach((w,i)=>{
+    const tok=document.createElement('div');
+    tok.className='word-tok';
+    tok.textContent=w;
+    if(i===target) tok.classList.add('target');
+    else if(ctx.includes(i)) tok.classList.add('context');
+    else if(neg.includes(i)) tok.classList.add('negative');
+    else tok.classList.add('neutral');
+    el.appendChild(tok);
+  });
+  // arrow
+  const arr=document.createElement('div');
+  arr.style.cssText='margin-left:8px;font-size:12px;color:var(--text2)';
+  arr.textContent=elId.startsWith('cbow')?'→ predict target word':'→ predict context words';
+  el.appendChild(arr);
+}
+
+function buildCBOWNN(){
+  const el=document.getElementById('cbow-nn');
+  if(el.children.length) return;
+  const ctxWords=['The','cat','on','the'];
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+
+  // Input layer
+  const inputLayer=document.createElement('div');
+  inputLayer.className='nn-layer';
+  const il=document.createElement('div');il.className='nn-layer-label';il.textContent='Input (context)';
+  inputLayer.appendChild(il);
+  const inNodes=document.createElement('div');inNodes.className='nn-nodes';
+  ctxWords.forEach(w=>{
+    const n=document.createElement('div');n.className='nn-node';
+    n.style.cssText=`background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)`;
+    n.textContent=w;n.style.fontSize='8px';n.style.width='44px';n.style.height='28px';n.style.borderRadius='6px';
+    inNodes.appendChild(n);
+  });
+  inputLayer.appendChild(inNodes);
+  el.appendChild(inputLayer);
+
+  // avg arrow
+  const a1=document.createElement('div');a1.style.cssText='padding:0 8px;font-size:18px;color:var(--text3);display:flex;align-items:center';a1.textContent='→';el.appendChild(a1);
+
+  // Hidden (avg)
+  const hidLayer=document.createElement('div');hidLayer.className='nn-layer';
+  const hl=document.createElement('div');hl.className='nn-layer-label';hl.textContent='avg hidden';
+  hidLayer.appendChild(hl);
+  const hn=document.createElement('div');hn.className='nn-node';
+  hn.style.cssText=`background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t);width:48px;height:48px`;
+  hn.textContent='avg';hn.style.fontSize='11px';
+  hidLayer.appendChild(hn);el.appendChild(hidLayer);
+
+  // arrow
+  const a2=document.createElement('div');a2.style.cssText='padding:0 8px;font-size:18px;color:var(--text3);display:flex;align-items:center';a2.textContent='→';el.appendChild(a2);
+
+  // Output
+  const outLayer=document.createElement('div');outLayer.className='nn-layer';
+  const ol=document.createElement('div');ol.className='nn-layer-label';ol.textContent='Output (softmax)';
+  outLayer.appendChild(ol);
+  const outNodes=document.createElement('div');outNodes.className='nn-nodes';
+  ['sat ★','dog','run','...'].forEach((w,i)=>{
+    const n=document.createElement('div');n.className='nn-node';
+    n.style.cssText=`border-radius:6px;width:52px;height:24px;font-size:9px;`;
+    if(i===0){n.style.background='var(--purple-s)';n.style.borderColor='#534AB7';n.style.color='#fff';}
+    else{n.style.background='var(--bg)';n.style.borderColor='var(--border)';n.style.color='var(--text2)';}
+    n.textContent=w;outNodes.appendChild(n);
+  });
+  outLayer.appendChild(outNodes);el.appendChild(outLayer);
+}
+
+function stepCBOW(dir,reset=false){
+  if(reset){cbowCur=0;}
+  else{cbowCur=Math.max(0,Math.min(CBOW_STEPS.length-1,cbowCur+dir));}
+  const s=CBOW_STEPS[cbowCur];
+  renderSentence('cbow-sentence',s.target,s.ctx);
+  document.getElementById('cbow-explain').innerHTML=`<div class="badge" style="background:var(--teal-f);color:var(--teal-t)">Step ${cbowCur+1} of ${CBOW_STEPS.length}</div><div class="card-title">${s.title}</div><div class="card-body" style="margin-top:4px">${s.body}</div>`;
+  document.getElementById('cbow-prev').disabled=cbowCur===0;
+  document.getElementById('cbow-next').disabled=cbowCur===CBOW_STEPS.length-1;
+  document.getElementById('cbow-lbl').textContent=`Step ${cbowCur+1} of ${CBOW_STEPS.length}`;
+}
+
+// ── Skip-gram steps ──
+const SG_STEPS=[
+  {target:2,ctx:[0,1,3,4],cur:null,title:'Input word: "sat" (position 3)',body:'Skip-gram centres the window on the input word "sat". The surrounding context positions (±2) are: positions 0, 1, 3, 4. Skip-gram will generate a separate training example for EACH context position — 4 examples from one input word.'},
+  {target:2,ctx:[],cur:1,title:'Predicting left-1 context: "cat"',body:'First training pair: input="sat" → predict="cat". The model looks up the embedding for "sat", passes it through the network, and tries to assign high probability to "cat". Gradient update nudges "sat" and "cat" closer together in embedding space.'},
+  {target:2,ctx:[],cur:0,title:'Predicting left-2 context: "The"',body:'Second training pair: input="sat" → predict="The". "The" is a function word that appears in countless contexts — its gradient signal is weaker per occurrence, but it receives updates from almost every content word in the corpus.'},
+  {target:2,ctx:[],cur:3,title:'Predicting right-1 context: "on"',body:'Third training pair: input="sat" → predict="on". After seeing millions of examples, the model learns that words appearing near "sat" include movement and location words ("on", "at", "by", "in"). This is how "sat" gets encoded as a verb of positioning.'},
+  {target:2,ctx:[],cur:4,title:'Predicting right-2 context: "the"',body:'Fourth training pair: input="sat" → predict="the". After all four updates, the weights for "sat" have been nudged 4 times in this one window position. For Skip-gram with a corpus of 1B words and window ±5, each word gets up to 10 gradient updates per occurrence — far more than CBOW.'},
+];
+let sgCur=0;
+
+function buildSGNN(){
+  const el=document.getElementById('sg-nn');
+  if(el.children.length) return;
+  // Input
+  const inputLayer=document.createElement('div');inputLayer.className='nn-layer';
+  const il=document.createElement('div');il.className='nn-layer-label';il.textContent='Input word';inputLayer.appendChild(il);
+  const inn=document.createElement('div');inn.className='nn-node';
+  inn.style.cssText='background:var(--purple-s);border-color:#534AB7;color:#fff;width:48px;height:48px;font-size:11px';
+  inn.textContent='"sat"';inputLayer.appendChild(inn);el.appendChild(inputLayer);
+
+  const a1=document.createElement('div');a1.style.cssText='padding:0 8px;font-size:18px;color:var(--text3);display:flex;align-items:center';a1.textContent='→';el.appendChild(a1);
+
+  // Hidden
+  const hidLayer=document.createElement('div');hidLayer.className='nn-layer';
+  const hl=document.createElement('div');hl.className='nn-layer-label';hl.textContent='hidden embedding';hidLayer.appendChild(hl);
+  const hn=document.createElement('div');hn.className='nn-node';
+  hn.style.cssText='background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t);width:48px;height:48px;font-size:10px';
+  hn.textContent='v("sat")';hidLayer.appendChild(hn);el.appendChild(hidLayer);
+
+  const a2=document.createElement('div');a2.style.cssText='padding:0 8px;font-size:18px;color:var(--text3);display:flex;align-items:center';a2.textContent='→';el.appendChild(a2);
+
+  // Output — multiple predictions
+  const outLayer=document.createElement('div');outLayer.className='nn-layer';
+  const ol=document.createElement('div');ol.className='nn-layer-label';ol.textContent='Predict each context';outLayer.appendChild(ol);
+  const outNodes=document.createElement('div');outNodes.className='nn-nodes';
+  ['"The"','"cat"','"on"','"the"'].forEach((w,i)=>{
+    const n=document.createElement('div');n.className='nn-node';
+    n.style.cssText=`border-radius:6px;width:52px;height:26px;font-size:9px;margin-bottom:2px;background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)`;
+    n.textContent=w;outNodes.appendChild(n);
+  });
+  outLayer.appendChild(outNodes);el.appendChild(outLayer);
+}
+
+function stepSG(dir,reset=false){
+  if(reset){sgCur=0;}
+  else{sgCur=Math.max(0,Math.min(SG_STEPS.length-1,sgCur+dir));}
+  const s=SG_STEPS[sgCur];
+  const highlights=s.cur!==null?[s.cur]:s.ctx;
+  renderSentence('sg-sentence',s.target,highlights);
+  document.getElementById('sg-explain').innerHTML=`<div class="badge" style="background:var(--purple-f);color:var(--purple-t)">Step ${sgCur+1} of ${SG_STEPS.length}</div><div class="card-title">${s.title}</div><div class="card-body" style="margin-top:4px">${s.body}</div>`;
+  document.getElementById('sg-prev').disabled=sgCur===0;
+  document.getElementById('sg-next').disabled=sgCur===SG_STEPS.length-1;
+  document.getElementById('sg-lbl').textContent=`Step ${sgCur+1} of ${SG_STEPS.length}`;
+}
+
+// init
+buildCBOWNN();
+stepCBOW(0,true);
+</script>
+</body>
+</html>
