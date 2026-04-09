@@ -89,6 +89,20 @@
                font-weight: 600; flex-shrink: 0; margin-top: 8px; }
   .stack-arrow { text-align: center; color: var(--text3); font-size: 14px;
                  margin: 0 0 2px 38px; line-height: 1; }
+  /* file nav links */
+  .file-nav-label { padding: 12px 14px 8px; font-size: 10px; font-weight: 600;
+                    color: var(--text3); text-transform: uppercase; letter-spacing: .08em;
+                    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+                    margin-top: 8px; }
+  .file-link { display: flex; align-items: flex-start; gap: 8px; padding: 9px 14px;
+               font-size: 12px; font-weight: 500; border-bottom: 1px solid var(--border);
+               text-decoration: none; color: var(--text2); transition: all .15s;
+               border-left: 3px solid transparent; }
+  .file-link:hover { background: var(--bg3); color: var(--text); }
+  .file-link-num { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+                   flex-shrink: 0; margin-top: 1px; }
+  .file-link-body { flex: 1; line-height: 1.4; }
+  .file-link-sub { font-size: 10px; font-weight: 400; opacity: .7; display: block; margin-top: 1px; }
 </style>
 </head>
 <body>
@@ -132,6 +146,46 @@
     <span class="layer-num">Layer 12 — modalities</span>Vision &amp; speech</button>
   <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-text)" onclick="show('l13')">
     <span class="layer-num">Layer 13 — VAE / diffusion</span>Generative image models</button>
+
+  <div class="file-nav-label">Course files</div>
+
+  <a class="file-link" href="05-embedding-deepdive.html" target="_blank" style="border-left-color:#7F77DD">
+    <span class="file-link-num" style="background:var(--purple-fill);color:var(--purple-text)">05</span>
+    <span class="file-link-body">Embedding deep-dive
+      <span class="file-link-sub">Tokens · Position · Semantics · Scale</span>
+    </span>
+  </a>
+  <a class="file-link" href="06-cbow-skipgram.html" target="_blank" style="border-left-color:#7F77DD">
+    <span class="file-link-num" style="background:var(--purple-fill);color:var(--purple-text)">06</span>
+    <span class="file-link-body">CBOW &amp; Skip-gram
+      <span class="file-link-sub">How word embeddings are learned</span>
+    </span>
+  </a>
+  <a class="file-link" href="07-architecture-families.html" target="_blank" style="border-left-color:#378ADD">
+    <span class="file-link-num" style="background:var(--blue-fill);color:var(--blue-text)">07</span>
+    <span class="file-link-body">Architecture families
+      <span class="file-link-sub">Encoder · Decoder · Model catalogue</span>
+    </span>
+  </a>
+  <a class="file-link" href="02-pretraining-pipeline.html" target="_blank" style="border-left-color:#EF9F27">
+    <span class="file-link-num" style="background:var(--amber-fill);color:var(--amber-text)">02</span>
+    <span class="file-link-body">Training pipeline
+      <span class="file-link-sub">Pretraining · Optimizations · SFT · PEFT</span>
+    </span>
+  </a>
+  <a class="file-link" href="03-rlhf-reasoning.html" target="_blank" style="border-left-color:#7F77DD">
+    <span class="file-link-num" style="background:var(--purple-fill);color:var(--purple-text)">03</span>
+    <span class="file-link-body">RLHF &amp; Reasoning
+      <span class="file-link-sub">PPO · DPO · GRPO · Benchmarks</span>
+    </span>
+  </a>
+  <a class="file-link" href="04-vision-speech.html" target="_blank" style="border-left-color:#1D9E75">
+    <span class="file-link-num" style="background:var(--teal-fill);color:var(--teal-text)">04</span>
+    <span class="file-link-body">Vision &amp; Speech
+      <span class="file-link-sub">ViT · CLIP · Whisper · Wav2Vec</span>
+    </span>
+  </a>
+
 </div>
 
 <div id="content">
