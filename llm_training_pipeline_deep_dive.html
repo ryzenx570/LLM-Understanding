@@ -1,0 +1,499 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,sans-serif)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.tab-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;background:transparent;border-top:none;border-left:none;border-right:none;transition:all .15s;white-space:nowrap}
+.tab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+.panel{display:none;padding:16px}
+.panel.on{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 9px;border-radius:6px;margin-bottom:6px}
+.bp{background:#EEEDFE;color:#3C3489}.bt{background:#E1F5EE;color:#085041}.ba{background:#FAEEDA;color:#633806}.bc{background:#FAECE7;color:#4A1B0C}.bb{background:#E6F1FB;color:#0C447C}.bg{background:#EAF3DE;color:#27500A}.bpi{background:#FBEAF0;color:#4B1528}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:520px){.two-col,.three-col{grid-template-columns:1fr}}
+.stat-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;text-align:center}
+.stat-val{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.stat-lbl{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+.step-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.step-btn{padding:5px 14px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:transparent;color:var(--color-text-primary);transition:background .15s}
+.step-btn:hover{background:var(--color-background-secondary)}
+.step-btn:disabled{opacity:.35;cursor:default}
+.step-info{font-size:12px;color:var(--color-text-secondary)}
+.peft-row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.peft-chip{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-secondary);transition:all .15s;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.peft-chip.on{background:#EEEDFE;color:#3C3489;border-color:#7F77DD}
+.peft-detail{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px;font-size:13px;color:var(--color-text-secondary);line-height:1.65;min-height:80px}
+@media(prefers-color-scheme:dark){
+  .bp{background:#26215C;color:#CECBF6}.bt{background:#04342C;color:#9FE1CB}.ba{background:#412402;color:#FAC775}.bc{background:#4A1B0C;color:#F5C4B3}.bb{background:#042C53;color:#B5D4F4}.bg{background:#173404;color:#C0DD97}.bpi{background:#4B1528;color:#F4C0D1}
+  .peft-chip.on{background:#26215C;color:#CECBF6;border-color:#7F77DD}
+}
+</style>
+
+<h2 class="sr-only">LLM Training Pipeline: Pretraining, Training Optimizations, Supervised Fine-Tuning, and Parameter-Efficient Fine-Tuning — based on Daniel Han's LLM training pipeline video.</h2>
+
+<div class="tab-row">
+  <button class="tab on"  onclick="showTab('pre')">1 — Pretraining</button>
+  <button class="tab" onclick="showTab('opt')">2 — Optimizations</button>
+  <button class="tab" onclick="showTab('sft')">3 — Supervised fine-tuning</button>
+  <button class="tab" onclick="showTab('peft')">4 — PEFT</button>
+</div>
+
+<!-- ══════════════ TAB 1: PRETRAINING ══════════════ -->
+<div class="panel on" id="tab-pre">
+  <div class="card">
+    <span class="badge ba">Stage 1 of the LLM pipeline</span>
+    <div class="card-title">Pretraining — teaching a model everything from raw text</div>
+    <div class="card-body">Pretraining is the most expensive and foundational step. The model is trained on trillions of tokens of text using a single objective: predict the next token. No human labels are needed — the text itself is the supervision signal. This phase creates the "base model" — a powerful text predictor that has implicitly learned grammar, facts, reasoning, and world knowledge, but is not yet useful as an assistant.</div>
+  </div>
+
+  <!-- Pipeline visual -->
+  <svg width="100%" viewBox="0 0 640 72" role="img" style="margin-bottom:10px">
+    <title>Pretraining pipeline: Raw data → Filter → Tokenize → Train → Base model</title>
+    <defs><marker id="ap" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g font-family="var(--font-sans,sans-serif)">
+      <rect x="4"   y="18" width="96" height="36" rx="7" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#633806" x="52"  y="34" text-anchor="middle" dominant-baseline="central">Raw text data</text>
+      <text font-size="9" fill="#854F0B" x="52" y="47" text-anchor="middle" dominant-baseline="central">trillions of tokens</text>
+      <line x1="100" y1="36" x2="114" y2="36" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#ap)" fill="none"/>
+      <rect x="114" y="18" width="96" height="36" rx="7" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#633806" x="162" y="34" text-anchor="middle" dominant-baseline="central">Filter + dedupe</text>
+      <text font-size="9" fill="#854F0B" x="162" y="47" text-anchor="middle" dominant-baseline="central">quality curation</text>
+      <line x1="210" y1="36" x2="224" y2="36" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#ap)" fill="none"/>
+      <rect x="224" y="18" width="96" height="36" rx="7" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#633806" x="272" y="34" text-anchor="middle" dominant-baseline="central">Tokenise (BPE)</text>
+      <text font-size="9" fill="#854F0B" x="272" y="47" text-anchor="middle" dominant-baseline="central">chunk into sequences</text>
+      <line x1="320" y1="36" x2="334" y2="36" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#ap)" fill="none"/>
+      <rect x="334" y="18" width="96" height="36" rx="7" fill="#EF9F27" stroke="#BA7517" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#fff" x="382" y="34" text-anchor="middle" dominant-baseline="central">Train on GPUs</text>
+      <text font-size="9" fill="#FAEEDA" x="382" y="47" text-anchor="middle" dominant-baseline="central">next-token loss</text>
+      <line x1="430" y1="36" x2="444" y2="36" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#ap)" fill="none"/>
+      <rect x="444" y="18" width="96" height="36" rx="7" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#E1F5EE" x="492" y="34" text-anchor="middle" dominant-baseline="central">Base model</text>
+      <text font-size="9" fill="#9FE1CB" x="492" y="47" text-anchor="middle" dominant-baseline="central">text predictor</text>
+    </g>
+  </svg>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge ba">Data curation — the most critical step</span>
+      <div class="card-title">Garbage in, garbage out</div>
+      <div class="card-body">Data quality determines model quality more than almost any other factor. Modern pretraining pipelines apply aggressive filtering: deduplication (same text appearing 100× should not dominate), quality classifiers (filtering out low-quality web pages), domain balancing (mixing code, books, Wikipedia, conversations in deliberate ratios), and toxicity filters. Llama 3 used 15 trillion tokens; GPT-3 used ~500B tokens.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">Training objective — next-token prediction</span>
+      <div class="card-title">One simple loss, trillion-scale consequences</div>
+      <div class="card-body">The model sees a sequence of tokens and must predict each next token from all previous ones. The loss is cross-entropy between predicted probabilities and the actual next token. This single objective — applied at massive scale — causes the model to implicitly learn grammar, facts, syntax, reasoning chains, code patterns, and more. No human labels are ever needed.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge ba">Scaling laws — Chinchilla (Hoffmann et al. 2022)</span>
+    <div class="card-title">How much compute, how many tokens, how big a model?</div>
+    <div class="card-body">The Chinchilla paper showed that most LLMs before 2022 were overtrained on model size and undertrained on data. The optimal ratio is roughly 20 tokens per parameter — a 7B model should see ~140B tokens for compute-optimal training. Llama 3 deliberately violated this by training on 15T tokens (over-training for inference efficiency — a smaller model that trains longer can be served more cheaply at scale even if it costs more to train).</div>
+  </div>
+
+  <div class="three-col">
+    <div class="stat-box"><div class="stat-val">15T</div><div class="stat-lbl">tokens in Llama 3 pretraining</div></div>
+    <div class="stat-box"><div class="stat-val">~$100M+</div><div class="stat-lbl">estimated GPT-4 training cost</div></div>
+    <div class="stat-box"><div class="stat-val">25,000</div><div class="stat-lbl">GPUs for GPT-4 training</div></div>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <span class="badge ba">Continued pretraining — domain adaptation</span>
+    <div class="card-title">Steering a base model into a new domain without full retraining</div>
+    <div class="card-body">After initial pretraining on general text, a model can be continually pretrained on domain-specific data — medical literature, legal documents, code, a new language — using the same next-token prediction objective. This is much cheaper than full pretraining and lets organizations adapt public base models to their domain. Key insight from Unsloth research: train on ALL linear layers including embed_tokens and lm_head, use Rank-Stabilized LoRA (rsLoRA) at rank 256, and use different learning rates for embeddings to stabilize training.</div>
+  </div>
+
+  <div class="card">
+    <span class="badge ba">Paper annotations</span>
+    <div class="card-title">Key pretraining papers for further study</div>
+    <div class="card-body">
+      <strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361). Showed performance scales as a power law with compute, data, and model size.<br><br>
+      <strong>Training Compute-Optimal Large Language Models (Chinchilla)</strong> — Hoffmann et al., DeepMind 2022. Showed most models were undertrained on data; established the 20 tokens/parameter rule.<br><br>
+      <strong>The Llama 3 Herd of Models</strong> — Meta 2024 (arXiv:2407.21783). Detailed pretraining at 15T tokens with aggressive data curation and deliberate over-training for deployment efficiency.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 2: TRAINING OPTIMIZATIONS ══════════════ -->
+<div class="panel" id="tab-opt">
+  <div class="card">
+    <span class="badge bp">Training at scale requires engineering solutions</span>
+    <div class="card-title">Why naive training of LLMs fails — and how each optimization fixes it</div>
+    <div class="card-body">Training GPT-3 naively in FP32 with a fixed learning rate and no distributed strategy would take decades on a single GPU and crash from memory overflow on the first step. Every modern training run combines a dozen engineering solutions simultaneously. Here are the most important ones.</div>
+  </div>
+
+  <!-- Stepped through 6 optimizations -->
+  <div class="step-nav">
+    <button class="step-btn" id="opt-prev" onclick="stepOpt(-1)" disabled>← Prev</button>
+    <span class="step-info" id="opt-lbl">AdamW optimizer (1 of 6)</span>
+    <button class="step-btn" id="opt-next" onclick="stepOpt(1)">Next →</button>
+  </div>
+
+  <svg width="100%" viewBox="0 0 640 240" id="opt-svg" role="img">
+    <title>Training optimization diagram</title>
+    <g id="opt-g" font-family="var(--font-sans,sans-serif)"></g>
+  </svg>
+  <div id="opt-card" class="card" style="margin-top:0"></div>
+
+  <!-- Memory breakdown visual -->
+  <div class="card">
+    <div class="card-title">Why GPU memory runs out during training — the memory wall</div>
+    <svg width="100%" viewBox="0 0 640 110" role="img" style="margin-top:8px">
+      <title>GPU memory breakdown showing weights, gradients, and optimizer states for a 7B model</title>
+      <defs></defs>
+      <g font-family="var(--font-sans,sans-serif)">
+        <text font-size="11" fill="#5F5E5A" x="320" y="14" text-anchor="middle">GPU memory needed to train a 7B model in FP16 — full fine-tuning</text>
+        <!-- Weights bar -->
+        <text font-size="10" fill="#888780" x="84" y="32" text-anchor="end">Weights</text>
+        <rect x="90" y="22" width="140" height="18" rx="3" fill="#7F77DD"/>
+        <text font-size="10" fill="#fff" x="160" y="31" text-anchor="middle" dominant-baseline="central">14 GB  (FP16)</text>
+        <!-- Gradients bar -->
+        <text font-size="10" fill="#888780" x="84" y="56" text-anchor="end">Gradients</text>
+        <rect x="90" y="46" width="140" height="18" rx="3" fill="#AFA9EC"/>
+        <text font-size="10" fill="#26215C" x="160" y="55" text-anchor="middle" dominant-baseline="central">14 GB  (FP16)</text>
+        <!-- Optimizer states bar -->
+        <text font-size="10" fill="#888780" x="84" y="80" text-anchor="end">Optimizer states</text>
+        <rect x="90" y="70" width="280" height="18" rx="3" fill="#534AB7"/>
+        <text font-size="10" fill="#fff" x="230" y="79" text-anchor="middle" dominant-baseline="central">28 GB  (AdamW: 2 momentum buffers in FP32)</text>
+        <!-- Total -->
+        <text font-size="11" font-weight="500" fill="#3C3489" x="90" y="106">Total ≈ 56 GB+  for a 7B model — exceeds most consumer GPUs</text>
+        <text font-size="10" fill="#888780" x="90" y="120">Solutions: mixed precision, gradient checkpointing, ZeRO, LoRA/QLoRA</text>
+        <!-- Plus activations note -->
+        <text font-size="10" fill="#888780" x="480" y="38">+ activations during</text>
+        <text font-size="10" fill="#888780" x="480" y="50">forward pass (vary by</text>
+        <text font-size="10" fill="#888780" x="480" y="62">batch size, seq length)</text>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 3: SUPERVISED FINE-TUNING ══════════════ -->
+<div class="panel" id="tab-sft">
+  <div class="card">
+    <span class="badge bt">Stage 2 — from base model to assistant</span>
+    <div class="card-title">Supervised Fine-Tuning (SFT) — teaching the model to follow instructions</div>
+    <div class="card-body">A base model trained only on next-token prediction will complete your text, not answer your question. If you ask "What is the capital of France?", it might respond "What is the capital of Germany?" — because that's the kind of text it has seen. SFT teaches the model that a question expects a specific type of answer. Using thousands to hundreds of thousands of (prompt, completion) pairs, the model is trained to follow instructions, answer questions, hold conversations, and behave helpfully.</div>
+  </div>
+
+  <!-- SFT pipeline -->
+  <svg width="100%" viewBox="0 0 640 80" role="img" style="margin-bottom:10px">
+    <title>SFT pipeline: Base model + instruction dataset → SFT training → Instruction-following model</title>
+    <defs><marker id="as" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g font-family="var(--font-sans,sans-serif)">
+      <rect x="4"   y="22" width="110" height="36" rx="7" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#085041" x="59"  y="37" text-anchor="middle" dominant-baseline="central">Base model</text>
+      <text font-size="9" fill="#0F6E56" x="59" y="50" text-anchor="middle" dominant-baseline="central">text predictor</text>
+      <rect x="4"   y="64" width="110" height="14" rx="4" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="9" fill="#633806" x="59" y="71" text-anchor="middle" dominant-baseline="central">instruction dataset</text>
+      <line x1="114" y1="40" x2="164" y2="40" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#as)" fill="none"/>
+      <rect x="164" y="22" width="120" height="36" rx="7" fill="#1D9E75" stroke="#0F6E56" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#fff" x="224" y="34" text-anchor="middle" dominant-baseline="central">SFT training</text>
+      <text font-size="9" fill="#9FE1CB" x="224" y="48" text-anchor="middle" dominant-baseline="central">cross-entropy on completions</text>
+      <line x1="284" y1="40" x2="334" y2="40" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#as)" fill="none"/>
+      <rect x="334" y="22" width="140" height="36" rx="7" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#E1F5EE" x="404" y="34" text-anchor="middle" dominant-baseline="central">Instruction-tuned model</text>
+      <text font-size="9" fill="#9FE1CB" x="404" y="48" text-anchor="middle" dominant-baseline="central">follows prompts, answers questions</text>
+      <line x1="474" y1="40" x2="524" y2="40" stroke="#534AB7" stroke-width="1.5" marker-end="url(#as)" fill="none"/>
+      <rect x="524" y="22" width="112" height="36" rx="7" fill="#534AB7" stroke="#3C3489" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#fff" x="580" y="34" text-anchor="middle" dominant-baseline="central">RLHF / DPO</text>
+      <text font-size="9" fill="#CECBF6" x="580" y="48" text-anchor="middle" dominant-baseline="central">alignment stage</text>
+    </g>
+  </svg>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bt">Dataset formats</span>
+      <div class="card-title">What instruction data looks like</div>
+      <div class="card-body">Data comes as (prompt, completion) pairs. Common formats: Alpaca (instruction + input + output fields), ShareGPT (multi-turn conversations), ChatML (system + user + assistant turns). Quality matters far more than quantity — 1,000 carefully curated examples often outperform 100,000 noisy ones. The FineTome-100k dataset combines conversations, reasoning chains, function calls, and code problems.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">Train on completions only</span>
+      <div class="card-title">Don't compute loss on the prompt</div>
+      <div class="card-body">A key SFT trick: compute the cross-entropy loss ONLY on the assistant's response tokens, not on the user's prompt. This teaches the model to generate good answers rather than to reproduce questions. The QLoRA paper showed this significantly improves accuracy, especially for multi-turn conversations. In Unsloth this is called "train_on_responses_only".</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge bt">Full fine-tuning vs LoRA vs QLoRA</span>
+    <div class="card-title">The three SFT strategies — and when to use each</div>
+    <svg width="100%" viewBox="0 0 640 130" role="img" style="margin-top:8px">
+      <title>Comparison of full fine-tuning, LoRA, and QLoRA showing memory and parameter tradeoffs</title>
+      <g font-family="var(--font-sans,sans-serif)">
+        <!-- Full FT -->
+        <rect x="4" y="8" width="195" height="114" rx="8" fill="#FCEBEB" stroke="#E24B4A" stroke-width="0.5"/>
+        <text font-size="12" font-weight="500" fill="#791F1F" x="102" y="26" text-anchor="middle">Full fine-tuning</text>
+        <text font-size="10" fill="#A32D2D" x="102" y="42" text-anchor="middle">All weights updated</text>
+        <rect x="18" y="52" width="167" height="12" rx="2" fill="#E24B4A" opacity=".7"/>
+        <text font-size="9" fill="#fff" x="102" y="62" text-anchor="middle" dominant-baseline="central">56 GB+ VRAM (7B model)</text>
+        <rect x="18" y="68" width="50" height="12" rx="2" fill="#E24B4A" opacity=".4"/>
+        <text font-size="9" fill="#791F1F" x="102" y="78" text-anchor="middle" dominant-baseline="central">100% params trained</text>
+        <text font-size="9" fill="#888780" x="102" y="96" text-anchor="middle">Highest quality possible</text>
+        <text font-size="9" fill="#888780" x="102" y="110" text-anchor="middle">Risk: catastrophic forgetting</text>
+
+        <!-- LoRA -->
+        <rect x="222" y="8" width="195" height="114" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="12" font-weight="500" fill="#085041" x="320" y="26" text-anchor="middle">LoRA (16-bit)</text>
+        <text font-size="10" fill="#0F6E56" x="320" y="42" text-anchor="middle">Frozen weights + small adapters</text>
+        <rect x="236" y="52" width="56" height="12" rx="2" fill="#1D9E75" opacity=".7"/>
+        <text font-size="9" fill="#085041" x="264" y="62" text-anchor="middle" dominant-baseline="central">~14 GB</text>
+        <text font-size="9" fill="#085041" x="320" y="78" text-anchor="middle" dominant-baseline="central">~1% params trained</text>
+        <text font-size="9" fill="#888780" x="320" y="96" text-anchor="middle">2–4× less VRAM than FFT</text>
+        <text font-size="9" fill="#888780" x="320" y="110" text-anchor="middle">Can match FFT quality</text>
+
+        <!-- QLoRA -->
+        <rect x="440" y="8" width="196" height="114" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="12" font-weight="500" fill="#3C3489" x="538" y="26" text-anchor="middle">QLoRA (4-bit)</text>
+        <text font-size="10" fill="#534AB7" x="538" y="42" text-anchor="middle">4-bit quantized + adapters</text>
+        <rect x="454" y="52" width="21" height="12" rx="2" fill="#7F77DD" opacity=".7"/>
+        <text font-size="9" fill="#3C3489" x="464" y="62" text-anchor="middle" dominant-baseline="central">~5 GB</text>
+        <text font-size="9" fill="#3C3489" x="538" y="78" text-anchor="middle" dominant-baseline="central">~1% params trained</text>
+        <text font-size="9" fill="#888780" x="538" y="96" text-anchor="middle">Fits on consumer GPU</text>
+        <text font-size="9" fill="#888780" x="538" y="110" text-anchor="middle">~39% slower than LoRA</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bt">Instruction tuning vs standard SFT</span>
+      <div class="card-title">Fewer examples, better generalization</div>
+      <div class="card-body">Standard SFT needs thousands of task-specific examples. Instruction tuning uses (prompt, completion) pairs that demonstrate behavior — "always be helpful, honest, and harmless" — rather than task-specific answers. Models learn to generalize the behavior pattern, not memorize answers. InstructGPT showed a 1.3B instruction-tuned model outperformed a raw 175B GPT-3 on helpfulness.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">Catastrophic forgetting</span>
+      <div class="card-title">The danger of full fine-tuning</div>
+      <div class="card-body">When you update all weights during SFT, the model can "forget" general abilities learned during pretraining — a phenomenon called catastrophic forgetting. Fine-tuning a coding model might make it lose conversational ability. PEFT methods (LoRA, adapters) mitigate this by keeping base weights frozen and only training small additions, preserving the original knowledge.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge bt">Paper annotations</span>
+    <div class="card-title">Key SFT papers</div>
+    <div class="card-body">
+      <strong>Training language models to follow instructions with human feedback (InstructGPT)</strong> — Ouyang et al., OpenAI 2022 (arXiv:2203.02155). Introduced RLHF for instruction following. Showed smaller instruction-tuned models beat larger raw models.<br><br>
+      <strong>Self-Instruct: Aligning Language Models with Self-Generated Instructions</strong> — Wang et al. 2022 (arXiv:2212.10560). Showed LLMs can generate their own instruction data, democratizing SFT dataset creation.<br><br>
+      <strong>QLoRA: Efficient Finetuning of Quantized LLMs</strong> — Dettmers et al. 2023 (arXiv:2305.14314). Enabled fine-tuning of 65B models on a single 48GB GPU. Introduced 4-bit NormalFloat quantization and double quantization.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 4: PEFT ══════════════ -->
+<div class="panel" id="tab-peft">
+  <div class="card">
+    <span class="badge bp">Parameter-Efficient Fine-Tuning</span>
+    <div class="card-title">Fine-tune a 70B model on your laptop — by only training 1% of its weights</div>
+    <div class="card-body">PEFT is a family of techniques that adapt a large pretrained model to a new task by training only a tiny fraction of its parameters, while keeping the base model frozen. The result: you get most of the benefit of full fine-tuning at 1–10% of the compute and memory cost. This has democratized LLM adaptation — researchers and developers can now fine-tune state-of-the-art models on consumer hardware.</div>
+  </div>
+
+  <div class="peft-row">
+    <div class="peft-chip on" onclick="showPEFT(this,'lora')">LoRA</div>
+    <div class="peft-chip" onclick="showPEFT(this,'qlora')">QLoRA</div>
+    <div class="peft-chip" onclick="showPEFT(this,'adapter')">Adapters</div>
+    <div class="peft-chip" onclick="showPEFT(this,'prefix')">Prefix tuning</div>
+    <div class="peft-chip" onclick="showPEFT(this,'prompt')">Prompt tuning</div>
+    <div class="peft-chip" onclick="showPEFT(this,'dora')">DoRA</div>
+    <div class="peft-chip" onclick="showPEFT(this,'rslora')">rsLoRA</div>
+  </div>
+  <div class="peft-detail" id="peft-detail"></div>
+
+  <!-- LoRA diagram -->
+  <div class="card" style="margin-top:10px">
+    <div class="card-title">LoRA — how the low-rank decomposition works</div>
+    <svg width="100%" viewBox="0 0 640 200" role="img" style="margin-top:8px">
+      <title>LoRA architecture: original weight matrix W is frozen, two small matrices A and B are trained and added</title>
+      <desc>The original weight W (d×d) is frozen. Matrix A (d×r) and matrix B (r×d) where r is very small are trained. The update is B×A which has the same shape as W but far fewer parameters.</desc>
+      <defs><marker id="al" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g font-family="var(--font-sans,sans-serif)">
+        <!-- Input -->
+        <rect x="4" y="86" width="60" height="28" rx="5" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+        <text font-size="10" fill="#444441" x="34" y="100" text-anchor="middle" dominant-baseline="central">Input x</text>
+
+        <!-- W frozen path -->
+        <line x1="64" y1="96" x2="86" y2="70" stroke="#888780" stroke-width="1" fill="none"/>
+        <rect x="86" y="48" width="120" height="44" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#5F5E5A" x="146" y="66" text-anchor="middle" dominant-baseline="central">W (frozen)</text>
+        <text font-size="9" fill="#888780" x="146" y="82" text-anchor="middle" dominant-baseline="central">d × d params — NOT updated</text>
+        <line x1="206" y1="70" x2="440" y2="70" stroke="#888780" stroke-width="1" fill="none"/>
+
+        <!-- LoRA path -->
+        <line x1="64" y1="100" x2="86" y2="126" stroke="#7F77DD" stroke-width="1.5" fill="none"/>
+        <rect x="86" y="108" width="100" height="40" rx="6" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#3C3489" x="136" y="122" text-anchor="middle" dominant-baseline="central">A  (d × r)</text>
+        <text font-size="9" fill="#534AB7" x="136" y="136" text-anchor="middle" dominant-baseline="central">trained  r ≪ d</text>
+        <line x1="186" y1="128" x2="210" y2="128" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#al)" fill="none"/>
+        <rect x="210" y="108" width="100" height="40" rx="6" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#3C3489" x="260" y="122" text-anchor="middle" dominant-baseline="central">B  (r × d)</text>
+        <text font-size="9" fill="#534AB7" x="260" y="136" text-anchor="middle" dominant-baseline="central">trained  (init=0)</text>
+        <line x1="310" y1="128" x2="440" y2="128" stroke="#7F77DD" stroke-width="1.5" fill="none"/>
+
+        <!-- Sum -->
+        <circle cx="456" cy="100" r="18" fill="#1D9E75" stroke="#085041" stroke-width="0.5"/>
+        <text font-size="16" font-weight="500" fill="#fff" x="456" y="104" text-anchor="middle" dominant-baseline="central">+</text>
+        <line x1="440" y1="70" x2="450" y2="90" stroke="#888780" stroke-width="1" marker-end="url(#al)" fill="none"/>
+        <line x1="440" y1="128" x2="450" y2="110" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#al)" fill="none"/>
+        <line x1="474" y1="100" x2="514" y2="100" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#al)" fill="none"/>
+
+        <!-- Output -->
+        <rect x="514" y="84" width="120" height="32" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#085041" x="574" y="100" text-anchor="middle" dominant-baseline="central">Wx + BAx</text>
+
+        <!-- Labels -->
+        <text font-size="10" fill="#888780" x="136" y="162" text-anchor="middle">A: random init (Gaussian)</text>
+        <text font-size="10" fill="#888780" x="260" y="162" text-anchor="middle">B: zero init (so BA=0 at start)</text>
+        <text font-size="10" font-weight="500" fill="#3C3489" x="456" y="168" text-anchor="middle">Only A and B are trained</text>
+        <text font-size="10" fill="#888780" x="456" y="182" text-anchor="middle">r=16 → ~0.1% of a 7B model's params</text>
+
+        <!-- Rank annotation -->
+        <rect x="86" y="178" width="230" height="16" rx="3" fill="#EEEDFE"/>
+        <text font-size="9" font-weight="500" fill="#3C3489" x="200" y="190" text-anchor="middle" dominant-baseline="central">rank r controls capacity vs efficiency  (typical: r=8, 16, 32, 64)</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bp">Where LoRA adapters are inserted</span>
+      <div class="card-title">Target modules in the transformer</div>
+      <div class="card-body">LoRA adapters are injected into selected linear weight matrices. Common targets: Q, K, V, O (attention projections), up_proj, down_proj, gate_proj (feed-forward layers). Training ALL linear layers including embed_tokens and lm_head produces better results, especially for continued pretraining. Unsloth defaults to all linear layers for comprehensive adaptation.</div>
+    </div>
+    <div class="card">
+      <span class="badge bp">LoRA hyperparameters</span>
+      <div class="card-title">The key knobs to tune</div>
+      <div class="card-body"><strong>r (rank)</strong> — controls capacity. r=8 minimal, r=16 standard, r=64–256 for continued pretraining. <strong>alpha</strong> — scaling factor, typically set to r or 2r. <strong>dropout</strong> — 0.05–0.1 to prevent overfitting. <strong>learning rate</strong> — 2e-4 for standard SFT. If training loss falls below 0.2, the model is overfitting. rsLoRA uses alpha/√r scaling for stability at high ranks.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge bp">Paper annotations — PEFT</span>
+    <div class="card-title">Key PEFT papers for further study</div>
+    <div class="card-body">
+      <strong>LoRA: Low-Rank Adaptation of Large Language Models</strong> — Hu et al., Microsoft 2021 (arXiv:2106.09685). Introduced LoRA. Showed it matches full fine-tuning on GPT-3 tasks while training only 0.01% of parameters.<br><br>
+      <strong>QLoRA: Efficient Finetuning of Quantized LLMs</strong> — Dettmers et al. 2023 (arXiv:2305.14314). Combined LoRA with 4-bit NF4 quantization. Enabled 65B model fine-tuning on a single 48GB GPU. Introduced paged optimizers and double quantization.<br><br>
+      <strong>DoRA: Weight-Decomposed Low-Rank Adaptation</strong> — Liu et al. 2024 (arXiv:2402.09353). Decomposes weights into magnitude and direction components, training both separately. Often outperforms LoRA with similar compute.<br><br>
+      <strong>Parameter-Efficient Transfer Learning for NLP</strong> — Houlsby et al., Google 2019 (arXiv:1902.00751). Original adapters paper — inserted small bottleneck modules into transformer layers. Foundational PEFT work predating LoRA.
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  const m={pre:0,opt:1,sft:2,peft:3};
+  document.querySelectorAll('.tab')[m[id]].classList.add('on');
+  if(id==='opt'){drawOpt(0);}
+  if(id==='peft'){showPEFT(document.querySelector('.peft-chip'),'lora');}
+}
+
+/* ── Training optimizations stepper ── */
+const OPTS=[
+  {title:'AdamW — the de-facto standard optimizer',color:'#7F77DD',bg:'#EEEDFE',
+   diagram:'adamw',
+   body:'Standard Adam tracks a moving average of gradients (momentum) and a moving average of squared gradients (adaptive learning rate per parameter). The "W" in AdamW fixes a bug: weight decay is applied directly to parameters rather than through the loss function. This matters for regularization. AdamW with β₁=0.9, β₂=0.95, ε=1e-8, weight_decay=0.1 is the standard for LLM pretraining. <strong>Memory cost:</strong> AdamW stores TWO extra copies of all parameters (the two momentum buffers) in FP32 — for a 7B model that is 56GB of optimizer states alone.'},
+  {title:'Mixed precision training — BF16 / FP16',color:'#1D9E75',bg:'#E1F5EE',
+   diagram:'mixed',
+   body:'Training in 32-bit floats (FP32) is slow and uses 2× more memory than 16-bit. Mixed precision stores weights and runs forward/backward passes in 16-bit (FP16 or BF16), but keeps a master copy in FP32 for the optimizer step. BF16 is preferred over FP16 because it has the same exponent range as FP32 — preventing overflow/underflow with large gradients. A100 and H100 GPUs run BF16 at full speed. This alone halves memory and roughly doubles training throughput.'},
+  {title:'Gradient checkpointing — trade compute for memory',color:'#EF9F27',bg:'#FAEEDA',
+   diagram:'gradck',
+   body:'During the backward pass, PyTorch needs the intermediate activations from the forward pass to compute gradients. For a large model, these activations fill the GPU. Gradient checkpointing (also called activation recomputation) solves this by NOT storing activations during the forward pass — instead it recomputes them on the fly during the backward pass. This reduces memory usage by ~√N (N = number of layers) at the cost of ~33% more compute. Essential for fine-tuning large models on limited GPU memory.'},
+  {title:'Learning rate schedule — warmup + cosine decay',color:'#D85A30',bg:'#FAECE7',
+   diagram:'lrsched',
+   body:'Using a fixed learning rate throughout training is suboptimal. The standard approach is: (1) Linear warmup — start from near-zero and linearly increase to the peak LR over the first 1–10% of steps. This prevents large, destabilizing gradient updates early in training when Adam\'s variance estimates are unreliable. (2) Cosine decay — smoothly decrease the LR following a cosine curve to ~10% of peak by the end. GPT-3 used peak LR 6e-4 with 375M warmup tokens. Llama 3 used 8e-5 peak LR with cosine decay.'},
+  {title:'ZeRO — Zero Redundancy Optimizer',color:'#534AB7',bg:'#EEEDFE',
+   diagram:'zero',
+   body:'When training across multiple GPUs, each GPU normally holds a complete copy of the model, gradients, and optimizer states — massive redundancy. ZeRO (from Microsoft DeepSpeed) shards these across GPUs: ZeRO-1 shards optimizer states, ZeRO-2 adds gradient sharding, ZeRO-3 shards the model weights themselves. ZeRO-3 allows a 7B model to be trained across 8 GPUs each needing only 1/8 of the optimizer memory. Combined with model parallelism (tensor parallelism, pipeline parallelism), this is how models larger than any single GPU are trained.'},
+  {title:'Gradient clipping — preventing exploding gradients',color:'#D4537E',bg:'#FBEAF0',
+   diagram:'clip',
+   body:'During training, gradients can suddenly spike to very large values — especially early in training or when the model encounters unusual data. These "gradient explosions" can corrupt all the model\'s learned weights in a single step, ruining a multi-million dollar training run. Global norm clipping is the standard solution: compute the global L2 norm of all gradients, and if it exceeds a threshold (typically 1.0), scale all gradients down proportionally so the norm equals the threshold. This preserves gradient direction while capping magnitude. Used in every major LLM training run.'},
+];
+
+let optCur=0;
+function drawOpt(idx){
+  optCur=idx;
+  const o=OPTS[idx];
+  const g=document.getElementById('opt-g');
+  g.innerHTML='';
+  const ff='var(--font-sans,sans-serif)';
+
+  if(o.diagram==='adamw'){
+    const labels=['m (1st moment)','v (2nd moment)','gradient g','weight θ'];
+    const colors=['#7F77DD','#534AB7','#AFA9EC','#EEEDFE'];
+    labels.forEach((l,i)=>{
+      const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',String(40+i*146));r.setAttribute('y','60');r.setAttribute('width','130');r.setAttribute('height','50');r.setAttribute('rx','8');r.setAttribute('fill',colors[i]);r.setAttribute('stroke','#534AB7');r.setAttribute('stroke-width','0.5');
+      g.appendChild(r);
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',String(105+i*146));t.setAttribute('y','82');t.setAttribute('text-anchor','middle');t.setAttribute('font-size','12');t.setAttribute('font-weight','500');t.setAttribute('font-family',ff);t.setAttribute('fill',i<3?'#fff':'#3C3489');t.textContent=l;
+      g.appendChild(t);
+      const s=document.createElementNS('http://www.w3.org/2000/svg','text');
+      s.setAttribute('x',String(105+i*146));s.setAttribute('y','98');s.setAttribute('text-anchor','middle');s.setAttribute('font-size','10');s.setAttribute('font-family',ff);s.setAttribute('fill',i<3?'#CECBF6':'#534AB7');
+      s.textContent=i===0?'momentum buffer':i===1?'variance buffer':i===2?'current step':'model parameter';
+      g.appendChild(s);
+    });
+    const note=document.createElementNS('http://www.w3.org/2000/svg','text');
+    note.setAttribute('x','320');note.setAttribute('y','148');note.setAttribute('text-anchor','middle');note.setAttribute('font-size','11');note.setAttribute('font-family',ff);note.setAttribute('fill','#888780');
+    note.textContent='AdamW stores m and v in FP32 — doubles the memory of gradient storage';
+    g.appendChild(note);
+    const note2=document.createElementNS('http://www.w3.org/2000/svg','text');
+    note2.setAttribute('x','320');note2.setAttribute('y','165');note2.setAttribute('text-anchor','middle');note2.setAttribute('font-size','11');note2.setAttribute('font-family',ff);note2.setAttribute('fill','#888780');
+    note2.textContent='θ ← θ − lr × m̂/(√v̂ + ε)  −  lr × λθ   (weight decay applied directly)';
+    g.appendChild(note2);
+  } else if(o.diagram==='mixed'){
+    ['FP32 master weights','FP16 weights','FP16 gradients','FP32 optimizer states'].forEach((l,i)=>{
+      const colors=['#EF9F27','#9FE1CB','#5DCAA5','#FAEEDA'];
+      const tc=['#fff','#04342C','#fff','#633806'];
+      const w=[200,140,140,200];
+      const x=[20,240,400,20];
+      const y=[i<2?40:130,i<2?40:130,i<2?40:130,130];
+      const ys=[40,40,130,130];
+      const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x',String(x[i]));r.setAttribute('y',String(ys[i]));r.setAttribute('width',String(w[i]));r.setAttribute('height','44');r.setAttribute('rx','8');r.setAttribute('fill',colors[i]);r.setAttribute('stroke-width','0.5');
+      g.appendChild(r);
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',String(x[i]+w[i]/2));t.setAttribute('y',String(ys[i]+22));t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','central');t.setAttribute('font-size','11');t.setAttribute('font-weight','500');t.setAttribute('font-family',ff);t.setAttribute('fill',tc[i]);t.textContent=l;
+      g.appendChild(t);
+    });
+    const note=document.createElementNS('http://www.w3.org/2000/svg','text');
+    note.setAttribute('x','320');note.setAttribute('y','200');note.setAttribute('text-anchor','middle');note.setAttribute('font-size','11');note.setAttribute('font-family',ff);note.setAttribute('fill','#888780');
+    note.textContent='Forward + backward in FP16 (fast). Optimizer step in FP32 (stable). BF16 > FP16 for LLMs.';
+    g.appendChild(note);
+  } else {
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x','320');txt.setAttribute('y','120');txt.setAttribute('text-anchor','middle');txt.setAttribute('font-size','13');txt.setAttribute('font-family',ff);txt.setAttribute('fill','#5F5E5A');
+    txt.textContent=o.title;g.appendChild(txt);
+  }
+
+  document.getElementById('opt-card').innerHTML=`<span class="badge" style="background:${o.bg};color:${o.color}">${idx+1} of ${OPTS.length}</span><div class="card-title">${o.title}</div><div class="card-body">${o.body}</div>`;
+  document.getElementById('opt-prev').disabled=idx===0;
+  document.getElementById('opt-next').disabled=idx===OPTS.length-1;
+  document.getElementById('opt-lbl').textContent=o.title.split(' — ')[0]+' ('+( idx+1)+' of '+OPTS.length+')';
+}
+function stepOpt(d){drawOpt(Math.max(0,Math.min(OPTS.length-1,optCur+d)));}
+
+/* ── PEFT details ── */
+const PEFT_INFO={
+  lora:{title:'LoRA — Low-Rank Adaptation',body:'LoRA inserts two small matrices A (d×r) and B (r×d) in parallel with each frozen weight matrix W. Only A and B are trained. Their product BA is added to W during the forward pass: output = Wx + BAx × (alpha/r). Because r ≪ d, the number of trainable parameters is tiny — a 7B model with r=16 has only ~6–20M trainable params out of 7B. At inference time, BA can be merged directly into W with zero overhead. <strong>Why it works:</strong> The hypothesis (backed by empirical evidence) is that weight updates during fine-tuning have low intrinsic rank — the model does not need high-dimensional updates to adapt to new tasks.'},
+  qlora:{title:'QLoRA — Quantized LoRA',body:'QLoRA extends LoRA by first quantizing the frozen base model to 4-bit precision using a new format called NF4 (NormalFloat4), which is optimal for normally-distributed neural network weights. The LoRA adapters (A and B) are kept in 16-bit. During the forward pass, 4-bit weights are dequantized to 16-bit on the fly for the computation, then discarded. This means the base model uses 4× less memory than FP16. A 70B model (normally 140GB in FP16) fits in ~35GB with QLoRA. QLoRA also introduced double quantization (quantizing the quantization constants themselves!) and paged optimizers that offload optimizer states to CPU RAM when GPU memory is full.'},
+  adapter:{title:'Adapters — bottleneck modules inside transformer layers',body:'Adapters (Houlsby et al. 2019, the original PEFT paper) insert small fully-connected bottleneck modules inside each transformer block — after the self-attention and after the feed-forward layer. Each adapter has a down-projection (d→r), a non-linearity, and an up-projection (r→d). Only these small modules are trained; everything else is frozen. Adapters add ~2-10% extra parameters. They are slightly less efficient than LoRA at inference because they cannot be merged into the base weights — they must be computed at every forward pass. However, they support multi-task learning: different adapter sets for different tasks can be swapped in and out while sharing the same base model.'},
+  prefix:{title:'Prefix tuning — prepend trainable vectors to the input',body:'Prefix tuning (Li & Liang 2021, arXiv:2101.00190) prepends a sequence of trainable "virtual tokens" to every layer\'s key and value matrices in attention. These prefix vectors are not real tokens — they are learned continuous vectors in the embedding space that condition the model\'s behavior. Only the prefix parameters are trained (~0.1% of model params). The intuition: by prepending a task-specific context to every attention operation, you steer the model\'s attention patterns without modifying its weights. Prefix tuning works well for generation tasks but can be unstable to optimize — later replaced by LoRA in most use cases.'},
+  prompt:{title:'Prompt tuning — learnable tokens at the input',body:'Prompt tuning (Lester et al. 2021, arXiv:2104.08691) is the simplest PEFT method: prepend k trainable tokens to the input embedding sequence (only at the first layer, unlike prefix tuning). The model\'s weights are entirely frozen; only these k soft tokens (typically k=20–100) are optimized. At the billion-parameter scale, prompt tuning approaches full fine-tuning quality. Below that scale, it underperforms LoRA. Main advantage: a single frozen model can serve many tasks simultaneously by swapping prompt vectors — zero per-task GPU memory overhead at inference.'},
+  dora:{title:'DoRA — Weight-Decomposed Low-Rank Adaptation',body:'DoRA (Liu et al. 2024, arXiv:2402.09353) improves on LoRA by decomposing each weight matrix into its magnitude (a scalar per output) and direction (the normalized weight matrix). LoRA only adapts the direction; DoRA trains both magnitude and direction separately. The direction update uses a low-rank decomposition (like LoRA), while the magnitude is a learnable scalar vector. This decomposition mimics how full fine-tuning updates weights, giving DoRA better performance than LoRA on many tasks with similar parameter count. DoRA is now available in Hugging Face PEFT and Unsloth.'},
+  rslora:{title:'rsLoRA — Rank-Stabilized LoRA',body:'Standard LoRA scales the adapter output by alpha/r. This means at high ranks (r=256), the contribution of the adapter becomes very small relative to the base model. rsLoRA (Kalajdzievski 2024) changes the scaling to alpha/√r instead of alpha/r. This ensures that as rank increases, the adapter contribution remains stable — crucial for continued pretraining where high ranks (r=256) are needed to capture distribution shifts for new domains. Without rsLoRA, training at r=256 with standard alpha/r scaling often produces unstable or ineffective training. Unsloth uses rsLoRA by default for continued pretraining tasks.'},
+};
+function showPEFT(el,key){
+  document.querySelectorAll('.peft-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=PEFT_INFO[key];
+  document.getElementById('peft-detail').innerHTML='<strong style="color:var(--color-text-primary);font-size:13px">'+d.title+'</strong><br><br>'+d.body;
+}
+
+drawOpt(0);
+showPEFT(document.querySelector('.peft-chip'),'lora');
+</script>

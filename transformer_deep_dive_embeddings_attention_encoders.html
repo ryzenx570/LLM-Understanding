@@ -1,0 +1,755 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,sans-serif)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.tab-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto;gap:0}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;background:transparent;border-top:none;border-left:none;border-right:none;transition:all .15s;white-space:nowrap}
+.tab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+
+.panel{display:none;padding:16px}
+.panel.on{display:block}
+
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 9px;border-radius:6px;margin-bottom:6px}
+.bp{background:#EEEDFE;color:#3C3489}
+.bt{background:#E1F5EE;color:#085041}
+.ba{background:#FAEEDA;color:#633806}
+.bc{background:#FAECE7;color:#4A1B0C}
+.bb{background:#E6F1FB;color:#0C447C}
+.bg{background:#EAF3DE;color:#27500A}
+.bpi{background:#FBEAF0;color:#4B1528}
+
+/* Timeline */
+.tl{display:flex;flex-direction:column;gap:0;margin-top:4px}
+.tl-item{display:flex;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer;transition:background .15s;border-radius:4px}
+.tl-item:last-child{border-bottom:none}
+.tl-item:hover{background:var(--color-background-secondary)}
+.tl-item.active{background:var(--color-background-secondary)}
+.tl-left{display:flex;flex-direction:column;align-items:center;gap:4px;width:52px;flex-shrink:0}
+.tl-year{font-size:11px;font-weight:500;color:var(--color-text-secondary)}
+.tl-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.tl-body{flex:1;padding-right:8px}
+.tl-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px}
+.tl-sub{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.tl-detail{font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin-top:6px;padding:8px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);display:none}
+.tl-item.active .tl-detail{display:block}
+
+/* Step nav */
+.step-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.step-btn{padding:5px 14px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:transparent;color:var(--color-text-primary);transition:background .15s}
+.step-btn:hover{background:var(--color-background-secondary)}
+.step-btn:disabled{opacity:.35;cursor:default}
+.step-info{font-size:12px;color:var(--color-text-secondary)}
+
+/* Model cards */
+.model-section{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:12px}
+.model-header{padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.model-header:hover{background:var(--color-background-secondary)}
+.model-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px}
+.model-title{font-size:14px;font-weight:500;color:var(--color-text-primary)}
+.model-year{font-size:11px;color:var(--color-text-secondary);margin-left:auto}
+.model-body{padding:0 16px;max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),padding .35s}
+.model-body.open{max-height:800px;padding:0 16px 16px}
+
+.spec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+@media(max-width:500px){.spec-grid{grid-template-columns:1fr 1fr}}
+.spec-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px;text-align:center}
+.spec-val{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.spec-lbl{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+
+@media(prefers-color-scheme:dark){
+  .bp{background:#26215C;color:#CECBF6}
+  .bt{background:#04342C;color:#9FE1CB}
+  .ba{background:#412402;color:#FAC775}
+  .bc{background:#4A1B0C;color:#F5C4B3}
+  .bb{background:#042C53;color:#B5D4F4}
+  .bg{background:#173404;color:#C0DD97}
+  .bpi{background:#4B1528;color:#F4C0D1}
+}
+</style>
+
+<h2 class="sr-only">Deep dive: positional embedding evolution, sliding window attention, and encoder model architectures T5, BERT and BART.</h2>
+
+<div class="tab-row">
+  <button class="tab on" onclick="showTab('pos')">Positional embeddings</button>
+  <button class="tab" onclick="showTab('attn')">Sliding window attention</button>
+  <button class="tab" onclick="showTab('enc')">Encoder models</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 1 — POSITIONAL EMBEDDINGS EVOLUTION
+     ════════════════════════════════════════ -->
+<div class="panel on" id="tab-pos">
+
+  <div class="card">
+    <span class="badge ba">The evolution of position encoding</span>
+    <div class="card-title">From hardcoded sine waves to learned rotations — click each era to expand</div>
+    <div class="card-body">Transformers process all tokens simultaneously — they have no built-in sense of order. Position encodings solve this by injecting "where am I in the sequence?" information into each token's vector. The technique has evolved dramatically from a fixed mathematical formula in 2017 to dynamic rotations used in every frontier model today.</div>
+  </div>
+
+  <div class="tl" id="pe-timeline">
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2017</div><div class="tl-dot" style="background:#888780"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">Hardcoded sinusoidal encoding — the original</div>
+        <div class="tl-sub">Vaswani et al. "Attention Is All You Need" · used in: original Transformer</div>
+        <div class="tl-detail">Each token at position p gets a fixed vector of sine and cosine values at different frequencies. No parameters are learned — the encoding is computed once from a formula and added directly to the embedding. Low-frequency dimensions encode coarse position ("am I near the start or end?"), high-frequency dimensions encode fine position ("exactly which word am I?"). Think of it like a clock with many hands spinning at different speeds — every moment in time produces a unique combination of hand positions.<br><br><strong>Formula:</strong> PE(p, 2i) = sin(p / 10000^(2i/d)) and PE(p, 2i+1) = cos(p / 10000^(2i/d)) where d is the embedding dimension.<br><br><strong>Weakness:</strong> Fixed frequencies mean the model cannot adapt position encoding to the data. Performance degrades on sequences longer than seen during training because the sine patterns repeat or extrapolate poorly.</div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2018</div><div class="tl-dot" style="background:#1D9E75"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">Learned absolute position embeddings</div>
+        <div class="tl-sub">Used in: BERT, GPT-1, GPT-2</div>
+        <div class="tl-detail">Instead of a fixed formula, each position index (1, 2, 3 … max_length) gets its own learnable embedding vector — just like a word in the vocabulary. These vectors are initialized randomly and updated during training alongside all other model parameters.<br><br><strong>How it works:</strong> Add a position lookup table alongside the token lookup table. Token at position 5 gets token_embed[token_id] + position_embed[5]. Both tables are learned jointly.<br><br><strong>GPT-2 example:</strong> 1,024 position vectors × 768 dimensions = ~786K additional parameters. Small relative to the total model size.<br><br><strong>Strength:</strong> The model freely learns whatever positional patterns are most useful for the data, rather than following a prescribed formula.<br><br><strong>Weakness:</strong> Hard ceiling at the trained maximum length. BERT trained with 512 positions — it simply cannot handle longer sequences without retraining or tricks. The position 513 vector does not exist.</div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2019</div><div class="tl-dot" style="background:#378ADD"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">Relative position encodings</div>
+        <div class="tl-sub">Shaw et al. 2018, used in: Transformer-XL, T5</div>
+        <div class="tl-detail">Instead of encoding "I am at position 47", relative encodings ask "how far apart are these two tokens?" When computing attention between token A and token B, a learned bias term is added based on (position_B − position_A), not on their absolute positions.<br><br><strong>Key insight:</strong> For many NLP tasks, what matters is not whether a word is at position 50 vs position 100, but whether it is 3 words away from another word. Relative encoding captures this directly.<br><br><strong>T5's implementation:</strong> Rather than continuous distance values, T5 buckets distances into 32 logarithmically spaced bins. Far-away tokens all share the same bucket — the model only needs fine-grained distance info for nearby tokens.<br><br><strong>Advantage:</strong> Much better generalization to longer sequences — the model has seen "2 tokens apart" millions of times even if it has never seen absolute position 800.<br><br><strong>Weakness:</strong> More computationally complex to implement. Adds parameters to every attention layer.</div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2021</div><div class="tl-dot" style="background:#D4537E"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">ALiBi — Attention with Linear Biases</div>
+        <div class="tl-sub">Press et al. 2021 · used in: BLOOM, MPT</div>
+        <div class="tl-detail">ALiBi skips adding anything to the embeddings entirely. Instead, it modifies the attention scores directly — subtracting a penalty proportional to the distance between two tokens before the softmax.<br><br><strong>How it works:</strong> attention_score(i, j) = Q·K − m × |i − j| where m is a per-head slope (a fixed geometric sequence across heads). Farther apart = bigger penalty = less attention. No extra parameters.<br><br><strong>Key advantage:</strong> Generalizes to sequences much longer than training length. Because it is a simple linear penalty, it degrades gracefully — tokens 2,000 positions apart get a large penalty but not infinite, so the model still attends to them a little.<br><br><strong>BLOOM:</strong> The 176-billion-parameter multilingual model from the BigScience consortium used ALiBi as its position scheme, trained on 46 languages simultaneously.</div>
+      </div>
+    </div>
+
+    <div class="tl-item active" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2022</div><div class="tl-dot" style="background:#7F77DD"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">RoPE — Rotary Position Embedding</div>
+        <div class="tl-sub">Su et al. 2021 (arXiv:2104.09864) · used in: Llama 1/2/3, Mistral, Falcon, GPT-NeoX, Gemma, Phi, Claude (reportedly)</div>
+        <div class="tl-detail">RoPE is now the dominant position encoding in almost every state-of-the-art open model. Rather than adding a position vector to the embedding, RoPE rotates the query (Q) and key (K) vectors in the attention computation by an angle proportional to the token's position.<br><br><strong>The core intuition:</strong> If you rotate two vectors by angles θ₁ and θ₂, their dot product (used in attention) naturally depends on the difference θ₂ − θ₁ — which encodes relative distance. So RoPE gives relative position information "for free" inside the attention operation itself.<br><br><strong>Concretely:</strong> The embedding is split into pairs of dimensions. Each pair is treated as a 2D coordinate. At position p, the pair is rotated by angle p × θ where θ is a frequency (different for each pair of dimensions, following a geometric sequence like the original sine encoding). The rotation matrix is: [cos(pθ) −sin(pθ) / sin(pθ) cos(pθ)].<br><br><strong>Why it won:</strong><br>• Naturally encodes relative distances (Q·K depends only on position difference)<br>• Works with FlashAttention and other efficient attention kernels<br>• Decays gracefully with distance — far-apart tokens automatically attend less<br>• Can be extended beyond training length with YaRN, LongRoPE, and other tricks<br><br><strong>Llama 3:</strong> Uses RoPE with a base frequency of 500,000 (vs 10,000 in the original Llama), enabling a 128K token context window.<br><br><strong>Paper:</strong> "RoFormer: Enhanced Transformer with Rotary Position Embedding" — Su, Lu, Pan, Murtadha, Wen, Liu · 2021</div>
+        <svg width="100%" viewBox="0 0 640 120" style="margin-top:10px;display:block" role="img">
+          <title>RoPE rotation diagram showing how two token vectors are rotated by angles proportional to their position</title>
+          <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+          <g font-family="var(--font-sans,sans-serif)">
+            <!-- Original vectors -->
+            <circle cx="100" cy="60" r="40" fill="none" stroke="#D3D1C7" stroke-width="0.5"/>
+            <line x1="100" y1="60" x2="132" y2="36" stroke="#7F77DD" stroke-width="2" marker-end="url(#ar)" fill="none"/>
+            <text font-size="10" fill="#534AB7" x="138" y="32">q (pos 0)</text>
+            <text font-size="10" fill="#888780" x="100" y="108" text-anchor="middle">before RoPE</text>
+
+            <!-- Arrow -->
+            <line x1="158" y1="60" x2="188" y2="60" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+            <text font-size="10" fill="#888780" x="173" y="54" text-anchor="middle">rotate by p×θ</text>
+
+            <!-- Rotated pos 1 -->
+            <circle cx="260" cy="60" r="40" fill="none" stroke="#D3D1C7" stroke-width="0.5"/>
+            <line x1="260" y1="60" x2="292" y2="36" stroke="#AFA9EC" stroke-width="1" stroke-dasharray="4 2" fill="none"/>
+            <line x1="260" y1="60" x2="298" y2="50" stroke="#7F77DD" stroke-width="2" marker-end="url(#ar)" fill="none"/>
+            <text font-size="10" fill="#534AB7" x="305" y="46">q (pos 1)</text>
+            <text font-size="10" fill="#888780" x="260" y="108" text-anchor="middle">rotated by 1×θ</text>
+
+            <!-- Arrow -->
+            <line x1="318" y1="60" x2="348" y2="60" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+            <text font-size="10" fill="#888780" x="333" y="54" text-anchor="middle">rotate by 3×θ</text>
+
+            <!-- Rotated pos 3 -->
+            <circle cx="420" cy="60" r="40" fill="none" stroke="#D3D1C7" stroke-width="0.5"/>
+            <line x1="420" y1="60" x2="452" y2="36" stroke="#AFA9EC" stroke-width="1" stroke-dasharray="4 2" fill="none"/>
+            <line x1="420" y1="60" x2="420" y2="20" stroke="#7F77DD" stroke-width="2" marker-end="url(#ar)" fill="none"/>
+            <text font-size="10" fill="#534AB7" x="426" y="16">q (pos 3)</text>
+            <text font-size="10" fill="#888780" x="420" y="108" text-anchor="middle">rotated by 3×θ</text>
+
+            <!-- Key insight -->
+            <rect x="480" y="30" width="155" height="56" rx="8" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.5"/>
+            <text font-size="10" font-weight="500" fill="#3C3489" x="558" y="48" text-anchor="middle">Q · K dot product</text>
+            <text font-size="10" fill="#534AB7" x="558" y="63" text-anchor="middle">depends only on</text>
+            <text font-size="10" fill="#534AB7" x="558" y="75" text-anchor="middle">angle difference</text>
+            <text font-size="10" font-weight="500" fill="#3C3489" x="558" y="87" text-anchor="middle">= relative position!</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-left"><div class="tl-year">2023+</div><div class="tl-dot" style="background:#EF9F27"></div></div>
+      <div class="tl-body">
+        <div class="tl-title">Extended RoPE — YaRN, LongRoPE, NTK-aware scaling</div>
+        <div class="tl-sub">Used in: Llama 3 (128K), Mistral v0.3, Phi-3, GPT-4 Turbo (128K)</div>
+        <div class="tl-detail">RoPE by itself struggles when asked to attend to positions much longer than seen during training — the angles "wrap around" and distant tokens look similar to nearby ones. Several techniques were developed to extend RoPE beyond its training range without full retraining.<br><br><strong>NTK-aware scaling:</strong> Rescale the frequency base (e.g. 10,000 → 500,000) so rotation angles grow more slowly, making longer sequences representable without wrapping.<br><br><strong>YaRN (Yet another RoPE extensioN):</strong> Applies different scaling factors to different frequency dimensions — low-frequency dimensions (coarse position) get little scaling, high-frequency ones (fine position) get heavy scaling. More precise than uniform scaling.<br><br><strong>LongRoPE:</strong> Microsoft's approach that fine-tunes the model on a small set of long documents after applying NTK scaling. Used in Phi-3 to extend from 4K → 128K context.<br><br><strong>Real-world impact:</strong> Llama 3 uses base frequency 500,000 vs Llama 2's 10,000 — a 50× increase — enabling genuine 128K context windows. This is the difference between reading a short article and reading an entire book in a single prompt.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick comparison visual -->
+  <div class="card" style="margin-top:8px">
+    <div class="card-title">At a glance — all five approaches</div>
+    <svg width="100%" viewBox="0 0 640 180" role="img" style="margin-top:6px">
+      <title>Comparison table of positional encoding methods</title>
+      <defs></defs>
+      <g font-family="var(--font-sans,sans-serif)" font-size="11">
+        <!-- Headers -->
+        <text font-weight="500" fill="#444441" x="10"  y="16">Method</text>
+        <text font-weight="500" fill="#444441" x="180" y="16">Where applied</text>
+        <text font-weight="500" fill="#444441" x="320" y="16">Learned?</text>
+        <text font-weight="500" fill="#444441" x="400" y="16">Long-context?</text>
+        <text font-weight="500" fill="#444441" x="510" y="16">Used in</text>
+        <line x1="0" y1="22" x2="640" y2="22" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>
+
+        <!-- Row 1 -->
+        <rect x="0" y="24" width="640" height="26" rx="0" fill="#F1EFE8" opacity=".4"/>
+        <text fill="#444441" x="10" y="41">Sinusoidal</text>
+        <text fill="#888780" x="180" y="41">Added to embedding</text>
+        <text fill="#E24B4A" x="320" y="41">No</text>
+        <text fill="#E24B4A" x="400" y="41">Poor</text>
+        <text fill="#888780" x="510" y="41">Original Transformer</text>
+
+        <!-- Row 2 -->
+        <text fill="#444441" x="10" y="67">Learned absolute</text>
+        <text fill="#888780" x="180" y="67">Added to embedding</text>
+        <text fill="#1D9E75" x="320" y="67">Yes</text>
+        <text fill="#E24B4A" x="400" y="67">Hard ceiling</text>
+        <text fill="#888780" x="510" y="67">BERT, GPT-2</text>
+
+        <!-- Row 3 -->
+        <rect x="0" y="74" width="640" height="26" rx="0" fill="#F1EFE8" opacity=".4"/>
+        <text fill="#444441" x="10" y="91">Relative (T5 bias)</text>
+        <text fill="#888780" x="180" y="91">Added to attn scores</text>
+        <text fill="#1D9E75" x="320" y="91">Yes</text>
+        <text fill="#EF9F27" x="400" y="91">Good</text>
+        <text fill="#888780" x="510" y="91">T5, Transformer-XL</text>
+
+        <!-- Row 4 -->
+        <text fill="#444441" x="10" y="117">ALiBi</text>
+        <text fill="#888780" x="180" y="117">Subtracted from attn</text>
+        <text fill="#E24B4A" x="320" y="117">No</text>
+        <text fill="#1D9E75" x="400" y="117">Excellent</text>
+        <text fill="#888780" x="510" y="117">BLOOM, MPT</text>
+
+        <!-- Row 5 — highlighted -->
+        <rect x="0" y="124" width="640" height="28" rx="4" fill="#EEEDFE" opacity=".7"/>
+        <text font-weight="500" fill="#3C3489" x="10" y="141">RoPE ★ dominant</text>
+        <text fill="#534AB7" x="180" y="141">Rotates Q and K</text>
+        <text fill="#1D9E75" x="320" y="141">No (formula)</text>
+        <text fill="#1D9E75" x="400" y="141">Excellent</text>
+        <text fill="#534AB7" x="510" y="141">Llama, Mistral, Phi…</text>
+
+        <line x1="0" y1="158" x2="640" y2="158" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>
+        <text font-size="10" fill="#888780" x="320" y="174" text-anchor="middle">★ RoPE is now used in the majority of frontier open-weight models as of 2024</text>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 2 — SLIDING WINDOW ATTENTION
+     ════════════════════════════════════════ -->
+<div class="panel" id="tab-attn">
+
+  <div class="card">
+    <span class="badge bp">The attention scaling problem</span>
+    <div class="card-title">Standard attention is quadratic — it does not scale to long contexts</div>
+    <div class="card-body">In standard full attention, every token attends to every other token. A sequence of N tokens requires N × N attention scores to be computed and stored. Double the sequence length, quadruple the compute and memory. For a 128K-token context window, full attention would require computing 128,000 × 128,000 = 16.4 billion scores — per layer, per forward pass. This is where sliding window attention and other sparse patterns come in.</div>
+  </div>
+
+  <!-- Interactive attention pattern stepper -->
+  <div class="card">
+    <div class="card-title">Attention patterns — step through each method</div>
+    <div class="step-nav">
+      <button class="step-btn" id="attn-prev" onclick="stepAttn(-1)" disabled>← Prev</button>
+      <span class="step-info" id="attn-lbl">Full attention (1 of 4)</span>
+      <button class="step-btn" id="attn-next" onclick="stepAttn(1)">Next →</button>
+    </div>
+    <svg width="100%" viewBox="0 0 640 300" id="attn-svg" role="img">
+      <title>Attention pattern visualization</title>
+      <desc>Grid showing which tokens attend to which, colored cells indicate active attention connections.</desc>
+      <g id="attn-grid"></g>
+      <g id="attn-labels"></g>
+      <g id="attn-legend"></g>
+      <g id="attn-desc"></g>
+    </svg>
+  </div>
+
+  <!-- Sliding window detail -->
+  <div class="card">
+    <span class="badge bp">Sliding window attention — Beltagy et al. 2020, Mistral 2023</span>
+    <div class="card-title">Each token only attends to its W nearest neighbors</div>
+    <div class="card-body">Instead of attending to all N tokens, each token only attends to the W tokens immediately before it (the "window"). This reduces the attention computation from O(N²) to O(N × W) — linear in sequence length if W is fixed. Information still propagates across long distances because each layer passes context forward: layer 1 covers 1 window, layer 2 sees information from 2 windows, and so on. After L layers, each token has an "effective receptive field" of L × W tokens.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="card">
+      <span class="badge bp">Longformer (2020) — Beltagy et al.</span>
+      <div class="card-title">Local + global attention</div>
+      <div class="card-body">Most tokens use sliding window attention (local). A small number of "global" tokens (like [CLS]) attend to all tokens and are attended by all tokens. Used in long-document tasks. Reduced memory from O(N²) to O(N × W). First practical demonstration that sliding window attention works on real NLP tasks up to 4,096 tokens.</div>
+    </div>
+    <div class="card">
+      <span class="badge bp">Mistral 7B (2023) — sliding window in a decoder</span>
+      <div class="card-title">Window size 4,096, rolling KV cache</div>
+      <div class="card-body">Mistral applied sliding window attention to a decoder-only LLM, combined with a "rolling buffer" KV cache — old key-value pairs beyond the window are discarded. Each of Mistral's 32 layers uses a window of 4,096 tokens, giving an effective receptive field of 32 × 4,096 = 131,072 tokens — a 128K effective context using a fixed-size cache.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">Grouped Query Attention — GQA</span>
+      <div class="card-title">Share key-value heads across query heads</div>
+      <div class="card-body">Standard multi-head attention has H separate Q, K, and V heads. GQA groups multiple Q heads to share a single K and V head. Llama 3 uses 8 KV heads shared across 32 Q heads — an 8× reduction in KV cache memory. Faster inference, less memory, nearly identical quality. Now standard in most new models.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">FlashAttention (2022) — Dao et al.</span>
+      <div class="card-title">IO-aware exact attention — faster, less memory</div>
+      <div class="card-body">FlashAttention does not change which tokens attend to which — it computes exactly the same result as full attention but in a memory-efficient way by tiling the computation across GPU memory blocks. Combined with sliding window patterns, it makes long-context attention practical. FlashAttention-2 is now used by almost every frontier model.</div>
+    </div>
+  </div>
+
+  <!-- Causal mask detail -->
+  <div class="card">
+    <span class="badge bp">The causal mask — how decoder-only models prevent "cheating"</span>
+    <div class="card-title">A triangular matrix of −∞ values hides the future</div>
+    <svg width="100%" viewBox="0 0 640 220" role="img" style="margin-top:8px">
+      <title>Causal attention mask showing lower triangular pattern of allowed attention</title>
+      <desc>A 6x6 grid where the upper triangle is masked (shown in red) and the lower triangle including diagonal is allowed (shown in purple). Each token can only attend to itself and previous tokens.</desc>
+      <g font-family="var(--font-sans,sans-serif)">
+        <!-- Grid -->
+        <text font-size="11" fill="#5F5E5A" x="200" y="16" text-anchor="middle">Attention mask matrix (6 tokens)</text>
+        <text font-size="10" fill="#888780" x="200" y="30" text-anchor="middle">rows = query token (what is asking),  cols = key token (what is being attended to)</text>
+
+        <!-- Col headers -->
+        <text font-size="10" fill="#534AB7" x="68"  y="48" text-anchor="middle">The</text>
+        <text font-size="10" fill="#534AB7" x="100" y="48" text-anchor="middle">cat</text>
+        <text font-size="10" fill="#534AB7" x="132" y="48" text-anchor="middle">sat</text>
+        <text font-size="10" fill="#534AB7" x="164" y="48" text-anchor="middle">on</text>
+        <text font-size="10" fill="#534AB7" x="196" y="48" text-anchor="middle">the</text>
+        <text font-size="10" fill="#534AB7" x="228" y="48" text-anchor="middle">mat</text>
+
+        <!-- Row headers -->
+        <text font-size="10" fill="#534AB7" x="54" y="72"  text-anchor="end">The</text>
+        <text font-size="10" fill="#534AB7" x="54" y="100" text-anchor="end">cat</text>
+        <text font-size="10" fill="#534AB7" x="54" y="128" text-anchor="end">sat</text>
+        <text font-size="10" fill="#534AB7" x="54" y="156" text-anchor="end">on</text>
+        <text font-size="10" fill="#534AB7" x="54" y="184" text-anchor="end">the</text>
+        <text font-size="10" fill="#534AB7" x="54" y="212" text-anchor="end">mat</text>
+
+        <!-- Cells: allowed (purple) -->
+        <rect x="58" y="57" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="58" y="85" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="90" y="85" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="58" y="113" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="90" y="113" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="122" y="113" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="58" y="141" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="90" y="141" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="122" y="141" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="154" y="141" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="58" y="169" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="90" y="169" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="122" y="169" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="154" y="169" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="186" y="169" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="58" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="90" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="122" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="154" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="186" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+        <rect x="218" y="197" width="24" height="24" rx="3" fill="#7F77DD"/>
+
+        <!-- Cells: masked (red, upper triangle) -->
+        <rect x="90"  y="57"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="122" y="57"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="154" y="57"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="186" y="57"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="218" y="57"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="122" y="85"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="154" y="85"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="186" y="85"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="218" y="85"  width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="154" y="113" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="186" y="113" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="218" y="113" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="186" y="141" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="218" y="141" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+        <rect x="218" y="169" width="24" height="24" rx="3" fill="#F09595" opacity=".7"/>
+
+        <!-- Labels inside -->
+        <text font-size="9" fill="#fff" x="70"  y="72" text-anchor="middle" dominant-baseline="central">✓</text>
+        <text font-size="9" fill="#E24B4A" x="102" y="72" text-anchor="middle" dominant-baseline="central">−∞</text>
+        <text font-size="9" fill="#E24B4A" x="134" y="72" text-anchor="middle" dominant-baseline="central">−∞</text>
+
+        <!-- Legend -->
+        <rect x="290" y="90" width="14" height="14" rx="2" fill="#7F77DD"/>
+        <text font-size="11" fill="#444441" x="310" y="102">Allowed (score kept as-is)</text>
+        <rect x="290" y="112" width="14" height="14" rx="2" fill="#F09595" opacity=".7"/>
+        <text font-size="11" fill="#444441" x="310" y="124">Masked (score set to −∞, → 0 after softmax)</text>
+
+        <text font-size="11" fill="#5F5E5A" x="290" y="156">After softmax, −∞ becomes exactly 0.</text>
+        <text font-size="11" fill="#5F5E5A" x="290" y="172">Future tokens contribute nothing to the</text>
+        <text font-size="11" fill="#5F5E5A" x="290" y="188">weighted sum. No cheating possible.</text>
+
+        <rect x="290" y="200" width="330" height="18" rx="4" fill="#EEEDFE"/>
+        <text font-size="10" font-weight="500" fill="#3C3489" x="455" y="212" text-anchor="middle">During training: all positions computed in one pass</text>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 3 — ENCODER MODELS: BERT, T5, BART
+     ════════════════════════════════════════ -->
+<div class="panel" id="tab-enc">
+
+  <div class="card">
+    <span class="badge bt">Encoder-family models</span>
+    <div class="card-title">The three landmark encoder architectures — click each to expand</div>
+    <div class="card-body">While decoder-only models dominate generation tasks, encoder-based models remain the backbone of search engines, classification systems, and structured text transformation. BERT, T5, and BART represent three different philosophies of what a transformer encoder is for.</div>
+  </div>
+
+  <!-- BERT -->
+  <div class="model-section" id="ms-bert">
+    <div class="model-header" onclick="toggleModel('bert')">
+      <div class="model-badge" style="background:#E1F5EE;color:#085041">Encoder-only</div>
+      <div class="model-title">BERT — Bidirectional Encoder Representations from Transformers</div>
+      <div class="model-year">Google, 2018</div>
+    </div>
+    <div class="model-body open" id="mb-bert">
+      <div class="spec-grid">
+        <div class="spec-box"><div class="spec-val">110M</div><div class="spec-lbl">BERT-base params</div></div>
+        <div class="spec-box"><div class="spec-val">340M</div><div class="spec-lbl">BERT-large params</div></div>
+        <div class="spec-box"><div class="spec-val">512</div><div class="spec-lbl">max token length</div></div>
+        <div class="spec-box"><div class="spec-val">30K</div><div class="spec-lbl">WordPiece vocab</div></div>
+        <div class="spec-box"><div class="spec-val">12/24</div><div class="spec-lbl">transformer layers</div></div>
+        <div class="spec-box"><div class="spec-val">768/1024</div><div class="spec-lbl">embedding dim</div></div>
+      </div>
+      <div class="card" style="margin-top:4px">
+        <span class="badge bt">Training objective — Masked Language Modeling (MLM)</span>
+        <div class="card-body">BERT randomly masks 15% of tokens and trains the model to predict the masked words from context. Unlike GPT (which only uses left context), BERT reads both left and right simultaneously — hence "bidirectional". This gives BERT a much richer understanding of each word in context, but it cannot generate new text because it has no causal structure.</div>
+      </div>
+      <div class="card">
+        <span class="badge bt">Second training objective — Next Sentence Prediction (NSP)</span>
+        <div class="card-body">BERT also trains on sentence pairs: given two sentences A and B, predict whether B actually follows A in the original document (50% of the time it does, 50% it is a random sentence). This teaches BERT to understand relationships between sentences — useful for question answering and inference tasks. Later work (RoBERTa) found NSP to be mostly unnecessary and dropped it.</div>
+      </div>
+      <div class="card">
+        <span class="badge bt">Special tokens</span>
+        <div class="card-body">[CLS] is added at the start of every input — its final hidden state is used as a "sentence representation" for classification tasks. [SEP] separates two input segments (e.g. a question and a passage). [MASK] replaces tokens during MLM training. These special tokens are part of BERT's vocabulary and have learned embeddings.</div>
+      </div>
+      <svg width="100%" viewBox="0 0 640 130" role="img" style="margin:8px 0">
+        <title>BERT architecture: input tokens pass through bidirectional attention layers, CLS token used for classification</title>
+        <defs><marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+        <g font-family="var(--font-sans,sans-serif)">
+          <rect x="8"   y="8"  width="54" height="30" rx="5" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+          <text font-size="10" font-weight="500" fill="#E1F5EE" x="35"  y="23" text-anchor="middle" dominant-baseline="central">[CLS]</text>
+          <rect x="70"  y="8"  width="54" height="30" rx="5" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="97"  y="23" text-anchor="middle" dominant-baseline="central">The</text>
+          <rect x="132" y="8"  width="54" height="30" rx="5" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="159" y="23" text-anchor="middle" dominant-baseline="central">cat</text>
+          <rect x="194" y="8"  width="54" height="30" rx="5" fill="#9FE1CB" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="221" y="23" text-anchor="middle" dominant-baseline="central">[MASK]</text>
+          <rect x="256" y="8"  width="54" height="30" rx="5" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="283" y="23" text-anchor="middle" dominant-baseline="central">on</text>
+          <rect x="318" y="8"  width="54" height="30" rx="5" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="345" y="23" text-anchor="middle" dominant-baseline="central">the</text>
+          <rect x="380" y="8"  width="54" height="30" rx="5" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#04342C" x="407" y="23" text-anchor="middle" dominant-baseline="central">mat</text>
+          <rect x="442" y="8"  width="54" height="30" rx="5" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+          <text font-size="10" font-weight="500" fill="#E1F5EE" x="469" y="23" text-anchor="middle" dominant-baseline="central">[SEP]</text>
+          <!-- Bidirectional arrow -->
+          <path d="M35 38 Q250 60 469 38" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
+          <path d="M469 38 Q250 60 35 38" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
+          <text font-size="10" fill="#1D9E75" x="252" y="70" text-anchor="middle">← bidirectional attention across ALL tokens →</text>
+          <!-- Output -->
+          <line x1="35"  y1="80" x2="35"  y2="95" stroke="#085041" stroke-width="1.5" marker-end="url(#ab)" fill="none"/>
+          <line x1="221" y1="80" x2="221" y2="95" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ab)" fill="none"/>
+          <rect x="8"   y="95" width="54" height="26" rx="5" fill="#085041"/>
+          <text font-size="9"  font-weight="500" fill="#E1F5EE" x="35"  y="108" text-anchor="middle" dominant-baseline="central">classify</text>
+          <rect x="194" y="95" width="54" height="26" rx="5" fill="#9FE1CB" stroke="#1D9E75"/>
+          <text font-size="9"  fill="#04342C" x="221" y="108" text-anchor="middle" dominant-baseline="central">predict "sat"</text>
+          <text font-size="10" fill="#888780" x="430" y="112">[CLS] → classification head</text>
+          <text font-size="10" fill="#888780" x="430" y="125">[MASK] → predict masked token</text>
+        </g>
+      </svg>
+      <div class="card">
+        <span class="badge bg">Real-world use</span>
+        <div class="card-body">BERT powers Google Search's understanding of queries. It is used in sentiment classifiers, spam filters, named entity recognition, and extractive question answering (finding the answer span within a document). RoBERTa (2019) improved BERT by training longer with more data and dropping NSP. DeBERTa (2020) adds disentangled attention separating content and position. ALBERT (2020) reduces parameters by sharing weights across layers.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- T5 -->
+  <div class="model-section" id="ms-t5">
+    <div class="model-header" onclick="toggleModel('t5')">
+      <div class="model-badge" style="background:#FAEEDA;color:#633806">Encoder-decoder</div>
+      <div class="model-title">T5 — Text-to-Text Transfer Transformer</div>
+      <div class="model-year">Google, 2019</div>
+    </div>
+    <div class="model-body" id="mb-t5">
+      <div class="spec-grid">
+        <div class="spec-box"><div class="spec-val">60M</div><div class="spec-lbl">T5-small params</div></div>
+        <div class="spec-box"><div class="spec-val">220M</div><div class="spec-lbl">T5-base params</div></div>
+        <div class="spec-box"><div class="spec-val">11B</div><div class="spec-lbl">T5-XXL params</div></div>
+        <div class="spec-box"><div class="spec-val">32K</div><div class="spec-lbl">SentencePiece vocab</div></div>
+        <div class="spec-box"><div class="spec-val">Relative</div><div class="spec-lbl">position encoding</div></div>
+        <div class="spec-box"><div class="spec-val">C4</div><div class="spec-lbl">training corpus</div></div>
+      </div>
+      <div class="card" style="margin-top:4px">
+        <span class="badge ba">Core philosophy — everything is text-to-text</span>
+        <div class="card-body">T5's defining idea is that every NLP task can be framed as converting one text string into another. Translation: "translate English to French: The cat sat on the mat" → "Le chat était assis sur le tapis". Summarization: "summarize: [long article]" → "[short summary]". Classification: "sentiment: I love this movie" → "positive". This unified framing lets T5 use a single model and training setup for dozens of tasks.</div>
+      </div>
+      <div class="card">
+        <span class="badge ba">Architecture details</span>
+        <div class="card-body">T5 uses the full encoder-decoder design from the original 2017 transformer. The encoder reads the input with full bidirectional attention. The decoder generates the output autoregressively with masked self-attention and cross-attention to the encoder. T5 uses relative position biases (32 logarithmically spaced buckets) instead of learned absolute positions — better generalization to longer sequences. Layer normalization is applied before each sub-layer (pre-norm), not after (post-norm), which stabilizes training.</div>
+      </div>
+      <svg width="100%" viewBox="0 0 640 110" role="img" style="margin:8px 0">
+        <title>T5 text-to-text framing showing how tasks are unified as input-output text pairs</title>
+        <defs><marker id="at" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+        <g font-family="var(--font-sans,sans-serif)">
+          <text font-size="11" font-weight="500" fill="#633806" x="160" y="16" text-anchor="middle">Input (text)</text>
+          <text font-size="11" font-weight="500" fill="#085041" x="480" y="16" text-anchor="middle">Output (text)</text>
+          <rect x="8"  y="24" width="304" height="26" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+          <text font-size="11" fill="#633806" x="160" y="37" text-anchor="middle" dominant-baseline="central">"translate English to French: The cat sat"</text>
+          <line x1="312" y1="37" x2="330" y2="37" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <rect x="8"  y="56" width="304" height="26" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+          <text font-size="11" fill="#633806" x="160" y="69" text-anchor="middle" dominant-baseline="central">"summarize: [long article…]"</text>
+          <line x1="312" y1="69" x2="330" y2="69" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <rect x="8"  y="88" width="304" height="26" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+          <text font-size="11" fill="#633806" x="160" y="101" text-anchor="middle" dominant-baseline="central">"cola sentence: The cat sat on"</text>
+          <line x1="312" y1="101" x2="330" y2="101" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <!-- T5 box -->
+          <rect x="330" y="24" width="80" height="90" rx="8" fill="#EF9F27" stroke="#BA7517" stroke-width="0.5"/>
+          <text font-size="12" font-weight="500" fill="#fff" x="370" y="72" text-anchor="middle" dominant-baseline="central">T5</text>
+          <!-- Outputs -->
+          <line x1="410" y1="37"  x2="425" y2="37"  stroke="#1D9E75" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <line x1="410" y1="69"  x2="425" y2="69"  stroke="#1D9E75" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <line x1="410" y1="101" x2="425" y2="101" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#at)" fill="none"/>
+          <rect x="425" y="24"  width="207" height="26" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="11" fill="#085041" x="528" y="37" text-anchor="middle" dominant-baseline="central">"Le chat était assis"</text>
+          <rect x="425" y="56"  width="207" height="26" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="11" fill="#085041" x="528" y="69" text-anchor="middle" dominant-baseline="central">"[concise summary]"</text>
+          <rect x="425" y="88"  width="207" height="26" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="11" fill="#085041" x="528" y="101" text-anchor="middle" dominant-baseline="central">"acceptable"</text>
+        </g>
+      </svg>
+      <div class="card">
+        <span class="badge bg">Variants and successors</span>
+        <div class="card-body">mT5 extends T5 to 101 languages for multilingual tasks. Flan-T5 (2022) fine-tunes T5 on 1,836 tasks with instructions, dramatically improving zero-shot performance. UL2 unifies multiple pre-training objectives. T5 remains one of the most widely deployed models in enterprise NLP pipelines — its text-to-text framing made it trivially adaptable to any task without architecture changes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BART -->
+  <div class="model-section" id="ms-bart">
+    <div class="model-header" onclick="toggleModel('bart')">
+      <div class="model-badge" style="background:#FBEAF0;color:#4B1528">Encoder-decoder</div>
+      <div class="model-title">BART — Bidirectional and Auto-Regressive Transformers</div>
+      <div class="model-year">Meta AI (Facebook), 2019</div>
+    </div>
+    <div class="model-body" id="mb-bart">
+      <div class="spec-grid">
+        <div class="spec-box"><div class="spec-val">140M</div><div class="spec-lbl">BART-base params</div></div>
+        <div class="spec-box"><div class="spec-val">400M</div><div class="spec-lbl">BART-large params</div></div>
+        <div class="spec-box"><div class="spec-val">6 / 6</div><div class="spec-lbl">enc / dec layers</div></div>
+        <div class="spec-box"><div class="spec-val">50K</div><div class="spec-lbl">BPE vocabulary</div></div>
+        <div class="spec-box"><div class="spec-val">Learned</div><div class="spec-lbl">position encoding</div></div>
+        <div class="spec-box"><div class="spec-val">Books+Web</div><div class="spec-lbl">training data</div></div>
+      </div>
+      <div class="card" style="margin-top:4px">
+        <span class="badge bpi">Core idea — corrupt text, then reconstruct it</span>
+        <div class="card-body">BART's key insight is to think of pre-training as a denoising problem. The encoder reads a corrupted version of the text (with tokens deleted, shuffled, masked, or sentences permuted). The decoder then generates the original, uncorrupted text. This forces the encoder to build a deep understanding of what the text should be, and the decoder to generate fluent text — making BART excellent at any task involving reconstruction or generation from a representation.</div>
+      </div>
+      <div class="card">
+        <span class="badge bpi">Five corruption strategies used during pre-training</span>
+        <div class="card-body">
+          <strong>Token masking</strong> — like BERT, randomly replace tokens with [MASK].<br>
+          <strong>Token deletion</strong> — remove tokens entirely (the model must also figure out where they were).<br>
+          <strong>Text infilling</strong> — replace a span of text with a single [MASK] token (variable length spans → single mask).<br>
+          <strong>Sentence permutation</strong> — shuffle the order of sentences in the document.<br>
+          <strong>Document rotation</strong> — rotate the document so it starts from a random token (the model must identify the true start).<br><br>
+          Text infilling proved most effective and is the dominant objective. It requires the model to predict how many tokens are missing — a harder task than BERT's one-to-one masking.
+        </div>
+      </div>
+      <svg width="100%" viewBox="0 0 640 130" role="img" style="margin:8px 0">
+        <title>BART architecture: corrupted text enters encoder, decoder reconstructs original</title>
+        <defs><marker id="abr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+        <g font-family="var(--font-sans,sans-serif)">
+          <!-- Corrupted input -->
+          <text font-size="10" fill="#72243E" x="160" y="14" text-anchor="middle">Corrupted input (encoder)</text>
+          <rect x="8"   y="20" width="54" height="28" rx="5" fill="#FBEAF0" stroke="#D4537E" stroke-width="0.5"/>
+          <text font-size="10" fill="#72243E" x="35"  y="34" text-anchor="middle" dominant-baseline="central">The</text>
+          <rect x="70"  y="20" width="54" height="28" rx="5" fill="#F4C0D1" stroke="#D4537E" stroke-width="0.5"/>
+          <text font-size="9" fill="#72243E" x="97"  y="34" text-anchor="middle" dominant-baseline="central">[MASK]</text>
+          <rect x="132" y="20" width="54" height="28" rx="5" fill="#F4C0D1" stroke="#D4537E" stroke-width="0.5"/>
+          <text font-size="9" fill="#72243E" x="159" y="34" text-anchor="middle" dominant-baseline="central">[MASK]</text>
+          <rect x="194" y="20" width="54" height="28" rx="5" fill="#FBEAF0" stroke="#D4537E" stroke-width="0.5"/>
+          <text font-size="10" fill="#72243E" x="221" y="34" text-anchor="middle" dominant-baseline="central">the</text>
+          <rect x="256" y="20" width="54" height="28" rx="5" fill="#FBEAF0" stroke="#D4537E" stroke-width="0.5"/>
+          <text font-size="10" fill="#72243E" x="283" y="34" text-anchor="middle" dominant-baseline="central">mat</text>
+
+          <!-- Bidirectional encoder arrow -->
+          <path d="M35 48 Q160 62 283 48" fill="none" stroke="#D4537E" stroke-width="1" stroke-dasharray="4 2" opacity=".5"/>
+          <path d="M283 48 Q160 62 35 48" fill="none" stroke="#D4537E" stroke-width="1" stroke-dasharray="4 2" opacity=".5"/>
+          <text font-size="9" fill="#D4537E" x="160" y="62" text-anchor="middle">encoder: bidirectional attention</text>
+
+          <!-- Arrow to decoder -->
+          <line x1="310" y1="42" x2="328" y2="42" stroke="#888780" stroke-width="1.5" marker-end="url(#abr)" fill="none"/>
+          <text font-size="9" fill="#888780" x="319" y="36" text-anchor="middle">cross-attn</text>
+
+          <!-- Decoder output -->
+          <text font-size="10" fill="#085041" x="490" y="14" text-anchor="middle">Reconstructed output (decoder)</text>
+          <rect x="330" y="20" width="54" height="28" rx="5" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#085041" x="357" y="34" text-anchor="middle" dominant-baseline="central">The</text>
+          <rect x="392" y="20" width="54" height="28" rx="5" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#085041" x="419" y="34" text-anchor="middle" dominant-baseline="central">cat</text>
+          <rect x="454" y="20" width="54" height="28" rx="5" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#085041" x="481" y="34" text-anchor="middle" dominant-baseline="central">sat</text>
+          <rect x="516" y="20" width="54" height="28" rx="5" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#085041" x="543" y="34" text-anchor="middle" dominant-baseline="central">on</text>
+          <rect x="578" y="20" width="54" height="28" rx="5" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+          <text font-size="10" fill="#085041" x="605" y="34" text-anchor="middle" dominant-baseline="central">the mat</text>
+
+          <!-- Loss -->
+          <text font-size="10" fill="#888780" x="320" y="90" text-anchor="start">Training loss: compare decoder output to original uncorrupted text word by word</text>
+          <text font-size="10" fill="#888780" x="320" y="106" text-anchor="start">Fine-tuning: replace "reconstruct" objective with any generation task (summarize, translate…)</text>
+          <text font-size="10" fill="#888780" x="320" y="122" text-anchor="start">Used in: CNN/DailyMail summarization, XSum, multilingual mBART</text>
+        </g>
+      </svg>
+      <div class="card">
+        <span class="badge bpi">BART vs BERT vs T5</span>
+        <div class="card-body">BERT is encoder-only — it understands but cannot generate. T5 is encoder-decoder — it generates by framing everything as text-to-text with a single corruption objective (span masking). BART is encoder-decoder — it generates using five different corruption strategies, making it more robust. BART's decoder is a full autoregressive language model trained from the start to reconstruct text, which gives it stronger generation abilities than T5 on tasks like abstractive summarization and dialogue. mBART extends BART to 25 languages, and mBART-50 covers 50 languages for multilingual translation.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side by side summary -->
+  <div class="card">
+    <div class="card-title">BERT · T5 · BART — at a glance</div>
+    <div style="overflow-x:auto;margin-top:8px">
+      <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:500px">
+        <tr style="background:var(--color-background-secondary)">
+          <th style="padding:8px 10px;text-align:left;font-weight:500;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary)"> </th>
+          <th style="padding:8px 10px;text-align:left;font-weight:500;color:#085041;border-bottom:0.5px solid var(--color-border-tertiary)">BERT</th>
+          <th style="padding:8px 10px;text-align:left;font-weight:500;color:#633806;border-bottom:0.5px solid var(--color-border-tertiary)">T5</th>
+          <th style="padding:8px 10px;text-align:left;font-weight:500;color:#72243E;border-bottom:0.5px solid var(--color-border-tertiary)">BART</th>
+        </tr>
+        <tr><td style="padding:7px 10px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">Architecture</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Encoder only</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Encoder + decoder</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Encoder + decoder</td></tr>
+        <tr style="background:var(--color-background-secondary)"><td style="padding:7px 10px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">Attention direction</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Bidirectional</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Bidir enc + causal dec</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Bidir enc + causal dec</td></tr>
+        <tr><td style="padding:7px 10px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">Pre-training</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">MLM + NSP</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Span corruption (text-to-text)</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">5 corruption strategies</td></tr>
+        <tr style="background:var(--color-background-secondary)"><td style="padding:7px 10px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">Can generate text?</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">No</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Yes</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Yes</td></tr>
+        <tr><td style="padding:7px 10px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">Position encoding</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Learned absolute</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Relative (32 buckets)</td><td style="padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary)">Learned absolute</td></tr>
+        <tr style="background:var(--color-background-secondary)"><td style="padding:7px 10px;color:var(--color-text-secondary)">Best use case</td><td style="padding:7px 10px">Classification, search, NER</td><td style="padding:7px 10px">Any task as text-to-text</td><td style="padding:7px 10px">Summarization, generation</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  const m={pos:0,attn:1,enc:2};
+  document.querySelectorAll('.tab')[m[id]].classList.add('on');
+  if(id==='attn')drawAttn(0);
+}
+
+function toggleTL(el){
+  const wasActive=el.classList.contains('active');
+  document.querySelectorAll('.tl-item').forEach(i=>i.classList.remove('active'));
+  if(!wasActive)el.classList.add('active');
+}
+
+function toggleModel(id){
+  const body=document.getElementById('mb-'+id);
+  body.classList.toggle('open');
+}
+
+/* ── Attention patterns ── */
+const N=8;
+const PATTERNS=[
+  {name:'Full attention',sub:'Standard transformer — every token attends to every other token. O(N²) compute.',fn:(r,c)=>true},
+  {name:'Causal mask (decoder)',sub:'Decoder-only (GPT, Llama) — each token only sees itself and all previous tokens. Future is masked.',fn:(r,c)=>c<=r},
+  {name:'Sliding window (window=2)',sub:'Longformer / Mistral — each token attends to its 2 nearest neighbors on each side. O(N×W) compute.',fn:(r,c)=>Math.abs(r-c)<=2},
+  {name:'Causal sliding window',sub:'Mistral 7B — combines causal mask with sliding window. Attends to W previous tokens only. Practical for very long sequences.',fn:(r,c)=>c<=r&&(r-c)<=3},
+];
+let attnCur=0;
+
+function drawAttn(idx){
+  attnCur=idx;
+  const svg=document.getElementById('attn-svg');
+  const grid=document.getElementById('attn-grid');
+  const labels=document.getElementById('attn-labels');
+  const legend=document.getElementById('attn-legend');
+  const desc=document.getElementById('attn-desc');
+  grid.innerHTML='';labels.innerHTML='';legend.innerHTML='';desc.innerHTML='';
+
+  const pat=PATTERNS[idx];
+  const cell=28,gap=2,ox=60,oy=40;
+  const WORDS=['The','cat','sat','on','the','mat','by','now'];
+
+  for(let r=0;r<N;r++){
+    for(let c=0;c<N;c++){
+      const active=pat.fn(r,c);
+      const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x',ox+c*(cell+gap));
+      rect.setAttribute('y',oy+r*(cell+gap));
+      rect.setAttribute('width',cell);rect.setAttribute('height',cell);rect.setAttribute('rx','3');
+      rect.setAttribute('fill',active?'#7F77DD':'#F1EFE8');
+      rect.setAttribute('opacity',active?'0.85':'0.5');
+      grid.appendChild(rect);
+    }
+  }
+
+  const ff='var(--font-sans,sans-serif)';
+  WORDS.forEach((w,i)=>{
+    const tx=document.createElementNS('http://www.w3.org/2000/svg','text');
+    tx.setAttribute('x',ox+i*(cell+gap)+cell/2);tx.setAttribute('y',oy-6);
+    tx.setAttribute('text-anchor','middle');tx.setAttribute('font-size','9');
+    tx.setAttribute('font-family',ff);tx.setAttribute('fill','#534AB7');
+    tx.textContent=w;labels.appendChild(tx);
+    const ty=document.createElementNS('http://www.w3.org/2000/svg','text');
+    ty.setAttribute('x',ox-6);ty.setAttribute('y',oy+i*(cell+gap)+cell/2);
+    ty.setAttribute('text-anchor','end');ty.setAttribute('font-size','9');
+    ty.setAttribute('dominant-baseline','central');
+    ty.setAttribute('font-family',ff);ty.setAttribute('fill','#534AB7');
+    ty.textContent=w;labels.appendChild(ty);
+  });
+
+  const lg1=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  lg1.setAttribute('x','370');lg1.setAttribute('y','50');lg1.setAttribute('width','14');lg1.setAttribute('height','14');lg1.setAttribute('rx','2');lg1.setAttribute('fill','#7F77DD');
+  legend.appendChild(lg1);
+  const lt1=document.createElementNS('http://www.w3.org/2000/svg','text');
+  lt1.setAttribute('x','390');lt1.setAttribute('y','62');lt1.setAttribute('font-size','11');lt1.setAttribute('font-family',ff);lt1.setAttribute('fill','#444441');
+  lt1.textContent='Attends (active)';legend.appendChild(lt1);
+  const lg2=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  lg2.setAttribute('x','370');lg2.setAttribute('y','72');lg2.setAttribute('width','14');lg2.setAttribute('height','14');lg2.setAttribute('rx','2');lg2.setAttribute('fill','#F1EFE8');lg2.setAttribute('opacity','0.5");lg2.setAttribute('stroke','#D3D1C7');lg2.setAttribute('stroke-width','0.5');
+  legend.appendChild(lg2);
+  const lt2=document.createElementNS('http://www.w3.org/2000/svg','text');
+  lt2.setAttribute('x','390');lt2.setAttribute('y','84');lt2.setAttribute('font-size','11');lt2.setAttribute('font-family',ff);lt2.setAttribute('fill','#444441');
+  lt2.textContent='Blocked (masked)';legend.appendChild(lt2);
+
+  const dn=document.createElementNS('http://www.w3.org/2000/svg','text');
+  dn.setAttribute('x','370');dn.setAttribute('y','116');dn.setAttribute('font-size','12');dn.setAttribute('font-weight','500');
+  dn.setAttribute('font-family',ff);dn.setAttribute('fill','#3C3489');
+  dn.textContent=pat.name;desc.appendChild(dn);
+  const words=pat.sub.split(' ');let line='',lineNum=0;
+  words.forEach(w=>{
+    if((line+' '+w).length>38){
+      const dt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      dt.setAttribute('x','370');dt.setAttribute('y',String(132+lineNum*14));
+      dt.setAttribute('font-size','10');dt.setAttribute('font-family',ff);dt.setAttribute('fill','#888780');
+      dt.textContent=line;desc.appendChild(dt);lineNum++;line=w;
+    } else line=(line?line+' ':'')+w;
+  });
+  if(line){const dt=document.createElementNS('http://www.w3.org/2000/svg','text');dt.setAttribute('x','370');dt.setAttribute('y',String(132+lineNum*14));dt.setAttribute('font-size','10');dt.setAttribute('font-family',ff);dt.setAttribute('fill','#888780');dt.textContent=line;desc.appendChild(dt);}
+
+  document.getElementById('attn-prev').disabled=idx===0;
+  document.getElementById('attn-next').disabled=idx===PATTERNS.length-1;
+  document.getElementById('attn-lbl').textContent=pat.name+' ('+(idx+1)+' of '+PATTERNS.length+')';
+}
+
+function stepAttn(d){drawAttn(Math.max(0,Math.min(PATTERNS.length-1,attnCur+d));}
+
+drawAttn(0);
+</script>

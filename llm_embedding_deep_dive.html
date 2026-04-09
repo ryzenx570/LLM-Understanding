@@ -1,0 +1,461 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,sans-serif)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.tab-row{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:0;overflow-x:auto}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;background:transparent;border-top:none;border-left:none;border-right:none}
+.tab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+.panel{display:none;padding:16px}
+.panel.on{display:block}
+
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:6px;margin-bottom:6px}
+.bp{background:#EEEDFE;color:#3C3489}
+.bt{background:#E1F5EE;color:#085041}
+.ba{background:#FAEEDA;color:#633806}
+.bc{background:#FAECE7;color:#4A1B0C}
+.bb{background:#E6F1FB;color:#0C447C}
+
+/* Token byte demo */
+.tok-grid{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.tok-chip{display:inline-flex;flex-direction:column;align-items:center;border-radius:8px;overflow:hidden;border:0.5px solid var(--color-border-tertiary);font-size:12px;cursor:pointer;transition:transform .15s;user-select:none}
+.tok-chip:hover{transform:scale(1.04)}
+.tok-text{padding:5px 10px;font-weight:500;color:var(--color-text-primary)}
+.tok-bytes{padding:2px 10px;font-size:10px;font-weight:500}
+.tok-detail{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin-top:8px;min-height:44px}
+
+/* Positional encoding wave */
+#pe-canvas{width:100%;height:90px;display:block}
+.algo-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.algo-btn{padding:5px 12px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:6px;cursor:pointer;background:transparent;color:var(--color-text-secondary);transition:all .15s}
+.algo-btn.on{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500}
+
+/* Corpus dots */
+#corpus-svg{display:block;width:100%}
+.corpus-word{cursor:pointer;transition:opacity .2s}
+.corpus-word:hover{opacity:.7}
+
+/* Scale comparison bars */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:12px;color:var(--color-text-secondary);width:140px;flex-shrink:0;text-align:right}
+.bar-track{flex:1;height:22px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;font-weight:500;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.bar-val{font-size:11px;color:var(--color-text-secondary);width:100px;flex-shrink:0}
+
+@media(prefers-color-scheme:dark){
+  .bp{background:#26215C;color:#CECBF6}
+  .bt{background:#04342C;color:#9FE1CB}
+  .ba{background:#412402;color:#FAC775}
+  .bc{background:#4A1B0C;color:#F5C4B3}
+  .bb{background:#042C53;color:#B5D4F4}
+}
+</style>
+
+<h2 class="sr-only">Deep dive into LLM token and positional embeddings — covering byte sizes, positional encoding algorithms, corpus-based word vectors, and scale comparison.</h2>
+
+<div class="tab-row">
+  <button class="tab on" onclick="showTab('tok')">Token bytes</button>
+  <button class="tab" onclick="showTab('pos')">Positional encoding</button>
+  <button class="tab" onclick="showTab('corpus')">Embeddings from corpus</button>
+  <button class="tab" onclick="showTab('scale')">Scale comparison</button>
+</div>
+
+<!-- ══ TAB 1: TOKEN BYTES ══ -->
+<div class="panel on" id="tab-tok">
+  <div class="card">
+    <span class="badge bp">How tokenization works</span>
+    <div class="card-title">Tokens are not words — they are byte sequences</div>
+    <div class="card-body">LLMs use a system called <strong>Byte-Pair Encoding (BPE)</strong>. It starts with individual bytes (the smallest unit — a single character uses 1 byte in English, up to 4 bytes in other languages) and merges the most common pairs repeatedly until it has a vocabulary of ~50,000 "chunks". Common English words become 1 token. Rare or long words get split. Non-English text uses more tokens per word.</div>
+  </div>
+  <div class="card">
+    <span class="badge bp">Try it — click any token below</span>
+    <div class="card-title">How different words tokenize</div>
+    <div class="tok-grid" id="tok-grid"></div>
+    <div class="tok-detail" id="tok-detail">Select a token above to see its breakdown</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="card">
+      <span class="badge bb">English</span>
+      <div class="card-title">~1–2 bytes per token</div>
+      <div class="card-body">Common English words ("the", "is", "cat") are each 1 token = 1–3 bytes. 1 token ≈ 4 characters on average. A 1,000-word essay ≈ 1,300 tokens.</div>
+    </div>
+    <div class="card">
+      <span class="badge bc">Other languages</span>
+      <div class="card-title">3–4 bytes per token</div>
+      <div class="card-body">Chinese, Arabic, Hindi characters use 3–4 bytes each in UTF-8. A single Chinese character is often 1 token but 3 bytes. This means non-English text "costs" more tokens.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">Vocabulary size</span>
+      <div class="card-title">~50,000–100,000 tokens</div>
+      <div class="card-body">GPT-2 had 50,257 tokens. GPT-4 uses ~100,256. Each token gets a unique ID (an integer), which is what the model actually sees — not the text itself.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">Why not just bytes?</span>
+      <div class="card-title">Too many steps, too little meaning</div>
+      <div class="card-body">Working with raw bytes makes sequences very long — "hello" = 5 bytes = 5 steps. BPE compresses frequent patterns so the model sees fewer, more meaningful chunks.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 2: POSITIONAL ENCODING ══ -->
+<div class="panel" id="tab-pos">
+  <div class="card">
+    <span class="badge bp">Why position matters</span>
+    <div class="card-title">Transformers read all tokens at once — so they need position labels</div>
+    <div class="card-body">Unlike old models that read left-to-right, transformers process every token simultaneously. This is faster, but it means the model has no idea which token came first. Positional encoding adds a unique "position fingerprint" to each token's embedding so the model can tell word 1 from word 500.</div>
+  </div>
+  <div class="card">
+    <div class="algo-tabs" id="algo-tabs">
+      <button class="algo-btn on" onclick="showAlgo('sinusoidal')">Sinusoidal (original)</button>
+      <button class="algo-btn" onclick="showAlgo('learned')">Learned positions</button>
+      <button class="algo-btn" onclick="showAlgo('rope')">RoPE (modern)</button>
+      <button class="algo-btn" onclick="showAlgo('alibi')">ALiBi</button>
+    </div>
+    <canvas id="pe-canvas" height="90"></canvas>
+    <div class="tok-detail" id="algo-detail" style="margin-top:8px"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:0">
+    <div class="card">
+      <span class="badge bp">Sinusoidal — Vaswani et al. 2017</span>
+      <div class="card-title">Sine and cosine waves at different frequencies</div>
+      <div class="card-body">Each position gets a unique pattern of sine and cosine values across the embedding dimensions. Low dimensions encode coarse position, high dimensions encode fine position — like a clock with many hands at different speeds. No training needed; it just works.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">Learned — GPT-2, BERT</span>
+      <div class="card-title">Position treated like a vocabulary</div>
+      <div class="card-body">Position 1 gets its own trainable vector, position 2 gets another, and so on up to max context length. Simple and effective, but can't generalize beyond the training length. GPT-2 learned 1,024 position vectors.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">RoPE — Llama, Mistral, GPT-NeoX</span>
+      <div class="card-title">Rotation in embedding space</div>
+      <div class="card-body">Rotary Position Embedding rotates the query and key vectors in attention by an angle proportional to their position. The relative distance between two tokens is preserved naturally — so the model can generalize to sequences longer than it was trained on. Used in almost all modern open models.</div>
+    </div>
+    <div class="card">
+      <span class="badge bc">ALiBi — MPT, BLOOM</span>
+      <div class="card-title">Attention bias instead of embedding</div>
+      <div class="card-body">Instead of adding position to the embeddings, ALiBi subtracts a penalty from attention scores based on how far apart two tokens are. Farther apart = less attention. Elegant, no extra parameters, and generalizes well to long contexts.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 3: CORPUS EMBEDDINGS ══ -->
+<div class="panel" id="tab-corpus">
+  <div class="card">
+    <span class="badge bp">Where do word meanings come from?</span>
+    <div class="card-title">Embeddings are learned from billions of sentences in a corpus</div>
+    <div class="card-body">A <strong>corpus</strong> is the giant collection of text the model trains on — Wikipedia, books, web pages, code. The model learns that "king" and "queen" appear in similar contexts, so they get similar embedding vectors. No human labels the meanings — the structure emerges from co-occurrence patterns alone.</div>
+  </div>
+  <div class="card">
+    <span class="badge bt">Concept space — click a word to see its neighbors</span>
+    <div class="card-title">Words cluster by meaning in embedding space (2D projection)</div>
+    <svg id="corpus-svg" viewBox="0 0 640 280" style="height:280px">
+      <title>2D projection of word embeddings showing semantic clusters</title>
+      <desc>Words cluster by meaning: royalty words together, animals together, places together, verbs together.</desc>
+      <g id="corpus-g"></g>
+    </svg>
+    <div class="tok-detail" id="corpus-detail">Click a word to see why it lives near its neighbors</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="card">
+      <span class="badge bp">Word2Vec — Mikolov et al. 2013</span>
+      <div class="card-title">The breakthrough embedding paper</div>
+      <div class="card-body">Trained a shallow network to predict a word from its neighbors (CBOW) or neighbors from a word (Skip-gram). Result: vectors where king − man + woman ≈ queen. Trained on ~100 billion words. Changed NLP forever.</div>
+    </div>
+    <div class="card">
+      <span class="badge bt">GloVe — Pennington et al. 2014</span>
+      <div class="card-title">Global co-occurrence statistics</div>
+      <div class="card-body">Instead of local context windows, GloVe built a giant matrix of how often every word appeared with every other word across the whole corpus, then factored it. More stable training, similar quality to Word2Vec.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">Contextual embeddings — BERT, GPT</span>
+      <div class="card-title">One word, many meanings</div>
+      <div class="card-body">"Bank" near "river" gets a different vector than "bank" near "money". Modern LLMs produce a new embedding for every word in every sentence — context changes the vector every time. This is why they understand ambiguity.</div>
+    </div>
+    <div class="card">
+      <span class="badge bc">Embedding dimension</span>
+      <div class="card-title">Each word = 768 to 12,288 numbers</div>
+      <div class="card-body">GPT-2 small: 768 dimensions. GPT-3: 12,288 dimensions. Each number captures a tiny aspect of meaning — not interpretable individually, but together they encode grammar, semantics, world knowledge, and style.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 4: SCALE COMPARISON ══ -->
+<div class="panel" id="tab-scale">
+  <div class="card">
+    <span class="badge bp">Training an embedding layer vs training a full LLM</span>
+    <div class="card-title">The difference is staggering — orders of magnitude</div>
+    <div class="card-body">An embedding layer is a lookup table: one vector per vocabulary item. Training it is fast, cheap, and runs on a laptop. A full LLM stacks 96 transformer blocks on top and requires thousands of specialized GPUs running for months.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Parameters</div>
+    <div class="bar-row">
+      <div class="bar-label">Word2Vec embedding</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.8%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~30 M params</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">BERT embedding layer</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.6%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~23 M params</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-2 full model</div>
+      <div class="bar-track"><div class="bar-fill" style="width:4%;background:#5DCAA5;color:#04342C">—</div></div>
+      <div class="bar-val">1.5 B params</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-3 full model</div>
+      <div class="bar-track"><div class="bar-fill" style="width:25%;background:#EF9F27;color:#412402">175 B</div></div>
+      <div class="bar-val">175 B params</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-4 (estimated)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#D85A30;color:#FAECE7">~1 trillion</div></div>
+      <div class="bar-val">~1 T params</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Training time &amp; cost</div>
+    <div class="bar-row">
+      <div class="bar-label">Word2Vec (100B words)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.3%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~1 day, 1 CPU</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GloVe (Common Crawl)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.6%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~2 days, 1 machine</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">BERT (full)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:3%;background:#5DCAA5;color:#04342C">—</div></div>
+      <div class="bar-val">4 days, 64 TPUs</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-3</div>
+      <div class="bar-track"><div class="bar-fill" style="width:30%;background:#EF9F27;color:#412402">~$5 M</div></div>
+      <div class="bar-val">months, 10K GPUs</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-4 (estimated)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#D85A30;color:#FAECE7">~$100 M+</div></div>
+      <div class="bar-val">months, 25K GPUs</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Memory to store the model</div>
+    <div class="bar-row">
+      <div class="bar-label">Word2Vec vectors</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.2%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~120 MB</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">BERT-base</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.5%;background:#AFA9EC;color:#3C3489">—</div></div>
+      <div class="bar-val">~420 MB</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-2 (1.5 B)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1%;background:#5DCAA5;color:#04342C">—</div></div>
+      <div class="bar-val">~6 GB</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-3 (175 B)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:35%;background:#EF9F27;color:#412402">700 GB</div></div>
+      <div class="bar-val">~700 GB</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">GPT-4 (est. 1 T)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#D85A30;color:#FAECE7">&gt;2 TB</div></div>
+      <div class="bar-val">&gt;2 TB</div>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:10px">An embedding layer alone (Word2Vec) fits on any phone. A full LLM needs a data center.</div>
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  const tabs={tok:0,pos:1,corpus:2,scale:3};
+  document.querySelectorAll('.tab')[tabs[id]].classList.add('on');
+  if(id==='pos')drawPE('sinusoidal');
+  if(id==='corpus')drawCorpus();
+}
+
+const TOKENS_DATA=[
+  {text:'the',id:262,bytes:3,enc:'ASCII',detail:'"the" → 1 token (id: 262). The word "the" is so common it has its own single token. Stored as 3 UTF-8 bytes: 0x74 0x68 0x65. One of the most frequent tokens in any English corpus.'},
+  {text:'cat',id:4758,bytes:3,enc:'ASCII',detail:'"cat" → 1 token (id: 4758). A common English word gets a single token. 3 bytes: 0x63 0x61 0x74. In GPT-4\'s tokenizer this maps directly to token ID 4758.'},
+  {text:'unbelievable',id:null,bytes:12,enc:'BPE split',detail:'"unbelievable" → 3 tokens: ["un", "believ", "able"]. Total 12 bytes. BPE splits it because the full word is too rare to have its own token. Each fragment IS common, so it gets its own ID.'},
+  {text:'ChatGPT',id:null,bytes:7,enc:'BPE split',detail:'"ChatGPT" → 3 tokens: ["Chat", "G", "PT"]. 7 bytes. Proper nouns and brand names are often split. This is why models can sometimes misspell unusual names — each piece is predicted separately.'},
+  {text:'AI',id:15836,bytes:2,enc:'ASCII',detail:'"AI" → 1 token (id: 15836). Short acronyms in common use get their own token. 2 bytes: 0x41 0x49. Appears so often in training data it earned a single slot.'},
+  {text:'猫',id:null,bytes:3,enc:'UTF-8 (3 bytes)',detail:'"猫" (cat in Chinese) → 1 token but 3 UTF-8 bytes: 0xE7 0x8C 0xAB. Chinese characters are always 3 bytes in UTF-8. A Chinese sentence uses more bytes per token than English — making it more "expensive" to process.'},
+  {text:'🐱',id:null,bytes:4,enc:'UTF-8 (4 bytes)',detail:'"🐱" emoji → 1–2 tokens, 4 bytes: 0xF0 0x9F 0x90 0xB1. Emoji live in Unicode\'s supplementary planes and always use 4 bytes. Many models struggle with emoji because they\'re rare in training data.'},
+  {text:'neurotransmitter',id:null,bytes:16,enc:'BPE split',detail:'"neurotransmitter" → 4 tokens: ["neur","o","trans","mitter"]. 16 bytes. Long scientific words get heavily split. This means the model must predict each fragment in sequence, making scientific writing harder to generate accurately.'},
+  {text:'2024',id:null,bytes:4,enc:'digit split',detail:'"2024" → 3 tokens: ["20","24"] or ["2","0","2","4"] depending on tokenizer. Numbers are tricky — each digit sequence may be its own token. This is one reason LLMs are poor at arithmetic: "1234 + 5678" involves many separate token predictions.'},
+];
+const COLORS=['#EEEDFE','#E1F5EE','#FAEEDA','#FAECE7','#E6F1FB','#EAF3DE','#FBEAF0','#F1EFE8','#FAEEDA'];
+const TCOLS=['#3C3489','#085041','#633806','#4A1B0C','#0C447C','#27500A','#4B1528','#2C2C2A','#633806'];
+
+function initTokens(){
+  const g=document.getElementById('tok-grid');
+  if(g.children.length)return;
+  TOKENS_DATA.forEach((t,i)=>{
+    const chip=document.createElement('div');
+    chip.className='tok-chip';
+    chip.innerHTML=`<span class="tok-text" style="background:${COLORS[i]};color:${TCOLS[i]}">${t.text}</span><span class="tok-bytes" style="background:${COLORS[i]};color:${TCOLS[i]}">${t.bytes}B · ${t.enc}</span>`;
+    chip.onclick=()=>document.getElementById('tok-detail').textContent=t.detail;
+    g.appendChild(chip);
+  });
+}
+initTokens();
+
+const ALGO_INFO={
+  sinusoidal:'Sinusoidal (Vaswani et al. 2017) — Used in the original Transformer paper. Each position gets a unique pattern of sine waves at different frequencies. Position 0 = all zeros. Position 1 = first cycle of low-frequency sine. No training needed — purely mathematical. The chart shows the sine wave pattern across dimensions for positions 0–63.',
+  learned:'Learned positions (used in GPT-2, BERT) — The model treats each position index as a "word" and learns a separate embedding vector for it, just like a vocabulary item. Simple and works well within the training length. Cannot generalize to sequences longer than the maximum trained length. GPT-2 learned 1,024 position slots.',
+  rope:'RoPE — Rotary Position Embedding (Su et al. 2021, used in Llama 2/3, Mistral, Falcon) — Instead of adding position to embeddings, it ROTATES the query and key vectors by an angle proportional to position. The dot-product used in attention then naturally encodes relative distances. Generalizes to longer sequences than trained on (with tricks). Now the dominant approach in open-source LLMs.',
+  alibi:'ALiBi — Attention with Linear Biases (Press et al. 2021, used in MPT, BLOOM) — Skips position embeddings entirely. Instead, it subtracts a fixed penalty from each attention score based on how many positions apart the two tokens are. Farther = bigger penalty = less attention. No added parameters, trains fast, and extrapolates well to long contexts.',
+};
+
+function showAlgo(name){
+  document.querySelectorAll('.algo-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  document.getElementById('algo-detail').textContent=ALGO_INFO[name];
+  drawPE(name);
+}
+
+function drawPE(name){
+  const canvas=document.getElementById('pe-canvas');
+  if(!canvas)return;
+  const W=canvas.offsetWidth||640,H=90;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const dark=matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.clearRect(0,0,W,H);
+
+  const positions=64;
+  const cellW=W/positions;
+
+  if(name==='sinusoidal'){
+    for(let p=0;p<positions;p++){
+      for(let d=0;d<12;d++){
+        const val=d%2===0
+          ? Math.sin(p/Math.pow(10000,2*d/512))
+          : Math.cos(p/Math.pow(10000,2*(d-1)/512));
+        const norm=(val+1)/2;
+        const alpha=0.15+norm*0.85;
+        ctx.fillStyle=`rgba(127,119,221,${alpha})`;
+        ctx.fillRect(p*cellW,d*(H/12),cellW-0.5,H/12-0.5);
+      }
+    }
+  } else if(name==='learned'){
+    for(let p=0;p<positions;p++){
+      const seed=p*7919;
+      for(let d=0;d<12;d++){
+        const val=(Math.sin(seed*(d+1))+1)/2;
+        ctx.fillStyle=`rgba(29,158,117,${0.15+val*0.8})`;
+        ctx.fillRect(p*cellW,d*(H/12),cellW-0.5,H/12-0.5);
+      }
+    }
+  } else if(name==='rope'){
+    for(let p=0;p<positions;p++){
+      for(let d=0;d<12;d++){
+        const angle=p*(d+1)*0.1;
+        const val=(Math.cos(angle)+1)/2;
+        ctx.fillStyle=`rgba(239,159,39,${0.15+val*0.8})`;
+        ctx.fillRect(p*cellW,d*(H/12),cellW-0.5,H/12-0.5);
+      }
+    }
+  } else {
+    for(let p=0;p<positions;p++){
+      const penalty=1-p/positions;
+      ctx.fillStyle=`rgba(216,90,48,${0.15+penalty*0.8})`;
+      ctx.fillRect(p*cellW,0,cellW-0.5,H-0.5);
+    }
+    ctx.fillStyle=dark?'rgba(255,255,255,0.5)':'rgba(0,0,0,0.4)';
+    ctx.font='11px sans-serif';
+    ctx.fillText('attention strength fades with distance →',8,H/2+4);
+  }
+
+  ctx.fillStyle=dark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.25)';
+  ctx.font='10px sans-serif';
+  ctx.fillText('position 0',3,H-4);
+  ctx.fillText('position 63',W-58,H-4);
+}
+document.getElementById('algo-detail').textContent=ALGO_INFO['sinusoidal'];
+
+const WORDS=[
+  {w:'king',x:130,y:60,group:'royalty',info:'Royalty cluster. "King" appears near "queen", "prince", "throne" in the corpus. The famous vector equation: king − man + woman ≈ queen — meaning the model learned gender as a direction in this space.'},
+  {w:'queen',x:175,y:85,group:'royalty',info:'Royalty cluster. Close to "king" and "princess". The model inferred royalty from context (palaces, crowns, kingdoms) without being told what royalty means.'},
+  {w:'prince',x:148,y:115,group:'royalty',info:'Royalty cluster. Between "king" and "princess" in embedding space — the model learned hierarchical relationships purely from co-occurrence.'},
+  {w:'princess',x:195,y:130,group:'royalty',info:'Royalty cluster. Closer to "queen" than to "king" — the model picked up on gender associations from millions of stories and news articles.'},
+  {w:'cat',x:380,y:70,group:'animal',info:'Animal cluster. "Cat" appears near "dog", "kitten", "pet", "meow" in the corpus. The model has never seen a cat — it only knows that the word "cat" lives near words about pets and fur.'},
+  {w:'dog',x:420,y:55,group:'animal',info:'Animal cluster. "Dog" and "cat" are close because they share context: vet, pet, bark/meow, leash/collar. The model learned this from millions of sentences without any definition of "animal".'},
+  {w:'kitten',x:360,y:105,group:'animal',info:'Animal cluster. Closer to "cat" than "dog" — the model captured the parent-child animal relationship from contexts like "a cat and her kittens".'},
+  {w:'puppy',x:445,y:90,group:'animal',info:'Animal cluster. Closer to "dog" than "cat". Young animal words cluster near their adult equivalents — a relationship the model learned entirely from text patterns.'},
+  {w:'Paris',x:270,y:170,group:'place',info:'Place cluster. "Paris" co-occurs with "France", "Eiffel Tower", "French cuisine", "Seine". The model knows Paris is in France the same way it knows king relates to queen — from co-occurrence.'},
+  {w:'London',x:310,y:155,group:'place',info:'Place cluster. Close to "Paris" because both are European capitals. Both appear near "city", "mayor", "tourism", "flights". The model learned geography from travel articles and news.'},
+  {w:'Berlin',x:285,y:205,group:'place',info:'Place cluster. The vector relationship Paris:France ≈ Berlin:Germany holds in embedding space — the model learned capital-country pairs from millions of references in the corpus.'},
+  {w:'Tokyo',x:330,y:195,group:'place',info:'Place cluster. Despite being on a different continent, Tokyo clusters with other world capitals. The model learned this from news, Wikipedia, and travel content.'},
+  {w:'run',x:520,y:140,group:'verb',info:'Verb cluster. "Run" appears near other motion verbs ("walk", "sprint", "jog") but also near "program runs", "running water" — showing the model captures polysemy (multiple meanings) through context.'},
+  {w:'walk',x:555,y:120,group:'verb',info:'Verb cluster. Close to "run" and "stride". The model also places "walk" near "sidewalk", "pedestrian", "stroll" — it learned all the contexts in which walking is discussed.'},
+  {w:'jump',x:540,y:165,group:'verb',info:'Verb cluster. Near "run", "leap", "hop". The model clusters motion verbs together because they share context words like "athlete", "competition", "exercise".'},
+  {w:'swim',x:500,y:175,group:'verb',info:'Verb cluster. Slightly separated from run/walk/jump because "swim" co-occurs with "water", "pool", "ocean" — contexts the other verbs rarely share. The model captured this distinction.'},
+];
+const GROUP_COLORS={royalty:'#7F77DD',animal:'#1D9E75',place:'#D85A30',verb:'#BA7517'};
+const GROUP_LABELS={royalty:'royalty',animal:'animals',place:'places',verb:'verbs'};
+
+function drawCorpus(){
+  const g=document.getElementById('corpus-g');
+  if(g.children.length)return;
+  const groups=['royalty','animal','place','verb'];
+  const cx={royalty:155,animal:405,place:295,verb:530};
+  const cy={royalty:100,animal:90,place:185,verb:150};
+
+  groups.forEach(grp=>{
+    const color=GROUP_COLORS[grp];
+    const el=document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+    el.setAttribute('cx',cx[grp]);el.setAttribute('cy',cy[grp]);
+    el.setAttribute('rx',75);el.setAttribute('ry',55);
+    el.setAttribute('fill',color);el.setAttribute('fill-opacity','0.07');
+    el.setAttribute('stroke',color);el.setAttribute('stroke-width','0.5');el.setAttribute('stroke-opacity','0.4');
+    g.appendChild(el);
+    const lbl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',cx[grp]);lbl.setAttribute('y',cy[grp]-48);
+    lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-size','11');
+    lbl.setAttribute('font-family','var(--font-sans,sans-serif)');lbl.setAttribute('font-weight','500');
+    lbl.setAttribute('fill',color);lbl.setAttribute('opacity','0.7');
+    lbl.textContent=GROUP_LABELS[grp];
+    g.appendChild(lbl);
+  });
+
+  WORDS.forEach(w=>{
+    const grp=document.createElementNS('http://www.w3.org/2000/svg','g');
+    grp.setAttribute('class','corpus-word');
+    grp.setAttribute('cursor','pointer');
+    const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',w.x);dot.setAttribute('cy',w.y);dot.setAttribute('r','4');
+    dot.setAttribute('fill',GROUP_COLORS[w.group]);dot.setAttribute('opacity','0.85');
+    const lbl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',w.x+7);lbl.setAttribute('y',w.y+4);
+    lbl.setAttribute('font-size','12');lbl.setAttribute('font-family','var(--font-sans,sans-serif)');
+    lbl.setAttribute('fill',GROUP_COLORS[w.group]);
+    lbl.textContent=w.w;
+    grp.appendChild(dot);grp.appendChild(lbl);
+    grp.onclick=()=>{
+      document.getElementById('corpus-detail').textContent=w.info;
+      document.querySelectorAll('.corpus-word circle').forEach(c=>c.setAttribute('r','4'));
+      dot.setAttribute('r','7');
+    };
+    g.appendChild(grp);
+  });
+}
+</script>

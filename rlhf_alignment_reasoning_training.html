@@ -1,0 +1,504 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,sans-serif)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.tab-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto}
+.tab{padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;background:transparent;border-top:none;border-left:none;border-right:none;transition:all .15s;white-space:nowrap}
+.tab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+.panel{display:none;padding:16px}
+.panel.on{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 9px;border-radius:6px;margin-bottom:6px}
+.bp{background:#EEEDFE;color:#3C3489}.bt{background:#E1F5EE;color:#085041}.ba{background:#FAEEDA;color:#633806}.bc{background:#FAECE7;color:#4A1B0C}.bb{background:#E6F1FB;color:#0C447C}.bg{background:#EAF3DE;color:#27500A}.bpi{background:#FBEAF0;color:#4B1528}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:520px){.two-col,.three-col{grid-template-columns:1fr}}
+.method-chip{display:inline-block;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-secondary);margin:3px;transition:all .15s;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.method-chip.on{background:#EEEDFE;color:#3C3489;border-color:#7F77DD}
+.method-detail{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:14px;font-size:13px;color:var(--color-text-secondary);line-height:1.65;min-height:90px;margin-top:6px}
+.bench-chip{display:inline-block;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-secondary);margin:3px;transition:all .15s;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.bench-chip.on{border-color:currentColor}
+.bench-detail{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:14px;font-size:13px;color:var(--color-text-secondary);line-height:1.65;min-height:80px;margin-top:6px}
+.stat-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.stat-box{flex:1;min-width:100px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;text-align:center}
+.stat-val{font-size:17px;font-weight:500;color:var(--color-text-primary)}
+.stat-lbl{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+@media(prefers-color-scheme:dark){
+  .bp{background:#26215C;color:#CECBF6}.bt{background:#04342C;color:#9FE1CB}.ba{background:#412402;color:#FAC775}.bc{background:#4A1B0C;color:#F5C4B3}.bb{background:#042C53;color:#B5D4F4}.bg{background:#173404;color:#C0DD97}.bpi{background:#4B1528;color:#F4C0D1}
+  .method-chip.on{background:#26215C;color:#CECBF6;border-color:#7F77DD}
+}
+</style>
+
+<h2 class="sr-only">RLHF Alignment and Reasoning Training: PPO variants, DPO, Best-of-N, Bradley-Terry, GRPO, advantage, loss, and evaluation benchmarks for reasoning LLMs.</h2>
+
+<div class="tab-row">
+  <button class="tab on" onclick="showTab('rlhf')">RLHF overview</button>
+  <button class="tab" onclick="showTab('ppo')">PPO variants</button>
+  <button class="tab" onclick="showTab('dpo')">DPO &amp; Best-of-N</button>
+  <button class="tab" onclick="showTab('reasoning')">Reasoning training</button>
+  <button class="tab" onclick="showTab('grpo')">GRPO deep dive</button>
+  <button class="tab" onclick="showTab('bench')">Benchmarks</button>
+</div>
+
+<!-- ══ TAB 1: RLHF OVERVIEW ══ -->
+<div class="panel on" id="tab-rlhf">
+  <div class="card">
+    <span class="badge ba">Why alignment matters</span>
+    <div class="card-title">A base model is not an assistant — it just completes text</div>
+    <div class="card-body">After pretraining, a model knows how to predict the next token but has no concept of "being helpful" or "avoiding harm." Ask it a question and it may continue with more questions. Ask for help and it may output training text patterns. Reinforcement Learning from Human Feedback (RLHF) is the family of techniques that bridge this gap — teaching the model what humans actually want from it.</div>
+  </div>
+
+  <!-- Pipeline SVG -->
+  <svg width="100%" viewBox="0 0 640 88" role="img" style="margin-bottom:10px">
+    <title>RLHF three-stage pipeline: SFT → Reward Model → RL optimization</title>
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g font-family="var(--font-sans,sans-serif)">
+      <rect x="4" y="22" width="140" height="44" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#085041" x="74" y="40" text-anchor="middle" dominant-baseline="central">Stage 1: SFT</text>
+      <text font-size="9" fill="#0F6E56" x="74" y="56" text-anchor="middle" dominant-baseline="central">instruction examples</text>
+      <line x1="144" y1="44" x2="164" y2="44" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+      <rect x="164" y="22" width="156" height="44" rx="8" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#633806" x="242" y="40" text-anchor="middle" dominant-baseline="central">Stage 2: Reward model</text>
+      <text font-size="9" fill="#854F0B" x="242" y="56" text-anchor="middle" dominant-baseline="central">human preference ranking</text>
+      <line x1="320" y1="44" x2="340" y2="44" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+      <rect x="340" y="22" width="156" height="44" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#3C3489" x="418" y="40" text-anchor="middle" dominant-baseline="central">Stage 3: RL (PPO / GRPO)</text>
+      <text font-size="9" fill="#534AB7" x="418" y="56" text-anchor="middle" dominant-baseline="central">maximize reward + KL constraint</text>
+      <line x1="496" y1="44" x2="516" y2="44" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+      <rect x="516" y="22" width="120" height="44" rx="8" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#E1F5EE" x="576" y="40" text-anchor="middle" dominant-baseline="central">Aligned model</text>
+      <text font-size="9" fill="#9FE1CB" x="576" y="56" text-anchor="middle" dominant-baseline="central">ChatGPT, Claude, Gemini</text>
+    </g>
+  </svg>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge ba">Stage 2 — The reward model</span>
+      <div class="card-title">A neural network that predicts human preference</div>
+      <div class="card-body">Human annotators are shown pairs of responses (A vs B) to the same prompt and pick which they prefer. A reward model is then trained on these (prompt, chosen, rejected) triplets to predict which response a human would prefer — assigning a scalar score. The reward model is usually a separate model of similar or smaller size to the LLM being aligned, with a linear head on top of a transformer.</div>
+    </div>
+    <div class="card">
+      <span class="badge ba">Bradley-Terry formulation</span>
+      <div class="card-title">The probability model behind preference learning</div>
+      <div class="card-body">The reward model is trained using the Bradley-Terry pairwise comparison model. If response y_w is preferred over y_l, the probability of that preference is modeled as σ(r(x,y_w) − r(x,y_l)), where σ is sigmoid. The loss is: −log σ(r_w − r_l). This elegant formula says: push the reward of the chosen response higher than the rejected one. No absolute score needed — only relative preference.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge ba">On-policy vs off-policy alignment</span>
+    <div class="card-title">Two fundamentally different approaches to using preference data</div>
+    <div class="card-body"><strong>On-policy (PPO, GRPO):</strong> The model generates new responses during training. The reward model scores them. The RL algorithm updates the model's weights. This is expensive — inference is slow — but achieves the highest performance ceiling because the model always trains on its own current behavior. <br><br><strong>Off-policy (DPO, ORPO):</strong> Training uses pre-collected preference data without generating new responses during training. Simpler, faster, more stable — but the model never explores beyond the fixed dataset. Less adaptive than on-policy methods for complex reasoning tasks.</div>
+  </div>
+</div>
+
+<!-- ══ TAB 2: PPO VARIANTS ══ -->
+<div class="panel" id="tab-ppo">
+  <div class="card">
+    <span class="badge bp">Proximal Policy Optimization</span>
+    <div class="card-title">The dominant on-policy RL algorithm for LLM alignment</div>
+    <div class="card-body">PPO was introduced by OpenAI in 2017 (Schulman et al.) and became the backbone of ChatGPT's alignment process (InstructGPT). In the LLM setting, the "policy" is the LLM, "actions" are tokens, "states" are the current generation so far, and the "reward" comes from the reward model at the end of each complete response.</div>
+  </div>
+
+  <div style="margin-bottom:8px">
+    <div class="method-chip on" onclick="showMethod(this,'ppo-kl')">PPO-KL</div>
+    <div class="method-chip" onclick="showMethod(this,'ppo-clip')">PPO-Clip</div>
+    <div class="method-chip" onclick="showMethod(this,'advantage')">Advantage (GAE)</div>
+    <div class="method-chip" onclick="showMethod(this,'critic')">Critic (value model)</div>
+    <div class="method-chip" onclick="showMethod(this,'reward-hack')">Reward hacking</div>
+  </div>
+  <div class="method-detail" id="method-detail-ppo"></div>
+
+  <!-- PPO 4-model diagram -->
+  <div class="card" style="margin-top:10px">
+    <div class="card-title">Four models required during PPO training</div>
+    <svg width="100%" viewBox="0 0 640 130" role="img" style="margin-top:8px">
+      <title>PPO requires four models simultaneously: policy, reference, reward, and critic</title>
+      <defs><marker id="ap" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g font-family="var(--font-sans,sans-serif)">
+        <rect x="4"   y="30" width="140" height="54" rx="8" fill="#7F77DD" stroke="#534AB7" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#fff" x="74" y="50" text-anchor="middle" dominant-baseline="central">Policy π_θ</text>
+        <text font-size="9"  fill="#CECBF6" x="74" y="68" text-anchor="middle" dominant-baseline="central">LLM being trained</text>
+        <text font-size="9"  fill="#CECBF6" x="74" y="82" text-anchor="middle" dominant-baseline="central">weights updated</text>
+        <rect x="164" y="30" width="140" height="54" rx="8" fill="#5DCAA5" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#04342C" x="234" y="50" text-anchor="middle" dominant-baseline="central">Reference π_ref</text>
+        <text font-size="9"  fill="#085041" x="234" y="68" text-anchor="middle" dominant-baseline="central">frozen SFT model</text>
+        <text font-size="9"  fill="#085041" x="234" y="82" text-anchor="middle" dominant-baseline="central">KL anchor</text>
+        <rect x="324" y="30" width="140" height="54" rx="8" fill="#EF9F27" stroke="#BA7517" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#fff" x="394" y="50" text-anchor="middle" dominant-baseline="central">Reward R_φ</text>
+        <text font-size="9"  fill="#FAEEDA" x="394" y="68" text-anchor="middle" dominant-baseline="central">frozen reward model</text>
+        <text font-size="9"  fill="#FAEEDA" x="394" y="82" text-anchor="middle" dominant-baseline="central">scores full responses</text>
+        <rect x="484" y="30" width="148" height="54" rx="8" fill="#E24B4A" stroke="#A32D2D" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#fff" x="558" y="50" text-anchor="middle" dominant-baseline="central">Critic V_γ</text>
+        <text font-size="9"  fill="#FCEBEB" x="558" y="68" text-anchor="middle" dominant-baseline="central">value function</text>
+        <text font-size="9"  fill="#FCEBEB" x="558" y="82" text-anchor="middle" dominant-baseline="central">weights updated</text>
+        <text font-size="10" fill="#5F5E5A" x="320" y="118" text-anchor="middle">Policy + Critic = 2 copies of the LLM trained simultaneously → huge memory cost</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bp">PPO objective — combined loss</span>
+      <div class="card-body">The full PPO objective has three terms:<br>
+      <strong>1. Clipped surrogate</strong> — maximize advantage while staying close to old policy (clip at ε = 0.2).<br>
+      <strong>2. KL penalty</strong> — subtract β × KL(π_θ ‖ π_ref) to prevent reward hacking.<br>
+      <strong>3. Value loss</strong> — train the critic to predict future rewards accurately.<br>
+      Typical β = 0.02–0.1. Higher β = more conservative.</div>
+    </div>
+    <div class="card">
+      <span class="badge bp">PPO limitations for LLMs</span>
+      <div class="card-body"><strong>Memory:</strong> 4 models in GPU at once — policy, reference, reward, critic. For a 7B model this is ~80GB+ VRAM.<br>
+      <strong>Stability:</strong> Balancing policy + critic training simultaneously is notoriously tricky.<br>
+      <strong>Speed:</strong> Must generate completions on-policy (slow inference) before each update.<br>
+      <strong>Complexity:</strong> Many hyperparameters (β, ε, GAE λ, clip ratio) to tune simultaneously.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 3: DPO & Best-of-N ══ -->
+<div class="panel" id="tab-dpo">
+  <div class="card">
+    <span class="badge bt">Best-of-N (Rejection Sampling)</span>
+    <div class="card-title">The simplest alignment strategy — generate many, keep the best</div>
+    <div class="card-body">Generate N responses from the model for each prompt, score all N with the reward model, keep only the highest-scoring one as training data, then fine-tune the model on these "best" responses via SFT. No RL required. Llama 2's alignment used four rounds of rejection sampling before any RL. Simple and effective for moderate alignment goals, but computationally wasteful (most generations are discarded) and doesn't explore beyond the current model's distribution.</div>
+  </div>
+
+  <svg width="100%" viewBox="0 0 640 100" role="img" style="margin-bottom:10px">
+    <title>Best-of-N: generate N responses, score with reward model, fine-tune on top response</title>
+    <defs><marker id="abn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g font-family="var(--font-sans,sans-serif)">
+      <rect x="4" y="30" width="80" height="40" rx="7" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#085041" x="44" y="50" text-anchor="middle" dominant-baseline="central">Model</text>
+      <line x1="84" y1="50" x2="100" y2="50" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#abn)" fill="none"/>
+      <rect x="100" y="10" width="100" height="22" rx="5" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5"/>
+      <text font-size="9" fill="#085041" x="150" y="21" text-anchor="middle" dominant-baseline="central">Response 1</text>
+      <rect x="100" y="38" width="100" height="22" rx="5" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5"/>
+      <text font-size="9" fill="#085041" x="150" y="49" text-anchor="middle" dominant-baseline="central">Response 2</text>
+      <rect x="100" y="66" width="100" height="22" rx="5" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="0.5"/>
+      <text font-size="9" fill="#085041" x="150" y="77" text-anchor="middle" dominant-baseline="central">Response N</text>
+      <line x1="200" y1="21" x2="225" y2="40" stroke="#EF9F27" stroke-width="1" marker-end="url(#abn)" fill="none"/>
+      <line x1="200" y1="49" x2="225" y2="50" stroke="#EF9F27" stroke-width="1" marker-end="url(#abn)" fill="none"/>
+      <line x1="200" y1="77" x2="225" y2="60" stroke="#EF9F27" stroke-width="1" marker-end="url(#abn)" fill="none"/>
+      <rect x="225" y="30" width="100" height="40" rx="7" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#633806" x="275" y="50" text-anchor="middle" dominant-baseline="central">Reward model</text>
+      <line x1="325" y1="50" x2="345" y2="50" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#abn)" fill="none"/>
+      <rect x="345" y="30" width="100" height="40" rx="7" fill="#1D9E75" stroke="#085041" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#fff" x="395" y="46" text-anchor="middle" dominant-baseline="central">Best response</text>
+      <text font-size="9" fill="#9FE1CB" x="395" y="60" text-anchor="middle" dominant-baseline="central">highest score</text>
+      <line x1="445" y1="50" x2="465" y2="50" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#abn)" fill="none"/>
+      <rect x="465" y="30" width="110" height="40" rx="7" fill="#7F77DD" stroke="#534AB7" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#fff" x="520" y="46" text-anchor="middle" dominant-baseline="central">SFT on best</text>
+      <text font-size="9" fill="#CECBF6" x="520" y="60" text-anchor="middle" dominant-baseline="central">no RL needed</text>
+      <text font-size="9" fill="#888780" x="320" y="95" text-anchor="middle">N = 10–100 typical. Llama 2 used 4 iterative rounds before PPO.</text>
+    </g>
+  </svg>
+
+  <div class="card">
+    <span class="badge bt">Direct Preference Optimization (DPO)</span>
+    <div class="card-title">Skip the reward model entirely — optimize directly on preference pairs</div>
+    <div class="card-body">DPO (Rafailov et al., Stanford 2023) made a key mathematical observation: the optimal RLHF policy has a closed-form solution that can be derived directly from the preference data — no separate reward model required. By rearranging the RLHF objective, DPO shows that the reward is implicitly encoded in the ratio of log-probabilities between the policy and a reference model.</div>
+  </div>
+
+  <!-- DPO flow -->
+  <svg width="100%" viewBox="0 0 640 130" role="img" style="margin-bottom:10px">
+    <title>DPO vs RLHF comparison: RLHF requires reward model, DPO optimizes directly on preferences</title>
+    <defs><marker id="adpo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g font-family="var(--font-sans,sans-serif)">
+      <!-- RLHF path -->
+      <text font-size="11" font-weight="500" fill="#888780" x="160" y="16" text-anchor="middle">RLHF</text>
+      <rect x="4"  y="24" width="80" height="32" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+      <text font-size="10" fill="#5F5E5A" x="44"  y="40" text-anchor="middle" dominant-baseline="central">Prefs data</text>
+      <line x1="84" y1="40" x2="100" y2="40" stroke="#888780" stroke-width="1.5" marker-end="url(#adpo)" fill="none"/>
+      <rect x="100" y="24" width="100" height="32" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#633806" x="150" y="40" text-anchor="middle" dominant-baseline="central">Reward model</text>
+      <line x1="200" y1="40" x2="216" y2="40" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#adpo)" fill="none"/>
+      <rect x="216" y="24" width="90" height="32" rx="6" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#3C3489" x="261" y="40" text-anchor="middle" dominant-baseline="central">PPO / RL</text>
+      <line x1="306" y1="40" x2="322" y2="40" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#adpo)" fill="none"/>
+      <rect x="322" y="24" width="110" height="32" rx="6" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#E1F5EE" x="377" y="40" text-anchor="middle" dominant-baseline="central">Aligned policy</text>
+      <!-- DPO path -->
+      <text font-size="11" font-weight="500" fill="#1D9E75" x="160" y="82" text-anchor="middle">DPO (simpler)</text>
+      <rect x="4"  y="90" width="80" height="32" rx="6" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+      <text font-size="10" fill="#5F5E5A" x="44"  y="106" text-anchor="middle" dominant-baseline="central">Prefs data</text>
+      <line x1="84" y1="106" x2="216" y2="106" stroke="#1D9E75" stroke-width="2" marker-end="url(#adpo)" fill="none"/>
+      <rect x="216" y="90" width="90" height="32" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#085041" x="261" y="106" text-anchor="middle" dominant-baseline="central">DPO loss</text>
+      <line x1="306" y1="106" x2="322" y2="106" stroke="#1D9E75" stroke-width="2" marker-end="url(#adpo)" fill="none"/>
+      <rect x="322" y="90" width="110" height="32" rx="6" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+      <text font-size="10" font-weight="500" fill="#E1F5EE" x="377" y="106" text-anchor="middle" dominant-baseline="central">Aligned policy</text>
+      <!-- Skip arrow -->
+      <path d="M100 90 L150 74" fill="none" stroke="#E24B4A" stroke-width="1" stroke-dasharray="4 2"/>
+      <text font-size="9" fill="#E24B4A" x="135" y="68">skipped!</text>
+      <!-- DPO formula -->
+      <rect x="450" y="24" width="186" height="110" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+      <text font-size="11" font-weight="500" fill="#085041" x="543" y="42" text-anchor="middle">DPO loss</text>
+      <text font-size="10" fill="#0F6E56" x="462" y="62">L = −E[log σ(β log(π_θ(y_w)/π_ref(y_w))</text>
+      <text font-size="10" fill="#0F6E56" x="462" y="78">        − β log(π_θ(y_l)/π_ref(y_l)))]</text>
+      <text font-size="9" fill="#888780" x="462" y="98">y_w = chosen,  y_l = rejected</text>
+      <text font-size="9" fill="#888780" x="462" y="112">β controls deviation from reference</text>
+      <text font-size="9" fill="#888780" x="462" y="126">No reward model. No RL. Just SFT-style training.</text>
+    </g>
+  </svg>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bt">DPO advantages</span>
+      <div class="card-body">No reward model to train and maintain. No RL instability. Trains like standard supervised fine-tuning — simple cross-entropy-style loss. Memory efficient — only 2 models needed (policy + frozen reference). More stable and reproducible than PPO. Used widely in open-source models.</div>
+    </div>
+    <div class="card">
+      <span class="badge bc">DPO limitations</span>
+      <div class="card-body">Off-policy — trains on fixed preference data, never explores new responses. Cannot handle tasks requiring complex reasoning chains where correctness is hard to define as a pairwise preference. Quality depends entirely on the preference dataset. Generally considered weaker than on-policy RL for hard reasoning tasks like math and code.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge bt">Paper annotations</span>
+    <div class="card-body">
+      <strong>Direct Preference Optimization: Your Language Model is Secretly a Reward Model</strong> — Rafailov et al., Stanford 2023 (arXiv:2305.18290). Introduced DPO. Showed the optimal RLHF policy can be derived in closed form. One of the most cited alignment papers of 2023.<br><br>
+      <strong>Scaling LLM Test-Time Compute Optimally</strong> — Snell et al. 2024. Showed Best-of-N with a strong verifier can outperform larger models at test time, even without any training.
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 4: REASONING TRAINING ══ -->
+<div class="panel" id="tab-reasoning">
+  <div class="card">
+    <span class="badge bc">Reasoning LLMs — a new training paradigm</span>
+    <div class="card-title">Teaching models to "think before they answer"</div>
+    <div class="card-body">Standard RLHF teaches models to be helpful and safe. Reasoning training — Reinforcement Learning from Verifiable Rewards (RLVR) — teaches models to solve hard problems by generating long chain-of-thought reasoning traces. The key difference: rewards come from verifiable answers (math results, code tests) rather than from a learned preference model. DeepSeek-R1 showed that pure RL on verifiable rewards can produce models that "think" step by step without any supervised chain-of-thought data.</div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bc">What changes from standard RLHF</span>
+      <div class="card-body"><strong>Reward source:</strong> Instead of a trained reward model (which can be "hacked"), rewards come from verifiable ground truth — the math answer is correct or not, the code compiles and passes tests or not. Binary. Objective. Unhackable.<br><br><strong>Format rewards:</strong> Additional rewards for using the correct thinking format (e.g., reasoning inside &lt;think&gt; tags, answer inside &lt;answer&gt; tags).<br><br><strong>Emergent behaviors:</strong> Models trained this way spontaneously develop self-correction, "aha moments," extended deliberation, and backtracking — behaviors not present in SFT data.</div>
+    </div>
+    <div class="card">
+      <span class="badge bc">DeepSeek-R1-Zero — the unexpected breakthrough</span>
+      <div class="card-title">Skip SFT entirely — apply RL directly to base model</div>
+      <div class="card-body">DeepSeek's most surprising finding: starting from a base model (DeepSeek V3) with NO SFT phase, pure GRPO training on verifiable rewards produced emergent reasoning behavior. The model learned to allocate more thinking time to harder problems, self-evaluate answers, and backtrack on errors — all without being shown any chain-of-thought examples. Language consistency rewards were later added to prevent "language mixing" (switching between Chinese and English mid-thought).</div>
+    </div>
+  </div>
+
+  <!-- Training stages -->
+  <div class="card">
+    <div class="card-title">DeepSeek-R1 multi-stage training pipeline</div>
+    <svg width="100%" viewBox="0 0 640 72" role="img" style="margin-top:8px">
+      <title>DeepSeek R1 four-stage training: cold start SFT, GRPO RL, rejection sampling, final GRPO</title>
+      <defs><marker id="ards" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g font-family="var(--font-sans,sans-serif)">
+        <rect x="4"  y="16" width="130" height="40" rx="7" fill="#FAECE7" stroke="#D85A30" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#4A1B0C" x="69"  y="32" text-anchor="middle" dominant-baseline="central">Stage 1: Cold-start SFT</text>
+        <text font-size="9"  fill="#712B13" x="69"  y="48" text-anchor="middle" dominant-baseline="central">few thousand CoT examples</text>
+        <line x1="134" y1="36" x2="150" y2="36" stroke="#D85A30" stroke-width="1.5" marker-end="url(#ards)" fill="none"/>
+        <rect x="150" y="16" width="120" height="40" rx="7" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#3C3489" x="210" y="32" text-anchor="middle" dominant-baseline="central">Stage 2: GRPO RL</text>
+        <text font-size="9"  fill="#534AB7" x="210" y="48" text-anchor="middle" dominant-baseline="central">verifiable reward training</text>
+        <line x1="270" y1="36" x2="286" y2="36" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#ards)" fill="none"/>
+        <rect x="286" y="16" width="130" height="40" rx="7" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#085041" x="351" y="32" text-anchor="middle" dominant-baseline="central">Stage 3: Rejection sampling</text>
+        <text font-size="9"  fill="#0F6E56" x="351" y="48" text-anchor="middle" dominant-baseline="central">600K reasoning + 200K general</text>
+        <line x1="416" y1="36" x2="432" y2="36" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#ards)" fill="none"/>
+        <rect x="432" y="16" width="120" height="40" rx="7" fill="#7F77DD" stroke="#534AB7" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#fff" x="492" y="32" text-anchor="middle" dominant-baseline="central">Stage 4: Final GRPO</text>
+        <text font-size="9"  fill="#CECBF6" x="492" y="48" text-anchor="middle" dominant-baseline="central">helpfulness + safety</text>
+        <line x1="552" y1="36" x2="568" y2="36" stroke="#534AB7" stroke-width="1.5" marker-end="url(#ards)" fill="none"/>
+        <rect x="568" y="16" width="68" height="40" rx="7" fill="#085041" stroke="#04342C" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#E1F5EE" x="602" y="36" text-anchor="middle" dominant-baseline="central">R1</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="card">
+    <span class="badge bc">Loss function for reasoning training</span>
+    <div class="card-title">RLVR loss — maximise expected verifiable reward with KL constraint</div>
+    <div class="card-body">The core objective: <strong>J(θ) = E[R(x,y)] − β · KL(π_θ ‖ π_ref)</strong><br><br>Where R(x,y) is the verifiable reward (1 if answer correct, 0 otherwise for binary; or a continuous score from a process reward model). The KL term prevents the model from drifting too far from the reference policy. In GRPO, this is computed per-token across the generated sequence, and the advantage normalises rewards within a group of completions for the same prompt.</div>
+  </div>
+</div>
+
+<!-- ══ TAB 5: GRPO DEEP DIVE ══ -->
+<div class="panel" id="tab-grpo">
+  <div class="card">
+    <span class="badge bp">Group Relative Policy Optimization</span>
+    <div class="card-title">PPO without the critic — DeepSeek's key innovation</div>
+    <div class="card-body">GRPO was introduced in DeepSeekMath (Shao et al. 2024, arXiv:2402.03300) and later used to train DeepSeek-R1. The key insight: instead of training a separate critic (value function) to estimate the baseline for advantage calculation, GRPO estimates the baseline from the average reward of a group of responses generated for the same prompt. Eliminates one entire model from PPO's 4-model setup.</div>
+  </div>
+
+  <!-- GRPO vs PPO visual -->
+  <div class="two-col">
+    <div class="card" style="border-left:3px solid #E24B4A">
+      <span class="badge" style="background:#FCEBEB;color:#791F1F">PPO — 4 models</span>
+      <div class="card-body">Policy (trained) + Reference (frozen) + Reward model (frozen) + <strong style="color:#E24B4A">Critic / value function (trained)</strong><br><br>The critic predicts "how much total reward will this state lead to?" — a hard function to learn, especially for text. Requires ~56GB+ VRAM for a 7B model.</div>
+    </div>
+    <div class="card" style="border-left:3px solid #1D9E75">
+      <span class="badge bt">GRPO — 3 models (no critic)</span>
+      <div class="card-body">Policy (trained) + Reference (frozen) + Reward model (frozen)<br><br>The baseline is estimated from the group of responses themselves — no learned value function. Saves 40–60% VRAM. Up to 18× more cost-efficient than PPO in DeepSeek's experiments.</div>
+    </div>
+  </div>
+
+  <!-- GRPO algorithm walkthrough -->
+  <div class="card">
+    <div class="card-title">GRPO step by step</div>
+    <svg width="100%" viewBox="0 0 640 290" role="img" style="margin-top:8px">
+      <title>GRPO algorithm: sample group of responses, score, compute advantage, clip and update</title>
+      <defs><marker id="agr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <g font-family="var(--font-sans,sans-serif)">
+        <!-- Step 1: prompt -->
+        <rect x="4" y="8" width="120" height="36" rx="7" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#444441" x="64" y="26" text-anchor="middle" dominant-baseline="central">Prompt q</text>
+        <line x1="124" y1="26" x2="144" y2="26" stroke="#888780" stroke-width="1.5" marker-end="url(#agr)" fill="none"/>
+
+        <!-- Step 2: generate group -->
+        <rect x="144" y="8" width="170" height="36" rx="7" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#3C3489" x="229" y="22" text-anchor="middle" dominant-baseline="central">Generate group of G outputs</text>
+        <text font-size="9" fill="#534AB7" x="229" y="36" text-anchor="middle" dominant-baseline="central">{o₁, o₂, … oG}  (G=64 in DeepSeekMath)</text>
+        <line x1="314" y1="26" x2="334" y2="26" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#agr)" fill="none"/>
+
+        <!-- Step 3: reward -->
+        <rect x="334" y="8" width="140" height="36" rx="7" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#633806" x="404" y="22" text-anchor="middle" dominant-baseline="central">Score each output</text>
+        <text font-size="9" fill="#854F0B" x="404" y="36" text-anchor="middle" dominant-baseline="central">reward model or verifier → r₁…rG</text>
+        <line x1="474" y1="26" x2="494" y2="26" stroke="#EF9F27" stroke-width="1.5" marker-end="url(#agr)" fill="none"/>
+
+        <!-- Step 4: advantage -->
+        <rect x="494" y="8" width="140" height="36" rx="7" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#085041" x="564" y="22" text-anchor="middle" dominant-baseline="central">Compute advantage</text>
+        <text font-size="9" fill="#0F6E56" x="564" y="36" text-anchor="middle" dominant-baseline="central">Â_i = (r_i − mean(r)) / std(r)</text>
+
+        <!-- Advantage explanation box -->
+        <rect x="4" y="58" width="630" height="80" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#085041" x="320" y="75" text-anchor="middle">The Advantage: what it means</text>
+        <text font-size="10" fill="#0F6E56" x="20" y="95">Â > 0: this response scored ABOVE average → reinforce it (do more of this)</text>
+        <text font-size="10" fill="#0F6E56" x="20" y="111">Â < 0: this response scored BELOW average → suppress it (do less of this)</text>
+        <text font-size="10" fill="#0F6E56" x="20" y="127">Â ≈ 0: this response was average → near-zero update. No variance wasted.</text>
+
+        <!-- Clipped objective -->
+        <rect x="4" y="152" width="630" height="70" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+        <text font-size="11" font-weight="500" fill="#3C3489" x="320" y="170" text-anchor="middle">GRPO clipped objective (per token)</text>
+        <text font-size="10" fill="#534AB7" x="20" y="190">L = E[ min( ratio × Â,  clip(ratio, 1−ε, 1+ε) × Â ) ]  −  β × KL(π_θ ‖ π_ref)</text>
+        <text font-size="9" fill="#888780" x="20" y="208">ratio = π_θ(o|q) / π_old(o|q).   ε=0.2 (clip range).   β=0.04 (KL coefficient in DeepSeekMath).</text>
+
+        <!-- Key numbers -->
+        <rect x="4" y="236" width="630" height="46" rx="8" fill="#F1EFE8" stroke="#D3D1C7" stroke-width="0.5"/>
+        <text font-size="10" font-weight="500" fill="#444441" x="15" y="256">DeepSeekMath hyperparameters: G=64 outputs per prompt · batch=1024 · lr=1e-6 · KL coeff=0.04 · max length=1024 tokens</text>
+        <text font-size="9" fill="#888780" x="15" y="272">Training data: GSM8K + MATH (chain-of-thought format). Single policy update per exploration stage.</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <span class="badge bp">Why group sampling works as a baseline</span>
+      <div class="card-body">A value function (critic) must learn to predict future reward from an intermediate state — notoriously hard for text. GRPO sidesteps this by observing multiple complete trajectories for the same prompt. The group average reward is a Monte Carlo estimate of the expected reward — simpler, more direct, and needs no separate network. The key requirement: generate enough samples per prompt (G ≥ 16, typically 64) for the estimate to be stable.</div>
+    </div>
+    <div class="card">
+      <span class="badge bp">Reward hacking prevention</span>
+      <div class="card-body">Two mechanisms prevent the model from gaming the reward:<br><strong>1. KL penalty</strong> — directly in the loss function, penalizes divergence from the reference policy. More conservative updates.<br><strong>2. Relative advantage</strong> — comparing within a group makes the model focus on relative quality rather than absolute reward scores. Exploiting the reward model would require all outputs to be poor, which the clip prevents.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 6: BENCHMARKS ══ -->
+<div class="panel" id="tab-bench">
+  <div class="card">
+    <span class="badge bg">Evaluating reasoning models</span>
+    <div class="card-title">How we measure whether a model can actually think — click each benchmark</div>
+    <div class="card-body">Reasoning benchmarks test multi-step problem solving, not pattern matching. The key metrics are Pass@k (does at least one of k attempts succeed?), majority voting (most common answer from N samples), and exact match on verifiable answers. Frontier models have saturated many old benchmarks — the field continuously pushes to harder problems.</div>
+  </div>
+
+  <div style="margin-bottom:6px">
+    <span class="bench-chip on"  style="border-color:#EF9F27;color:#633806;background:#FAEEDA" onclick="showBench(this,'gsm8k')">GSM8K</span>
+    <span class="bench-chip" style="color:#3C3489" onclick="showBench(this,'math')">MATH</span>
+    <span class="bench-chip" style="color:#712B13" onclick="showBench(this,'aime')">AIME</span>
+    <span class="bench-chip" style="color:#085041" onclick="showBench(this,'humaneval')">HumanEval</span>
+    <span class="bench-chip" style="color:#0C447C" onclick="showBench(this,'mmlu')">MMLU / MMLU-Pro</span>
+    <span class="bench-chip" style="color:#4B1528" onclick="showBench(this,'gpqa')">GPQA Diamond</span>
+    <span class="bench-chip" style="color:#27500A" onclick="showBench(this,'lcb')">LiveCodeBench</span>
+    <span class="bench-chip" style="color:#2C2C2A" onclick="showBench(this,'bbh')">BIG-Bench Hard</span>
+  </div>
+  <div class="bench-detail" id="bench-detail"></div>
+
+  <div class="card" style="margin-top:10px">
+    <div class="card-title">Evaluation metrics for reasoning models</div>
+    <div class="two-col" style="margin-top:8px">
+      <div>
+        <div class="card" style="margin-bottom:8px">
+          <span class="badge bg">Pass@k</span>
+          <div class="card-body">Generate k independent responses. Pass if at least one is correct. Pass@1 = accuracy. Pass@100 = ceiling of model's potential. DeepSeek-R1 is evaluated with Pass@1 using 32 samples (averaged for AIME).</div>
+        </div>
+        <div class="card">
+          <span class="badge bg">Majority voting (self-consistency)</span>
+          <div class="card-body">Generate N responses (e.g., 32), return the most common answer. Much more reliable than a single sample, especially for hard math. Often boosts AIME scores by 10–20 percentage points over Pass@1.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:8px">
+          <span class="badge bg">Exact match</span>
+          <div class="card-body">Compare model answer to ground truth exactly. Used for math (numeric answers) and multiple-choice. For code, unit tests replace exact match — the code must run and produce correct outputs.</div>
+        </div>
+        <div class="card">
+          <span class="badge bg">Benchmark contamination</span>
+          <div class="card-body">A critical risk: if training data contains benchmark questions, scores are inflated. A 2023 study found removing contaminated examples dropped GSM8K scores by up to 13% for some models. Always check contamination disclosures.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-val">~97%</div><div class="stat-lbl">Frontier model GSM8K (saturated)</div></div>
+    <div class="stat-box"><div class="stat-val">~90%</div><div class="stat-lbl">Frontier model MATH-500</div></div>
+    <div class="stat-box"><div class="stat-val">~70%</div><div class="stat-lbl">DeepSeek-R1 AIME 2024</div></div>
+    <div class="stat-box"><div class="stat-val">~90%</div><div class="stat-lbl">Frontier GPQA Diamond</div></div>
+    <div class="stat-box"><div class="stat-val">&lt;54%</div><div class="stat-lbl">Best on HLE (hardest)</div></div>
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  const m={rlhf:0,ppo:1,dpo:2,reasoning:3,grpo:4,bench:5};
+  document.querySelectorAll('.tab')[m[id]].classList.add('on');
+  if(id==='ppo')showMethod(document.querySelector('.method-chip'),'ppo-kl');
+  if(id==='bench')showBench(document.querySelector('.bench-chip'),'gsm8k');
+}
+
+const METHODS={
+  'ppo-kl':{title:'PPO-KL — the KL-constrained variant',body:'Adds a per-token KL divergence penalty directly into the reward signal: r_adjusted = r(x,y) − β × KL(π_θ(·|x) ‖ π_ref(·|x)). β is the KL coefficient (typically 0.02–0.1). Higher β = more conservative updates. This prevents the model from exploiting the reward model by drifting too far from the reference (SFT) policy — a phenomenon called reward hacking. The KL is computed at every token position, not just at the end of the response. Used in InstructGPT and most early RLHF implementations.'},
+  'ppo-clip':{title:'PPO-Clip — the clipped surrogate objective',body:'Instead of (or in addition to) a KL penalty, PPO-Clip limits policy updates by clipping the probability ratio. The ratio r_t(θ) = π_θ(a_t|s_t) / π_old(a_t|s_t) measures how much the policy has changed for each token. The objective clips this ratio to [1−ε, 1+ε] (ε=0.2 typically). Objective: L = min(r_t × Â_t, clip(r_t, 1−ε, 1+ε) × Â_t). The clip prevents overly large updates in either direction. If the advantage is positive (good action), we want to increase its probability — but not by more than 20%. PPO-Clip is the variant used in practice for LLMs.'},
+  'advantage':{title:'Advantage estimation — GAE',body:'The advantage A(s,a) = Q(s,a) − V(s) measures how much better action a was compared to the average action from state s. A > 0 → action was better than average, reinforce it. A < 0 → action was worse, discourage it. In PPO for LLMs, Generalized Advantage Estimation (GAE) uses a weighted sum of temporal difference errors to balance bias (λ=0) vs variance (λ=1). Since intermediate rewards are 0 (only the final response gets a reward), GAE in practice propagates the terminal reward backwards across all token positions with an exponential decay. This is computationally expensive and requires the critic model to estimate state values.'},
+  'critic':{title:'The critic / value function',body:'PPO requires a separate value function network V(s) that predicts the total future reward from each state (each token position in the generation). This critic is typically another copy of the LLM with a scalar head on top. Training the critic alongside the policy doubles the effective model size during training and adds another loss term (value loss = MSE between predicted and actual returns). The critic is what GRPO eliminates — replacing it with group-average reward statistics. This is PPO\'s biggest memory bottleneck for large LLMs.'},
+  'reward-hack':{title:'Reward hacking — the alignment failure mode',body:'Reward hacking (or reward gaming) occurs when the model finds a way to achieve high reward scores without actually doing what humans want. Examples: responding with confident-sounding but incorrect information, adding unnecessary filler that the reward model rates highly, using sycophantic phrasing that passes reward model checks. The KL penalty and clip in PPO both exist primarily to prevent reward hacking — keeping the policy close to the reference model limits how much it can exploit the reward model\'s blind spots. Verifiable rewards (math answers, code tests) in RLVR are more resistant to hacking than learned reward models.'},
+};
+function showMethod(el,key){
+  document.querySelectorAll('.method-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=METHODS[key];
+  document.getElementById('method-detail-ppo').innerHTML='<strong style="color:var(--color-text-primary);font-size:13px;display:block;margin-bottom:6px">'+d.title+'</strong>'+d.body;
+}
+
+const BENCHES={
+  gsm8k:{title:'GSM8K — Grade School Math',color:'#633806',body:'8,500 grade-school word problems requiring multi-step arithmetic reasoning. Designed to test chain-of-thought (CoT) reasoning. Problems are linguistically diverse and require 2–8 reasoning steps. Once groundbreaking, now saturated — frontier models score 97%+. Still useful for smaller models and measuring the impact of training techniques. Score reported as accuracy (exact match on final numeric answer). Created by Cobbe et al., OpenAI 2021.'},
+  math:{title:'MATH — Competition Mathematics',color:'#3C3489',body:'12,500 problems from AMC, AIME, and other US math competitions across 7 difficulty levels and 5 subject areas (algebra, geometry, number theory, combinatorics, calculus). Even frontier models struggle on the hardest (Level 5) problems. MATH-500 is a cleaned 500-problem subset used for fast evaluation. DeepSeek-R1 scores ~90% on MATH-500. Score reported as accuracy on symbolic/numeric answer. Hendrycks et al. 2021.'},
+  aime:{title:'AIME — American Invitational Math Exam',color:'#712B13',body:'15 problems from the annual AIME competition for elite high school students. Each answer is an integer 0–999. Extremely hard — average human competitor gets 3–5 correct. Models are evaluated with Pass@1 averaged over 32 samples (due to small size and randomness). DeepSeek-R1 scores ~70% on AIME 2024. AIME 2025 is now used as an even fresher benchmark to prevent contamination. A key signal for frontier reasoning capability.'},
+  humaneval:{title:'HumanEval — Python Code Generation',color:'#085041',body:'164 Python programming problems, each with a docstring and unit tests. Model generates a function body; tests check correctness. Key metric: Pass@k (does at least one of k generations pass all tests?). Pass@1 is the standard. Saturated for frontier models (93%+). HumanEval+ (EvalPlus) adds more edge-case tests and is harder. SWE-bench measures real GitHub issue resolution and is now the harder coding benchmark. Chen et al., OpenAI 2021.'},
+  mmlu:{title:'MMLU / MMLU-Pro — Massive Multitask Language Understanding',color:'#0C447C',body:'MMLU: 14K multiple-choice questions across 57 subjects (STEM, law, medicine, history, etc.), elementary to professional level. Saturated for frontier models (88%+). MMLU-Pro (2024) increases difficulty with 10-choice questions and harder problems — still differentiates frontier models (75–85% range). Scores as accuracy on 4 or 10 multiple-choice options. Hendrycks et al. 2020 (MMLU); Wang et al. 2024 (MMLU-Pro).'},
+  gpqa:{title:'GPQA Diamond — Graduate-Level Science',color:'#4B1528',body:'448 PhD-level multiple-choice questions in biology, chemistry, and physics, written by domain experts. Designed so that non-expert PhD holders score ~34% — roughly at chance. GPQA Diamond is the hardest subset. Frontier models now reach 90%+ (Gemini 3.1 Pro: 94.3%). A key differentiator for scientific reasoning ability. Unlike MMLU, contamination is limited because questions were never published online. Rein et al. 2024.'},
+  lcb:{title:'LiveCodeBench — Real-World Coding',color:'#27500A',body:'Competitive programming problems collected from LeetCode, CodeForces, and AtCoder after the training cutoffs of major models — preventing contamination. Updated continuously (v5: Aug 2024 – Feb 2025; v6: Feb–May 2025). Uses Pass@1. More realistic than HumanEval as it includes problems requiring algorithmic thinking, not just function completion. DeepSeek-R1 scores ~65% on LiveCodeBench v5. Jain et al. 2024.'},
+  bbh:{title:'BIG-Bench Hard — Diverse Reasoning',color:'#2C2C2A',body:'23 challenging tasks from the larger BIG-Bench suite where language models previously failed to exceed human baseline performance. Covers logical reasoning, causal inference, multi-step arithmetic, formal fallacies, dyck language, and more. Tests breadth of reasoning rather than depth in one domain. Typically evaluated with chain-of-thought prompting. A broad signal for general reasoning capabilities beyond math and code. Suzgun et al. 2022.'},
+};
+function showBench(el,key){
+  document.querySelectorAll('.bench-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=BENCHES[key];
+  document.getElementById('bench-detail').innerHTML='<strong style="color:'+d.color+';font-size:13px;display:block;margin-bottom:6px">'+d.title+'</strong>'+d.body;
+}
+
+showMethod(document.querySelector('.method-chip'),'ppo-kl');
+showBench(document.querySelector('.bench-chip'),'gsm8k');
+</script>
