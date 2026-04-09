@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Curriculum — Layer Map</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeedea;
+    --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
+    --radius: 10px; --radius-sm: 6px;
+    --amber-fill:#FAEEDA; --amber-stroke:#EF9F27; --amber-text:#633806;
+    --purple-fill:#EEEDFE; --purple-stroke:#7F77DD; --purple-text:#3C3489;
+    --teal-fill:#E1F5EE; --teal-stroke:#1D9E75; --teal-text:#085041;
+    --blue-fill:#E6F1FB; --blue-stroke:#378ADD; --blue-text:#0C447C;
+    --coral-fill:#FAECE7; --coral-stroke:#D85A30; --coral-text:#4A1B0C;
+    --green-fill:#EAF3DE; --green-stroke:#639922; --green-text:#27500A;
+    --pink-fill:#FBEAF0; --pink-stroke:#D4537E; --pink-text:#4B1528;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1e1e1c; --bg2:#252522; --bg3:#2c2c29;
+      --text:#e8e6de; --text2:#a8a69e; --text3:#6e6c66;
+      --border:rgba(255,255,255,0.1); --border2:rgba(255,255,255,0.18);
+      --amber-fill:#412402; --amber-stroke:#BA7517; --amber-text:#FAC775;
+      --purple-fill:#26215C; --purple-stroke:#7F77DD; --purple-text:#CECBF6;
+      --teal-fill:#04342C; --teal-stroke:#1D9E75; --teal-text:#9FE1CB;
+      --blue-fill:#042C53; --blue-stroke:#378ADD; --blue-text:#B5D4F4;
+      --coral-fill:#4A1B0C; --coral-stroke:#D85A30; --coral-text:#F5C4B3;
+      --green-fill:#173404; --green-stroke:#639922; --green-text:#C0DD97;
+      --pink-fill:#4B1528; --pink-stroke:#D4537E; --pink-text:#F4C0D1;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: var(--bg3); color: var(--text); line-height: 1.6; }
+  header { background: var(--bg); border-bottom: 1px solid var(--border);
+           padding: 18px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 20px; font-weight: 500; }
+  header p  { font-size: 13px; color: var(--text2); }
+  .badge-header { font-size: 11px; font-weight: 500; padding: 3px 10px;
+                  border-radius: 4px; background: var(--purple-fill);
+                  color: var(--purple-text); border: 1px solid var(--purple-stroke); }
+  #app { display: flex; min-height: calc(100vh - 65px); }
+  #sidebar { width: 230px; flex-shrink: 0; background: var(--bg2);
+             border-right: 1px solid var(--border); overflow-y: auto; }
+  .sidebar-label { padding: 12px 14px 8px; font-size: 10px; font-weight: 600;
+                   color: var(--text3); text-transform: uppercase; letter-spacing: .08em;
+                   border-bottom: 1px solid var(--border); }
+  .layer-btn { display: block; width: 100%; text-align: left; padding: 10px 14px;
+               font-size: 12px; font-weight: 500; cursor: pointer; border: none;
+               border-bottom: 1px solid var(--border); border-left: 3px solid transparent;
+               background: transparent; color: var(--text2); transition: all .15s; line-height: 1.4; }
+  .layer-btn:hover { background: var(--bg3); }
+  .layer-btn.on { background: var(--bg3); color: var(--text); border-left-color: var(--accent,#888); }
+  .layer-num { font-size: 10px; font-weight: 400; display: block; margin-bottom: 2px; opacity: .7; }
+  #content { flex: 1; overflow-y: auto; padding: 20px; }
+  .panel { display: none; }
+  .panel.on { display: block; }
+  .panel-title { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .panel-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; line-height: 1.55; }
+  .topic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 600px) { .topic-grid { grid-template-columns: 1fr; }
+    #app { flex-direction: column; } #sidebar { width: 100%; } }
+  .topic { background: var(--bg); border: 1px solid var(--border);
+           border-left: 3px solid var(--accent,#888); border-radius: var(--radius);
+           padding: 12px 14px; }
+  .topic-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .topic-body { font-size: 12px; color: var(--text2); line-height: 1.55; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px;
+           border-radius: 4px; margin-bottom: 5px; }
+  .paper { background: var(--bg2); border-radius: var(--radius-sm);
+           padding: 10px 13px; margin-bottom: 7px; font-size: 12px;
+           color: var(--text2); line-height: 1.55; border-left: 3px solid var(--border2); }
+  .paper strong { color: var(--text); font-weight: 500; }
+  /* overview SVG wrapper */
+  .overview-wrap { background: var(--bg); border: 1px solid var(--border);
+                   border-radius: var(--radius); padding: 16px; }
+  .stack-layer { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px;
+                 cursor: pointer; }
+  .stack-layer:hover .stack-box { filter: brightness(0.96); }
+  .stack-box { flex: 1; border-radius: var(--radius-sm); border: 1px solid;
+               padding: 10px 14px; }
+  .stack-box h3 { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .stack-box p  { font-size: 11px; line-height: 1.5; }
+  .stack-num { width: 28px; height: 28px; border-radius: 50%; display: flex;
+               align-items: center; justify-content: center; font-size: 11px;
+               font-weight: 600; flex-shrink: 0; margin-top: 8px; }
+  .stack-arrow { text-align: center; color: var(--text3); font-size: 14px;
+                 margin: 0 0 2px 38px; line-height: 1; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>LLM Curriculum — Complete Layer Map</h1>
+    <p>Every topic from this course placed at the transformer layer where it operates</p>
+  </div>
+  <span class="badge-header">14 Layers · L0 → L13</span>
+</header>
+<div id="app">
+<div id="sidebar">
+  <div class="sidebar-label">LLM layer map</div>
+  <button class="layer-btn on" style="--accent:#888780" onclick="show('overview')">
+    <span class="layer-num">Overview</span>Full curriculum stack</button>
+  <button class="layer-btn" style="--accent:#EF9F27;color:var(--amber-text)" onclick="show('l0')">
+    <span class="layer-num">Layer 0 — input</span>Data &amp; tokenisation</button>
+  <button class="layer-btn" style="--accent:#7F77DD;color:var(--purple-text)" onclick="show('l1')">
+    <span class="layer-num">Layer 1 — embedding</span>Token + position</button>
+  <button class="layer-btn" style="--accent:#AFA9EC;color:var(--purple-text)" onclick="show('l2')">
+    <span class="layer-num">Layer 2 — embedding algo</span>CBOW, Skip-gram, Word2Vec</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-text)" onclick="show('l3')">
+    <span class="layer-num">Layer 3 — attention</span>Self-attention &amp; masking</button>
+  <button class="layer-btn" style="--accent:#5DCAA5;color:var(--teal-text)" onclick="show('l4')">
+    <span class="layer-num">Layer 4 — transformer block</span>FFN, LayerNorm, residuals</button>
+  <button class="layer-btn" style="--accent:#378ADD;color:var(--blue-text)" onclick="show('l5')">
+    <span class="layer-num">Layer 5 — architecture</span>Encoder / decoder families</button>
+  <button class="layer-btn" style="--accent:#D85A30;color:var(--coral-text)" onclick="show('l6')">
+    <span class="layer-num">Layer 6 — output head</span>Softmax, next token</button>
+  <button class="layer-btn" style="--accent:#993C1D;color:var(--coral-text)" onclick="show('l7')">
+    <span class="layer-num">Layer 7 — pretraining</span>Objectives &amp; scale</button>
+  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-text)" onclick="show('l8')">
+    <span class="layer-num">Layer 8 — optimizations</span>AdamW, mixed precision…</button>
+  <button class="layer-btn" style="--accent:#639922;color:var(--green-text)" onclick="show('l9')">
+    <span class="layer-num">Layer 9 — supervised FT</span>SFT, LoRA, QLoRA, PEFT</button>
+  <button class="layer-btn" style="--accent:#534AB7;color:var(--purple-text)" onclick="show('l10')">
+    <span class="layer-num">Layer 10 — alignment</span>RLHF, PPO, DPO</button>
+  <button class="layer-btn" style="--accent:#993556;color:var(--pink-text)" onclick="show('l11')">
+    <span class="layer-num">Layer 11 — reasoning</span>GRPO, RLVR, benchmarks</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-text)" onclick="show('l12')">
+    <span class="layer-num">Layer 12 — modalities</span>Vision &amp; speech</button>
+  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-text)" onclick="show('l13')">
+    <span class="layer-num">Layer 13 — VAE / diffusion</span>Generative image models</button>
+</div>
+
+<div id="content">
+
+<!-- OVERVIEW -->
+<div class="panel on" id="panel-overview">
+  <div class="panel-title">Complete LLM curriculum — layer order</div>
+  <div class="panel-sub">Every topic covered in this course, placed at the transformer layer where it actually operates. Click any layer in the sidebar — or click a block below — to see full detail.</div>
+  <div class="overview-wrap">
+    <div id="stack"></div>
+  </div>
+</div>
+
+<!-- L0 -->
+<div class="panel" id="panel-l0">
+  <div class="panel-title" style="color:var(--amber-text)">Layer 0 — input &amp; data</div>
+  <div class="panel-sub">Before a single weight is updated, raw text must be collected, cleaned, and converted into integer token IDs. Everything the model knows is determined by this layer.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#EF9F27">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">Corpus</span>
+      <div class="topic-title">Data curation</div>
+      <div class="topic-body">Deduplication, quality filtering (fastText classifiers), domain balancing. Llama 3: 15T tokens. GPT-3: 500B tokens. Data quality beats data quantity at every scale.</div>
+    </div>
+    <div class="topic" style="--accent:#EF9F27">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">BPE</span>
+      <div class="topic-title">Byte-pair encoding tokenisation</div>
+      <div class="topic-body">Merges most-frequent byte pairs until vocab size is reached. 50K–100K tokens. "cat" → 1 token. "neurotransmitter" → 4 tokens. 1–4 bytes per token depending on language and script.</div>
+    </div>
+    <div class="topic" style="--accent:#EF9F27">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">Bytes</span>
+      <div class="topic-title">Token byte sizes</div>
+      <div class="topic-body">ASCII English: 1–3 bytes/token. Chinese characters: 3 bytes each (UTF-8). Emoji: 4 bytes. Numbers often split digit-by-digit — the core reason LLMs struggle with arithmetic.</div>
+    </div>
+    <div class="topic" style="--accent:#EF9F27">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">Scale</span>
+      <div class="topic-title">Chinchilla scaling laws</div>
+      <div class="topic-body">Hoffmann et al. 2022: optimal compute = ~20 tokens per parameter. Llama 3 deliberately over-trains for inference efficiency. GPT-3 was heavily undertrained by Chinchilla standards.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361). Power-law relationship between compute, data, model size, and loss.</div>
+  <div class="paper"><strong>Training Compute-Optimal LLMs (Chinchilla)</strong> — Hoffmann et al., DeepMind 2022. 20 tokens/param rule. Showed most 2021 models were massively undertrained on data.</div>
+  <div class="paper"><strong>The Llama 3 Herd of Models</strong> — Meta 2024 (arXiv:2407.21783). 15T tokens, aggressive curation pipeline, deliberate over-training for deployment efficiency.</div>
+</div>
+
+<!-- L1 -->
+<div class="panel" id="panel-l1">
+  <div class="panel-title" style="color:var(--purple-text)">Layer 1 — token + positional embedding</div>
+  <div class="panel-sub">Integer token IDs are looked up in a giant table to retrieve dense vectors. Positional information is injected so the transformer knows word order.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#7F77DD">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">Lookup</span>
+      <div class="topic-title">Embedding table</div>
+      <div class="topic-body">One row per vocabulary item. Each row = a vector of 768 (GPT-2) to 12,288 (GPT-3) floats. GPT-3: 50,257 × 12,288 = 617M parameters just in the embedding layer.</div>
+    </div>
+    <div class="topic" style="--accent:#7F77DD">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">Geometry</span>
+      <div class="topic-title">Vector as meaning</div>
+      <div class="topic-body">Similar words cluster nearby in vector space. king − man + woman ≈ queen. Context reshapes meaning through attention — "bank" near "river" vs "bank" near "loan" produces different vectors.</div>
+    </div>
+    <div class="topic" style="--accent:#7F77DD">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">Position</span>
+      <div class="topic-title">Positional encoding evolution</div>
+      <div class="topic-body">Sinusoidal (2017) → Learned absolute (BERT/GPT-2) → Relative/T5 buckets → ALiBi (linear bias) → RoPE (rotates Q&amp;K, dominant since 2022) → YaRN / LongRoPE (500K+ context).</div>
+    </div>
+    <div class="topic" style="--accent:#7F77DD">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">RoPE</span>
+      <div class="topic-title">Rotary position embedding</div>
+      <div class="topic-body">Rotates Q and K vectors by angle proportional to position. Q·K dot product naturally encodes relative distance. Used in Llama 1/2/3, Mistral, Falcon, Gemma. Llama 3 base freq 500,000 → 128K context.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>RoFormer: Enhanced Transformer with Rotary Position Embedding</strong> — Su et al. 2021 (arXiv:2104.09864). Introduced RoPE. Now the standard positional encoding for frontier open-weight models.</div>
+</div>
+
+<!-- L2 -->
+<div class="panel" id="panel-l2">
+  <div class="panel-title" style="color:var(--purple-text)">Layer 2 — embedding algorithms</div>
+  <div class="panel-sub">How the embedding vectors in Layer 1 are trained. A progression from shallow count-based methods in the 1990s to deep contextual transformers today.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#AFA9EC">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">CBOW</span>
+      <div class="topic-title">Continuous bag of words</div>
+      <div class="topic-body">Average context word vectors → predict the missing centre word. Many→one. Fast training, good for frequent words. Deep parallel: BERT's MLM is CBOW with a full transformer instead of a shallow average.</div>
+    </div>
+    <div class="topic" style="--accent:#AFA9EC">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">Skip-gram</span>
+      <div class="topic-title">Skip-gram + negative sampling</div>
+      <div class="topic-body">One word → predict all surrounding words. One→many. 4× more training signals per position. Excellent for rare words. Negative sampling updates only 5–20 wrong words per step — 1000× speedup.</div>
+    </div>
+    <div class="topic" style="--accent:#AFA9EC">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">GloVe</span>
+      <div class="topic-title">Global vectors (Stanford 2014)</div>
+      <div class="topic-body">Factorises the full corpus co-occurrence matrix globally instead of using local windows. More stable training. Paris:France ≈ Berlin:Germany emerges from the global matrix structure.</div>
+    </div>
+    <div class="topic" style="--accent:#AFA9EC">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">FastText</span>
+      <div class="topic-title">Subword embeddings (Meta 2017)</div>
+      <div class="topic-body">Breaks words into character n-grams. Can represent unseen words. Essential for morphologically rich languages like Turkish, Finnish, and Arabic where the same root generates hundreds of word forms.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Efficient Estimation of Word Representations in Vector Space (Word2Vec)</strong> — Mikolov et al., Google 2013 (arXiv:1301.3781). Introduced CBOW and Skip-gram in a single paper.</div>
+  <div class="paper"><strong>GloVe: Global Vectors for Word Representation</strong> — Pennington, Socher, Manning, Stanford 2014. Global co-occurrence matrix factorisation.</div>
+</div>
+
+<!-- L3 -->
+<div class="panel" id="panel-l3">
+  <div class="panel-title" style="color:var(--teal-text)">Layer 3 — attention mechanism</div>
+  <div class="panel-sub">The heart of the transformer. Every token computes relationships with every other token via query, key, and value projections. Attention is what makes transformers powerful.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">QKV</span>
+      <div class="topic-title">Scaled dot-product attention</div>
+      <div class="topic-body">Q·Kᵀ / √d_k gives alignment scores. Softmax normalises to probabilities. Multiply by V for weighted sum of values. Multi-head: run in parallel with different learned projections to capture different relationship types.</div>
+    </div>
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">Mask</span>
+      <div class="topic-title">Causal mask (decoder)</div>
+      <div class="topic-body">Upper-triangle filled with −∞ prevents attending to future tokens. After softmax, −∞ → 0 exactly. Trained on all positions in one forward pass — massively efficient. At inference each new token reruns full attention.</div>
+    </div>
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">Window</span>
+      <div class="topic-title">Sliding window attention</div>
+      <div class="topic-body">Each token attends only to W nearest neighbours → O(N·W) instead of O(N²). Mistral 7B: window=4,096 × 32 layers = 131K effective context. Rolling KV cache discards old key-value pairs automatically.</div>
+    </div>
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">GQA</span>
+      <div class="topic-title">Grouped query attention</div>
+      <div class="topic-body">Multiple Q heads share one K+V head. Llama 3: 32 Q heads, 8 KV heads → 4× smaller KV cache at inference. FlashAttention computes the same result as full attention but tiles it on GPU for 2–4× memory savings.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Attention Is All You Need</strong> — Vaswani et al., Google Brain 2017 (arXiv:1706.03762). 90K+ citations. Introduced the transformer, multi-head attention, and scaled dot-product attention.</div>
+  <div class="paper"><strong>FlashAttention-2</strong> — Dao et al. 2022/2023. IO-aware exact attention. Standard in nearly every frontier model training run for efficient long-context training.</div>
+</div>
+
+<!-- L4 -->
+<div class="panel" id="panel-l4">
+  <div class="panel-title" style="color:var(--teal-text)">Layer 4 — transformer block internals</div>
+  <div class="panel-sub">After attention, each token passes through a feed-forward network. Layer normalisation and residual connections stabilise training across many stacked blocks.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#5DCAA5">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">FFN</span>
+      <div class="topic-title">Feed-forward network</div>
+      <div class="topic-body">Two linear layers with GELU activation between them, 4× wider than embedding dim. Applied to each token independently — no cross-token communication. Believed to store most of the model's factual knowledge.</div>
+    </div>
+    <div class="topic" style="--accent:#5DCAA5">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">Norm</span>
+      <div class="topic-title">Layer normalisation</div>
+      <div class="topic-body">Pre-norm (applied before each sublayer) is now standard — more stable than original post-norm. Rescales activations to mean 0, std 1. Prevents exploding/vanishing gradients across N stacked blocks.</div>
+    </div>
+    <div class="topic" style="--accent:#5DCAA5">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">Skip</span>
+      <div class="topic-title">Residual connections</div>
+      <div class="topic-body">Output = LayerNorm(input) + sublayer(input). The identity path bypasses each sublayer. Makes gradients flow directly from output to early layers — the critical ingredient enabling 96-layer depth in GPT-3.</div>
+    </div>
+    <div class="topic" style="--accent:#5DCAA5">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">Stack</span>
+      <div class="topic-title">Stacking blocks × N</div>
+      <div class="topic-body">GPT-2: 12 blocks. GPT-3: 96 blocks. Lower blocks learn syntax and surface patterns. Upper blocks encode reasoning, facts, and abstract concepts. Each block: ~0.18× params in attention, ~0.72× in FFN.</div>
+    </div>
+  </div>
+</div>
+
+<!-- L5 -->
+<div class="panel" id="panel-l5">
+  <div class="panel-title" style="color:var(--blue-text)">Layer 5 — architecture families</div>
+  <div class="panel-sub">How many transformer blocks, in what configuration, with what training objective — these decisions define whether you get BERT, T5, or GPT.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#378ADD">
+      <span class="badge" style="background:var(--blue-fill);color:var(--blue-text)">Enc-only</span>
+      <div class="topic-title">BERT · RoBERTa · DeBERTa</div>
+      <div class="topic-body">Bidirectional attention — no causal mask. MLM + NSP pretraining. [CLS] for classification, [MASK] for prediction, [SEP] for segment boundary. Cannot generate text. Powers Google Search, classification, NER.</div>
+    </div>
+    <div class="topic" style="--accent:#378ADD">
+      <span class="badge" style="background:var(--blue-fill);color:var(--blue-text)">Enc-dec</span>
+      <div class="topic-title">T5 · BART · mT5</div>
+      <div class="topic-body">T5: text-to-text framing for every task — classification, translation, summarisation all become "generate this output". BART: 5 corruption strategies. Cross-attention connects encoder to decoder.</div>
+    </div>
+    <div class="topic" style="--accent:#378ADD">
+      <span class="badge" style="background:var(--blue-fill);color:var(--blue-text)">Dec-only</span>
+      <div class="topic-title">GPT · Llama · Claude · Gemini</div>
+      <div class="topic-body">Causal mask only. No encoder, no cross-attention. One objective: next-token prediction. Scales cleanly to trillions of parameters. All frontier assistants use decoder-only architecture + RLHF alignment on top.</div>
+    </div>
+    <div class="topic" style="--accent:#378ADD">
+      <span class="badge" style="background:var(--blue-fill);color:var(--blue-text)">Why</span>
+      <div class="topic-title">Why decoder-only dominates</div>
+      <div class="topic-body">One simple loss scales to any text. No encoder-decoder split needed. The prompt IS the context — the decoder attends to it causally. RLHF converts the next-token predictor into an assistant without any architecture change.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>BERT: Pre-training of Deep Bidirectional Transformers</strong> — Devlin et al., Google 2018 (arXiv:1810.04805). Masked language modelling + next sentence prediction. Foundation of the BERT family.</div>
+  <div class="paper"><strong>Exploring the Limits of Transfer Learning (T5)</strong> — Raffel et al., Google 2019 (arXiv:1910.10683). Text-to-text framework unifying all NLP tasks in one model.</div>
+  <div class="paper"><strong>BART: Denoising Sequence-to-Sequence Pre-training</strong> — Lewis et al., Meta 2019 (arXiv:1910.13461). Five corruption strategies; state of the art for summarisation.</div>
+</div>
+
+<!-- L6 -->
+<div class="panel" id="panel-l6">
+  <div class="panel-title" style="color:var(--coral-text)">Layer 6 — output head</div>
+  <div class="panel-sub">After N transformer blocks, the final hidden state is projected to vocabulary logits and a probability is sampled for the next token. This closes the forward pass.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#D85A30">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Logits</span>
+      <div class="topic-title">Linear projection</div>
+      <div class="topic-body">A weight matrix maps the D-dimensional hidden state to V-dimensional logits (one per vocab item). GPT-3: 12,288 → 50,257. This matrix shares weights with the embedding table (weight tying) in modern models.</div>
+    </div>
+    <div class="topic" style="--accent:#D85A30">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Prob</span>
+      <div class="topic-title">Softmax + sampling</div>
+      <div class="topic-body">Softmax converts logits to probabilities summing to 1. Temperature &lt;1 = sharper (more confident). Temperature &gt;1 = flatter (more creative). Top-p: sample from smallest set of tokens summing to p (e.g. 0.9).</div>
+    </div>
+    <div class="topic" style="--accent:#D85A30">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Loss</span>
+      <div class="topic-title">Cross-entropy loss</div>
+      <div class="topic-body">−log(probability assigned to correct next token). Averaged across all positions. Perplexity = exp(loss) — the standard language model metric. Lower is better. GPT-2 on Wikipedia: ~35. GPT-4: ~5.</div>
+    </div>
+    <div class="topic" style="--accent:#D85A30">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Decode</span>
+      <div class="topic-title">Decoding strategies</div>
+      <div class="topic-body">Greedy: always pick the highest-probability token. Beam search: keep top-k sequences at each step. Temperature + top-p for creative generation. Beam search used in Whisper for accurate speech transcription.</div>
+    </div>
+  </div>
+</div>
+
+<!-- L7 -->
+<div class="panel" id="panel-l7">
+  <div class="panel-title" style="color:var(--coral-text)">Layer 7 — pretraining</div>
+  <div class="panel-sub">Training the base model from scratch on trillions of tokens. The most expensive stage — but everything downstream depends on the quality of this foundation.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#993C1D">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Objective</span>
+      <div class="topic-title">Next-token prediction</div>
+      <div class="topic-body">Predict each next token given all previous ones. One loss, any text, no labels required. At scale, this simple objective causes the model to learn grammar, facts, world knowledge, coding, and reasoning as side effects.</div>
+    </div>
+    <div class="topic" style="--accent:#993C1D">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Scale</span>
+      <div class="topic-title">Scaling and emergent abilities</div>
+      <div class="topic-body">Performance scales as a power law with compute, data, and parameters. Emergent abilities — code, chain-of-thought, analogical reasoning — appear unpredictably at scale. Nobody programmed them in; they are side effects of next-token prediction.</div>
+    </div>
+    <div class="topic" style="--accent:#993C1D">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Domain</span>
+      <div class="topic-title">Continued pretraining</div>
+      <div class="topic-body">Steer a base model into a new domain (medicine, law, code, new language) using the same next-token objective on domain data. Much cheaper than full pretraining. Key: train embed_tokens + lm_head too; use rsLoRA rank 256.</div>
+    </div>
+    <div class="topic" style="--accent:#993C1D">
+      <span class="badge" style="background:var(--coral-fill);color:var(--coral-text)">Data</span>
+      <div class="topic-title">Data quality beats size</div>
+      <div class="topic-body">Phi-3 (3.8B params) trained on textbook-quality data rivals 13B models on raw internet text. Llama 3 uses aggressive deduplication and quality classifiers. Data curation is now as important as model architecture.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361).</div>
+  <div class="paper"><strong>Training Compute-Optimal LLMs (Chinchilla)</strong> — Hoffmann et al., DeepMind 2022.</div>
+  <div class="paper"><strong>The Llama 3 Herd of Models</strong> — Meta 2024 (arXiv:2407.21783).</div>
+</div>
+
+<!-- L8 -->
+<div class="panel" id="panel-l8">
+  <div class="panel-title" style="color:var(--amber-text)">Layer 8 — training optimizations</div>
+  <div class="panel-sub">Engineering solutions that make large-scale training stable, fast, and memory-efficient. Every frontier training run uses all of these simultaneously.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">AdamW</span>
+      <div class="topic-title">The de-facto standard optimizer</div>
+      <div class="topic-body">Momentum (1st moment) + adaptive learning rate (2nd moment) + weight decay applied directly to params. Stores 2 extra fp32 copies of all parameters → 56GB+ for a 7B model. β₁=0.9, β₂=0.95, λ=0.1.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">BF16</span>
+      <div class="topic-title">Mixed precision training</div>
+      <div class="topic-body">Forward + backward in BF16 (same exponent range as fp32, avoids overflow). Optimizer step in fp32 master weights. Halves memory and roughly doubles throughput on A100/H100. BF16 preferred over FP16 since 2022.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">LR</span>
+      <div class="topic-title">Warmup + cosine decay</div>
+      <div class="topic-body">Linear warmup from ~0 to peak LR over first 1–10% of steps. Cosine decay to 1–10% of peak. GPT-3: peak 6e-4, 375M warmup tokens. Prevents early gradient explosion and late oscillation around the optimum.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">ZeRO</span>
+      <div class="topic-title">ZeRO + gradient checkpointing</div>
+      <div class="topic-body">ZeRO-3 shards model weights, gradients, and optimizer states across GPUs — linear memory reduction with GPU count. Gradient checkpointing recomputes activations during backward instead of storing them → √N memory at 1.33× compute.</div>
+    </div>
+  </div>
+</div>
+
+<!-- L9 -->
+<div class="panel" id="panel-l9">
+  <div class="panel-title" style="color:var(--green-text)">Layer 9 — supervised fine-tuning &amp; PEFT</div>
+  <div class="panel-sub">Adapting the base model to follow instructions and domain tasks. LoRA and QLoRA make this feasible on consumer hardware by training only 1% of parameters.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#639922">
+      <span class="badge" style="background:var(--green-fill);color:var(--green-text)">SFT</span>
+      <div class="topic-title">Supervised fine-tuning</div>
+      <div class="topic-body">Train on (prompt, completion) pairs. Compute loss only on completions (train_on_responses_only). Teaches that questions expect answers. Formats: Alpaca, ShareGPT, ChatML. 1K–100K examples. InstructGPT: 1.3B SFT+RLHF beats 175B base.</div>
+    </div>
+    <div class="topic" style="--accent:#639922">
+      <span class="badge" style="background:var(--green-fill);color:var(--green-text)">LoRA</span>
+      <div class="topic-title">Low-rank adaptation</div>
+      <div class="topic-body">Freeze all weights. Add thin matrices A (d×r) and B (r×d) per layer. Train only A and B. r=16 → ~0.1% of 7B params trained. At inference: merge BA into W with zero overhead. Matches full fine-tuning on most tasks.</div>
+    </div>
+    <div class="topic" style="--accent:#639922">
+      <span class="badge" style="background:var(--green-fill);color:var(--green-text)">QLoRA</span>
+      <div class="topic-title">4-bit quantized LoRA</div>
+      <div class="topic-body">Quantize frozen base model to NF4 4-bit. LoRA adapters stay in 16-bit. 70B model fits in &lt;35GB with QLoRA vs 140GB full precision. Double quantization + paged optimizers. 39% slower than LoRA but 4× less VRAM.</div>
+    </div>
+    <div class="topic" style="--accent:#639922">
+      <span class="badge" style="background:var(--green-fill);color:var(--green-text)">PEFT</span>
+      <div class="topic-title">Other PEFT methods</div>
+      <div class="topic-body">Adapters (bottleneck modules inside blocks), Prefix tuning (virtual tokens at every layer's K&amp;V), Prompt tuning (k soft input tokens), DoRA (magnitude + direction decomposition), rsLoRA (alpha/√r for high-rank stability).</div>
+    </div>
+  </div>
+  <div class="paper"><strong>LoRA: Low-Rank Adaptation of Large Language Models</strong> — Hu et al., Microsoft 2021 (arXiv:2106.09685). Trains 0.01% of GPT-3 parameters; matches full fine-tuning quality.</div>
+  <div class="paper"><strong>QLoRA: Efficient Finetuning of Quantized LLMs</strong> — Dettmers et al. 2023 (arXiv:2305.14314). 65B model fine-tuning on a single 48GB GPU. NF4 + double quantization + paged optimizers.</div>
+</div>
+
+<!-- L10 -->
+<div class="panel" id="panel-l10">
+  <div class="panel-title" style="color:var(--purple-text)">Layer 10 — alignment (RLHF)</div>
+  <div class="panel-sub">Turning a text predictor into a helpful, honest, harmless assistant. The reward model encodes human preferences; reinforcement learning optimises the policy against it.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#534AB7">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">BT</span>
+      <div class="topic-title">Bradley-Terry reward model</div>
+      <div class="topic-body">Loss: −log σ(r_w − r_l). Trains a scalar reward predictor on (prompt, chosen, rejected) triplets. Human annotators pick the preferred response. Reward model learns relative preference without needing absolute scores.</div>
+    </div>
+    <div class="topic" style="--accent:#534AB7">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">BoN</span>
+      <div class="topic-title">Best-of-N (rejection sampling)</div>
+      <div class="topic-body">Generate N responses, score with reward model, SFT on best. No RL required. Llama 2 used 4 iterative rounds before PPO. Simple and effective baseline. Wasteful at large N since most generations are discarded.</div>
+    </div>
+    <div class="topic" style="--accent:#534AB7">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">PPO</span>
+      <div class="topic-title">PPO-KL and PPO-Clip</div>
+      <div class="topic-body">PPO-KL adds β×KL(π_θ‖π_ref) to the reward signal. PPO-Clip clips probability ratio to [1−ε,1+ε]. Requires 4 models simultaneously (policy, reference, reward model, critic). Very memory intensive — used in InstructGPT/ChatGPT.</div>
+    </div>
+    <div class="topic" style="--accent:#534AB7">
+      <span class="badge" style="background:var(--purple-fill);color:var(--purple-text)">DPO</span>
+      <div class="topic-title">Direct preference optimisation</div>
+      <div class="topic-body">Skip the reward model entirely. Closed-form mapping from preference pairs to policy gradient. L = −E[log σ(β log(π_θ(y_w)/π_ref) − β log(π_θ(y_l)/π_ref))]. Trains like SFT. No RL instability. Rafailov et al. Stanford 2023.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Training language models to follow instructions (InstructGPT)</strong> — Ouyang et al., OpenAI 2022 (arXiv:2203.02155). RLHF for chat models. Foundation of ChatGPT.</div>
+  <div class="paper"><strong>Direct Preference Optimization</strong> — Rafailov et al., Stanford 2023 (arXiv:2305.18290). Eliminates the reward model. One of the most cited alignment papers of 2023.</div>
+</div>
+
+<!-- L11 -->
+<div class="panel" id="panel-l11">
+  <div class="panel-title" style="color:var(--pink-text)">Layer 11 — reasoning training (RLVR)</div>
+  <div class="panel-sub">Teaching models to generate extended chain-of-thought reasoning using verifiable rewards instead of learned reward models. The approach that produced DeepSeek-R1.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#993556">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">GRPO</span>
+      <div class="topic-title">Group relative policy optimisation</div>
+      <div class="topic-body">Generate G outputs per prompt (G=64 in DeepSeekMath). Score all with verifier. Advantage: Â_i = (r_i − mean(r)) / std(r). Clip probability ratio. KL penalty in loss. No critic model → 40–60% less VRAM than PPO.</div>
+    </div>
+    <div class="topic" style="--accent:#993556">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">RLVR</span>
+      <div class="topic-title">Verifiable rewards</div>
+      <div class="topic-body">Math answer correct/wrong: binary reward. Code passes unit tests: binary reward. Format reward: &lt;think&gt; tags present. No learned reward model needed → no reward hacking possible. DeepSeek-R1 used a 4-stage training pipeline.</div>
+    </div>
+    <div class="topic" style="--accent:#993556">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">Emerge</span>
+      <div class="topic-title">Emergent reasoning</div>
+      <div class="topic-body">R1-Zero (base model, no SFT, pure GRPO) spontaneously developed self-evaluation, "aha moments", backtracking on errors, and extended thinking for harder problems. None of these behaviours were in training examples.</div>
+    </div>
+    <div class="topic" style="--accent:#993556">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">Bench</span>
+      <div class="topic-title">Reasoning benchmarks</div>
+      <div class="topic-body">AIME (15 competition math, Pass@1 averaged over 32 samples), MATH-500, GSM8K (saturated ≥97%), HumanEval (code), GPQA Diamond (PhD science), LiveCodeBench (fresh competitive programming). Pass@k and majority voting as metrics.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>DeepSeekMath: Pushing the Limits of Mathematical Reasoning</strong> — Shao et al. 2024 (arXiv:2402.03300). Introduced GRPO. First demonstration that RL without SFT improves mathematical reasoning.</div>
+  <div class="paper"><strong>DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via RL</strong> — DeepSeek-AI 2025 (arXiv:2501.12948). R1-Zero: pure RL on base model. R1: 4-stage pipeline with open weights.</div>
+</div>
+
+<!-- L12 -->
+<div class="panel" id="panel-l12">
+  <div class="panel-title" style="color:var(--teal-text)">Layer 12 — multimodal: vision &amp; speech</div>
+  <div class="panel-sub">The same transformer architecture extended to images and audio by changing only the input tokenisation layer. Everything after that is identical.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">ViT</span>
+      <div class="topic-title">Vision Transformer patches</div>
+      <div class="topic-body">224×224 image → 196 patches of 16×16px. Each patch flattened to 768 numbers → linear projection → D-dim embedding + learned position encoding. [CLS] token gathers global image representation for classification.</div>
+    </div>
+    <div class="topic" style="--accent:#1D9E75">
+      <span class="badge" style="background:var(--teal-fill);color:var(--teal-text)">CLIP</span>
+      <div class="topic-title">Contrastive language-image pretraining</div>
+      <div class="topic-body">Train image encoder (ViT) + text encoder (GPT) so matching (image, caption) pairs have high dot product. 400M internet pairs. Zero-shot classification: 76% ImageNet accuracy, no fine-tuning. Powers Stable Diffusion and DALL-E.</div>
+    </div>
+    <div class="topic" style="--accent:#D4537E">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">Spec</span>
+      <div class="topic-title">Log-Mel spectrogram</div>
+      <div class="topic-body">Raw audio (16,000 samples/sec) → STFT → Mel frequency bins → log-scale → 80 bins × 3,000 time frames. CNN frontend compresses to 1,500 frames. Standard transformer encoder then processes frame tokens identically to text tokens.</div>
+    </div>
+    <div class="topic" style="--accent:#D4537E">
+      <span class="badge" style="background:var(--pink-fill);color:var(--pink-text)">Whisper</span>
+      <div class="topic-title">Whisper enc-dec ASR</div>
+      <div class="topic-body">Encoder reads Mel spectrogram. Decoder generates text tokens autoregressively via cross-attention to encoder. 680K hours, 96 languages. Sizes: Tiny (39M) to Large-v3 (1.55B). WER on English clean speech: ~2.7%.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>An Image is Worth 16×16 Words (ViT)</strong> — Dosovitskiy et al., Google Brain 2020 (arXiv:2010.11929). Showed pure transformer outperforms CNNs at scale.</div>
+  <div class="paper"><strong>CLIP</strong> — Radford et al., OpenAI 2021 (arXiv:2103.00020). Foundation of all major text-to-image models.</div>
+  <div class="paper"><strong>Robust Speech Recognition via Large-Scale Weak Supervision (Whisper)</strong> — Radford et al., OpenAI 2022 (arXiv:2212.04356).</div>
+  <div class="paper"><strong>wav2vec 2.0</strong> — Baevski et al., Meta 2020 (arXiv:2006.11477). ASR with just 10 minutes of labeled data via self-supervised pretraining.</div>
+</div>
+
+<!-- L13 -->
+<div class="panel" id="panel-l13">
+  <div class="panel-title" style="color:var(--amber-text)">Layer 13 — VAE &amp; stable diffusion</div>
+  <div class="panel-sub">Generative image models that combine a VAE for compression, a U-Net diffusion process for denoising, and a CLIP text encoder for guidance.</div>
+  <div class="topic-grid">
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">VAE</span>
+      <div class="topic-title">Variational autoencoder</div>
+      <div class="topic-body">Encoder compresses image to latent distribution (mean μ, std σ). Decoder reconstructs from sampled z = μ + σ·ε. Loss = reconstruction + KL divergence from N(0,1). Reparameterisation trick enables backpropagation through sampling.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">Latent</span>
+      <div class="topic-title">Latent space</div>
+      <div class="topic-body">Images compressed 8× by VAE before diffusion. The latent space develops meaningful directions without labels — directions for smile, age, style emerge purely from training data co-occurrence. Smooth interpolation produces plausible new images.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">Diffuse</span>
+      <div class="topic-title">Denoising diffusion</div>
+      <div class="topic-body">Forward: add Gaussian noise over T=1,000 steps until image is pure noise. Reverse: U-Net predicts and removes noise at each step. At inference: start from pure noise, denoise guided by CLIP text embedding via cross-attention.</div>
+    </div>
+    <div class="topic" style="--accent:#BA7517">
+      <span class="badge" style="background:var(--amber-fill);color:var(--amber-text)">SD</span>
+      <div class="topic-title">Stable Diffusion (latent DM)</div>
+      <div class="topic-body">Diffusion runs in VAE latent space (8× smaller than pixels). U-Net + CLIP text encoder + VAE decoder. Released publicly 2022 — the first high-quality open-source text-to-image model. Enabled the Midjourney and DALL-E ecosystem.</div>
+    </div>
+  </div>
+  <div class="paper"><strong>Auto-Encoding Variational Bayes (VAE)</strong> — Kingma &amp; Welling 2013 (arXiv:1312.6114). Invented VAEs and the reparameterisation trick. Foundation of modern generative image models.</div>
+  <div class="paper"><strong>High-Resolution Image Synthesis with Latent Diffusion Models</strong> — Rombach et al., CVPR 2022 (arXiv:2112.10752). The Stable Diffusion paper. Made HD generation feasible on consumer GPUs.</div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+const LAYERS = [
+  { id:'overview', label:'Full curriculum stack', num:'Overview', color:'#888780' },
+  { id:'l0',  label:'Data & tokenisation',      num:'Layer 0 — input',           color:'#EF9F27',
+    h:'Layer 0 — input & data', topics:['Raw text corpus','BPE tokenisation','Byte sizes per token','Chinchilla scaling laws'] },
+  { id:'l1',  label:'Token + position',         num:'Layer 1 — embedding',       color:'#7F77DD',
+    h:'Layer 1 — token + positional embedding', topics:['Lookup table','Vector as meaning','Positional encoding evolution','RoPE / YaRN'] },
+  { id:'l2',  label:'CBOW, Skip-gram, Word2Vec', num:'Layer 2 — embedding algo', color:'#AFA9EC',
+    h:'Layer 2 — embedding algorithms', topics:['CBOW','Skip-gram + negative sampling','GloVe','FastText subwords'] },
+  { id:'l3',  label:'Self-attention & masking', num:'Layer 3 — attention',        color:'#1D9E75',
+    h:'Layer 3 — attention mechanism', topics:['Scaled dot-product (Q K V)','Causal mask','Sliding window','GQA + FlashAttention'] },
+  { id:'l4',  label:'FFN, LayerNorm, residuals', num:'Layer 4 — transformer block', color:'#5DCAA5',
+    h:'Layer 4 — transformer block', topics:['Feed-forward network','Layer normalisation','Residual connections','Stacking × N blocks'] },
+  { id:'l5',  label:'Encoder / decoder families', num:'Layer 5 — architecture',  color:'#378ADD',
+    h:'Layer 5 — architecture families', topics:['BERT / RoBERTa / DeBERTa','T5 / BART / mT5','GPT / Llama / Claude','Why decoder-only dominates'] },
+  { id:'l6',  label:'Softmax, next token',       num:'Layer 6 — output head',    color:'#D85A30',
+    h:'Layer 6 — output head', topics:['Linear projection to logits','Softmax + sampling','Cross-entropy loss','Decoding strategies'] },
+  { id:'l7',  label:'Objectives & scale',        num:'Layer 7 — pretraining',    color:'#993C1D',
+    h:'Layer 7 — pretraining', topics:['Next-token prediction','Scaling laws & emergence','Continued pretraining','Data quality beats size'] },
+  { id:'l8',  label:'AdamW, mixed precision…',   num:'Layer 8 — optimizations',  color:'#BA7517',
+    h:'Layer 8 — training optimizations', topics:['AdamW optimizer','Mixed precision BF16','Warmup + cosine decay','ZeRO + gradient checkpointing'] },
+  { id:'l9',  label:'SFT, LoRA, QLoRA, PEFT',   num:'Layer 9 — supervised FT',  color:'#639922',
+    h:'Layer 9 — SFT & PEFT', topics:['Supervised fine-tuning','LoRA low-rank adaptation','QLoRA 4-bit quantized','Adapters, DoRA, rsLoRA'] },
+  { id:'l10', label:'RLHF, PPO, DPO',           num:'Layer 10 — alignment',     color:'#534AB7',
+    h:'Layer 10 — alignment (RLHF)', topics:['Bradley-Terry reward model','Best-of-N rejection sampling','PPO-KL and PPO-Clip','Direct preference optimisation'] },
+  { id:'l11', label:'GRPO, RLVR, benchmarks',   num:'Layer 11 — reasoning',     color:'#993556',
+    h:'Layer 11 — reasoning training', topics:['GRPO algorithm','Verifiable rewards (RLVR)','Emergent reasoning behaviours','AIME / MATH / GPQA benchmarks'] },
+  { id:'l12', label:'Vision & speech',           num:'Layer 12 — modalities',    color:'#1D9E75',
+    h:'Layer 12 — vision & speech', topics:['ViT image patches + CLS token','CLIP contrastive pretraining','Log-Mel spectrogram','Whisper encoder-decoder ASR'] },
+  { id:'l13', label:'Generative image models',  num:'Layer 13 — VAE/diffusion',  color:'#BA7517',
+    h:'Layer 13 — VAE & stable diffusion', topics:['Variational autoencoder','Latent space structure','Denoising diffusion process','Stable Diffusion (latent DM)'] },
+];
+
+// Build overview stack
+const stack = document.getElementById('stack');
+LAYERS.slice(1).forEach((l, i) => {
+  if (i > 0) {
+    const arr = document.createElement('div');
+    arr.className = 'stack-arrow';
+    arr.textContent = '↓';
+    stack.appendChild(arr);
+  }
+  const row = document.createElement('div');
+  row.className = 'stack-layer';
+  row.onclick = () => show(l.id);
+  const num = document.createElement('div');
+  num.className = 'stack-num';
+  num.style.cssText = `background:${l.color}22;color:${l.color};border:1px solid ${l.color}44`;
+  num.textContent = i;
+  const box = document.createElement('div');
+  box.className = 'stack-box';
+  box.style.cssText = `background:${l.color}11;border-color:${l.color}55`;
+  box.innerHTML = `<h3 style="color:${l.color}">${l.h}</h3><p style="color:var(--text2)">${l.topics.join(' · ')}</p>`;
+  row.appendChild(num);
+  row.appendChild(box);
+  stack.appendChild(row);
+});
+
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('panel-' + id).classList.add('on');
+  const idx = LAYERS.findIndex(l => l.id === id);
+  const btns = document.querySelectorAll('.layer-btn');
+  if (btns[idx]) btns[idx].classList.add('on');
+  document.getElementById('content').scrollTop = 0;
+}
+</script>
+</body>
+</html>
