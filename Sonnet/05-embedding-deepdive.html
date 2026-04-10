@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embedding Deep-Dive — Tokens, Position, Semantics & Scale</title>
+<style>
+:root{
+  --bg:#fff;--bg2:#f5f4f0;--bg3:#eeedea;--text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.12);--radius:10px;--radius-sm:6px;
+  --purple-f:#EEEDFE;--purple-s:#7F77DD;--purple-t:#3C3489;
+  --teal-f:#E1F5EE;--teal-s:#1D9E75;--teal-t:#085041;
+  --amber-f:#FAEEDA;--amber-s:#EF9F27;--amber-t:#633806;
+  --blue-f:#E6F1FB;--blue-s:#378ADD;--blue-t:#0C447C;
+  --coral-f:#FAECE7;--coral-s:#D85A30;--coral-t:#4A1B0C;
+  --green-f:#EAF3DE;--green-s:#639922;--green-t:#27500A;
+  --pink-f:#FBEAF0;--pink-s:#D4537E;--pink-t:#4B1528;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+    --border:rgba(255,255,255,0.1);
+    --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+    --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+    --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+    --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+    --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+    --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+    --pink-f:#4B1528;--pink-s:#D4537E;--pink-t:#F4C0D1;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg3);color:var(--text);line-height:1.6;padding-bottom:30px}
+header{background:var(--bg);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;font-weight:500}
+header p{font-size:12px;color:var(--text2)}
+.tab-bar{display:flex;background:var(--bg);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:11px 18px;font-size:13px;font-weight:500;cursor:pointer;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text2);transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--text)}
+.panel{display:none;padding:20px;max-width:900px;margin:0 auto}
+.panel.on{display:block}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.card-body{font-size:13px;color:var(--text2);line-height:1.65}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+@media(max-width:560px){.two,.three{grid-template-columns:1fr}}
+.stat{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;text-align:center}
+.stat-val{font-size:18px;font-weight:500;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:2px}
+.paper{background:var(--bg2);border-left:3px solid var(--border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:9px 12px;margin-bottom:6px;font-size:12px;color:var(--text2)}
+.paper strong{color:var(--text);font-weight:500}
+
+/* Token byte chips */
+.tok-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);cursor:pointer;margin:4px;transition:all .15s;font-size:13px}
+.tok-chip:hover{border-color:var(--purple-s)}
+.tok-chip.on{background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)}
+.tok-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:var(--purple-s);color:#fff}
+.tok-detail{background:var(--bg2);border-radius:var(--radius-sm);padding:13px 15px;font-size:13px;color:var(--text2);line-height:1.65;min-height:80px;margin-top:8px}
+
+/* Positional encoding heatmap */
+#pe-canvas{display:block;width:100%;max-width:600px;height:140px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:crosshair}
+.pe-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0}
+.pe-chip{padding:5px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text2);transition:all .15s}
+.pe-chip.on{background:var(--purple-f);color:var(--purple-t);border-color:var(--purple-s)}
+
+/* Semantic word map */
+.word-map{position:relative;width:100%;height:280px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:10px;cursor:crosshair}
+.word-dot{position:absolute;transform:translate(-50%,-50%);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid;transition:all .2s;white-space:nowrap}
+.word-dot:hover{filter:brightness(0.9);transform:translate(-50%,-50%) scale(1.08)}
+.map-tooltip{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;color:var(--text2);text-align:center;pointer-events:none}
+
+/* Scale comparison bars */
+.scale-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.scale-label{width:120px;font-size:12px;color:var(--text2);flex-shrink:0;text-align:right}
+.scale-bar-wrap{flex:1;height:24px;background:var(--bg2);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.scale-bar{height:100%;border-radius:3px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;white-space:nowrap;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.scale-val{font-size:11px;color:var(--text3);margin-left:6px;flex-shrink:0}
+.scale-section{font-size:12px;font-weight:600;color:var(--text2);margin:14px 0 6px}
+
+/* ═══ QUICK-WIN UPGRADES ═══ */
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap");
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
+@keyframes barGrow{from{max-width:0;opacity:0}to{opacity:1}}
+body{font-family:"Inter",system-ui,sans-serif!important}
+.tab-bar{position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.07)!important}
+.tab:hover{background:var(--bg2)!important;color:var(--text)!important}
+.tab.on{font-weight:600!important}
+.panel.on{animation:fadeUp .28s cubic-bezier(.4,0,.2,1)}
+.card{transition:box-shadow .2s,transform .18s}
+.card:hover{box-shadow:0 6px 20px rgba(0,0,0,.09);transform:translateY(-2px)}
+.paper{border-left-width:4px!important}
+.paper strong::before{content:"";display:none}
+.chip{transition:all .18s!important}
+.chip:hover:not(.on){transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.1)!important}
+.step-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.stat{transition:transform .2s,box-shadow .2s}
+.stat:hover{transform:scale(1.04);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.new-badge{animation:pulseDot 2.2s ease infinite}
+
+header{
+  background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 100%)!important;
+  border-left:4px solid #7F77DD!important;
+  padding:18px 24px!important;
+}
+header h1{font-size:19px!important;font-weight:600!important;letter-spacing:-.3px!important}
+
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Embedding Deep-Dive</h1><p>Tokens &amp; bytes · Positional encoding · Semantic word map · Scale comparison</p></div>
+  <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Layers 0 – 1</span>
+</header>
+
+<div class="tab-bar">
+  <button class="tab on" onclick="showTab(0)">1 — Token bytes</button>
+  <button class="tab" onclick="showTab(1)">2 — Positional encoding</button>
+  <button class="tab" onclick="showTab(2)">3 — Semantic word map</button>
+  <button class="tab" onclick="showTab(3)">4 — Scale comparison</button>
+</div>
+
+<!-- ══ TAB 1: TOKEN BYTES ══ -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Layer 0 — input tokenisation</span>
+    <div class="card-title">Every word becomes a number — but some words become many numbers</div>
+    <div class="card-body">BPE (Byte-Pair Encoding) merges the most frequent pairs of bytes until the vocabulary is full. Common English words become single tokens. Rare words, technical terms, and non-English text get split into multiple tokens. This directly affects how much the model "costs" to process each piece of text — and why LLMs sometimes struggle with certain languages and tasks. Click each token below to see how many bytes it uses.</div>
+  </div>
+
+  <div id="tok-chips-wrap" style="margin-bottom:8px"></div>
+  <div class="tok-detail" id="tok-detail">Click any token to see its byte breakdown and explanation.</div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">Why byte count matters for LLMs</div>
+    <div class="two" style="margin-top:8px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--teal-t);margin-bottom:4px">Cost at inference</div>
+        <div style="font-size:12px;color:var(--text2)">You pay per token, not per character. "neurotransmitter" (17 chars) costs 4 tokens in GPT-4. A Chinese document 3× longer than an English one might cost the same number of tokens — or more.</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--coral-t);margin-bottom:4px">Why arithmetic is hard</div>
+        <div style="font-size:12px;color:var(--text2)">Numbers are often split digit-by-digit: "1234" → ["1","2","3","4"] = 4 tokens. The model must learn that these 4 separate tokens represent a single number — a fundamentally harder task than treating "1234" as one unit.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Vocabulary sizes across models</span>
+      <div class="card-body">GPT-2: 50,257 tokens · GPT-3/GPT-4: 100,256 tokens · Llama 3: 128,000 tokens · Gemma: 256,000 tokens. Larger vocabularies mean more common words get single-token treatment — fewer splits, lower cost, but a bigger embedding table.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">The BPE algorithm</span>
+      <div class="card-body">Start with individual bytes (256 possible). Count all adjacent byte pairs in a large corpus. Merge the most frequent pair into a new token. Repeat until vocabulary is full. Running this on English text produces tokens that roughly correspond to common words and word-pieces.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Neural Machine Translation of Rare Words with Subword Units (BPE)</strong> — Sennrich et al. 2016 (arXiv:1508.07909). Introduced BPE for NLP. Now the standard tokenisation approach for all major LLMs.</div>
+</div>
+
+<!-- ══ TAB 2: POSITIONAL ENCODING ══ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Layer 1 — positional embedding</span>
+    <div class="card-title">Transformers are order-blind — positional encoding gives them a sense of position</div>
+    <div class="card-body">A transformer's self-attention mechanism treats all tokens the same regardless of position — it is permutation-invariant. "The cat sat" and "sat cat the" would produce identical attention scores without positional information. Positional encoding solves this by adding a position-dependent signal to each token's embedding before it enters the transformer.</div>
+  </div>
+
+  <div class="pe-controls">
+    <span style="font-size:12px;color:var(--text2);font-weight:500">Encoding type:</span>
+    <button class="pe-chip on" onclick="setPE(this,'sinusoidal')">Sinusoidal (2017)</button>
+    <button class="pe-chip" onclick="setPE(this,'learned')">Learned (BERT/GPT-2)</button>
+    <button class="pe-chip" onclick="setPE(this,'rope')">RoPE (Llama)</button>
+    <button class="pe-chip" onclick="setPE(this,'alibi')">ALiBi (MPT)</button>
+  </div>
+
+  <canvas id="pe-canvas" width="600" height="140"></canvas>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);padding:2px 4px;margin-bottom:8px">
+    <span>Position 1</span><span>Position 32</span>
+  </div>
+  <div id="pe-desc" class="card" style="margin-bottom:10px"></div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Why position matters</span>
+      <div class="card-body">"The dog bit the man" and "The man bit the dog" contain the same words but have completely different meanings. Without positional encoding, a transformer would compute identical representations for both sentences. Position tells the model which word is the subject, which is the verb, which is the object.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The evolution</span>
+      <div class="card-body">Sinusoidal (hardcoded, generalises to unseen lengths) → Learned absolute (trained, ceiling at max length seen during training) → Relative (T5, encodes distance between tokens) → ALiBi (linear bias, no explicit encoding) → RoPE (rotates Q&amp;K vectors, dominant standard since 2022) → YaRN (extends RoPE to 500K+ context).</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>RoFormer: Enhanced Transformer with Rotary Position Embedding</strong> — Su et al. 2021 (arXiv:2104.09864). Introduced RoPE. Used in Llama, Mistral, Falcon, Gemma, and most open-weight frontier models.</div>
+  <div class="paper"><strong>Train Short, Test Long: Attention with Linear Biases (ALiBi)</strong> — Press et al. 2022 (arXiv:2108.12409). Adds a linear penalty to attention scores based on distance. No position embeddings at all.</div>
+</div>
+
+<!-- ══ TAB 3: SEMANTIC WORD MAP ══ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Layer 1 — the geometry of meaning</span>
+    <div class="card-title">Similar words cluster together in high-dimensional embedding space</div>
+    <div class="card-body">Each word is represented as a point in a space with hundreds or thousands of dimensions. Words with similar meanings end up near each other. Relationships become directions: the direction from "man" to "woman" is the same as the direction from "king" to "queen". Watch the 3D animation first — it shows actual token embedding matrices plotted in 3D space. The interactive 2D map below is a simplified projection of the same idea.</div>
+  </div>
+
+  <!-- 3D embedding space video -->
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px">
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">3D embedding space — token matrices visualised</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">Each point is a token. Distance = semantic similarity. Clusters = related word groups. Axes = embedding dimensions reduced to 3D via PCA or t-SNE.</div>
+      </div>
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Real embedding geometry</span>
+    </div>
+    <video
+      src="embedding-3d-space.mp4"
+      controls
+      loop
+      style="width:100%;display:block;background:#000;max-height:480px"
+      preload="metadata">
+      Your browser does not support the video tag.
+    </video>
+    <div style="padding:10px 14px;background:var(--bg2);display:flex;gap:16px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--text2)"><span style="font-weight:600;color:var(--text)">What you are seeing:</span> Token embedding matrices from a real language model, projected into 3D space. Each coloured cluster is a group of semantically related tokens — animals, places, verbs — that the model learned to place near each other purely from predicting text.</div>
+    </div>
+    <div style="padding:8px 14px;background:var(--bg2);border-top:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--text3)">
+        <span style="color:var(--teal-s);font-weight:600">●</span> Close points = similar meaning
+        &nbsp;&nbsp;
+        <span style="color:var(--purple-s);font-weight:600">→</span> Consistent directions = relationships (e.g. gender, tense)
+        &nbsp;&nbsp;
+        <span style="color:var(--amber-s);font-weight:600">○</span> Outliers = rare or ambiguous tokens
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);border-left:3px solid var(--teal-s)">
+    ↓ <strong>Simplified 2D projection below</strong> — hover over any word to see which semantic cluster it belongs to. The real space has 768–12,288 dimensions; this 2D map is a flattened approximation of the same structure shown in the video above.
+  </div>
+
+  <div class="word-map" id="word-map">
+    <div class="map-tooltip" id="map-tooltip">Hover over a word to see its semantic cluster</div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Vector arithmetic</span>
+      <div class="card-title">Meaning encodes as direction and distance</div>
+      <div class="card-body">The famous equation: <strong>king − man + woman ≈ queen</strong>. This works because the direction from "man" to "woman" (the gender direction) is consistent across related word pairs. The same direction works for: actor→actress, he→she, his→her. The distance between words encodes semantic similarity: "cat" and "kitten" are close; "cat" and "democracy" are far apart.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Context reshapes meaning</span>
+      <div class="card-title">The same word, different vectors</div>
+      <div class="card-body">Static embeddings (Word2Vec) assign one fixed vector per word — "bank" always has the same representation. Contextual embeddings (BERT, GPT) produce different vectors for the same word depending on context. "river bank" and "savings bank" produce completely different embedding vectors for "bank" — capturing true word sense disambiguation.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Efficient Estimation of Word Representations in Vector Space (Word2Vec)</strong> — Mikolov et al., Google 2013 (arXiv:1301.3781). Showed that embedding geometry encodes semantic relationships. Made "word arithmetic" famous.</div>
+  <div class="paper"><strong>GloVe: Global Vectors for Word Representation</strong> — Pennington, Socher, Manning, Stanford 2014. Global co-occurrence matrix factorisation. Produced some of the cleanest vector analogies.</div>
+</div>
+
+<!-- ══ TAB 4: SCALE COMPARISON ══ -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">From Word2Vec to GPT-4 — 11 years of scaling</span>
+    <div class="card-title">How embedding dimensions, parameters, training data, and cost changed at each generation</div>
+    <div class="card-body">The transformer revolution was not just architectural — it was a massive scaling of every dimension simultaneously. Parameters grew from millions to trillions, training data from billions of words to trillions of tokens, and embedding dimensions from 100 to 12,288. The bars below show relative scale across four representative models.</div>
+  </div>
+
+  <div id="scale-chart"></div>
+
+  <div class="three" style="margin-top:10px">
+    <div class="stat"><div class="stat-val">×10,000</div><div class="stat-lbl">parameter growth Word2Vec → GPT-3</div></div>
+    <div class="stat"><div class="stat-val">×50,000</div><div class="stat-lbl">training data growth 2013 → 2024</div></div>
+    <div class="stat"><div class="stat-val">128</div><div class="stat-lbl">embedding dims, Llama 3 (d_head per head)</div></div>
+  </div>
+
+  <div class="two" style="margin-top:10px">
+    <div class="card">
+      <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Why bigger embeddings help</span>
+      <div class="card-body">A 100-dimensional embedding space can represent ~100 independent concepts. A 12,288-dimensional space (GPT-3) can represent ~12,288 independent directions — more nuance, more relationships, more precise disambiguation. Each additional dimension adds capacity to encode finer semantic distinctions.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Diminishing returns</span>
+      <div class="card-body">Scaling is not free. Doubling embedding dimensions roughly quadruples attention computation (O(d²) for Q·K projections) and doubles memory. The field is now exploring sparse attention, mixture-of-experts, and quantization to continue improving quality without proportional compute costs.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ──
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===1) drawPE('sinusoidal');
+  if(i===2) buildWordMap();
+  if(i===3) buildScale();
+}
+
+// ══ TAB 1: TOKEN BYTES ══
+const TOKENS=[
+  {word:'cat',bytes:3,tok:1,color:'var(--teal-s)',note:'A common English word. Single token — 3 bytes (ASCII). The model treats this as one unit and has learned rich associations for it across millions of training examples.'},
+  {word:'the',bytes:3,tok:1,color:'var(--teal-s)',note:'The most common English word. Always a single token. Because it appears so frequently, the model has extremely stable and rich embeddings for it.'},
+  {word:'hello',bytes:5,tok:1,color:'var(--teal-s)',note:'Common English word — single token. GPT-4 vocabulary of 100K tokens includes most common English words as single units.'},
+  {word:'neurotransmitter',bytes:17,tok:4,color:'var(--amber-s)',note:'Rare technical word → split into 4 tokens: "neur" + "o" + "trans" + "mitter". The model must learn the meaning from these subword pieces, which is harder than having a single token.'},
+  {word:'unconstitutional',bytes:16,tok:4,color:'var(--amber-s)',note:'Long political term → split into 4 tokens. The prefix "un-" and suffix "-al" are separate tokens the model has learned as meaningful units.'},
+  {word:'1234',bytes:4,tok:4,color:'var(--coral-s)',note:'"1" + "2" + "3" + "4" = 4 separate tokens! The model must learn that these 4 tokens represent one number — a harder task than a single token. Core reason LLMs struggle with arithmetic.'},
+  {word:'🎉',bytes:4,tok:1,color:'var(--purple-s)',note:'Emoji — 4 bytes in UTF-8 (U+1F389) but typically 1 token in modern vocabularies. GPT-4 trained on enough emoji to include common ones as single tokens.'},
+  {word:'日本語',bytes:9,tok:3,color:'var(--blue-s)',note:'Japanese text — 3 characters, each 3 bytes (UTF-8). Typically 3+ tokens. Non-Latin scripts use more bytes per character, making longer-context tasks more expensive for these languages.'},
+  {word:'Üniversität',bytes:13,tok:4,color:'var(--amber-s)',note:'German word with umlaut — the ü character is 2 bytes (UTF-8), adding overhead. German compound words often get split into many tokens, making German text more expensive than equivalent English.'},
+  {word:'API_KEY_2024',bytes:12,tok:5,color:'var(--coral-s)',note:'Code identifier — underscores and numbers cause splitting. "API" + "_" + "KEY" + "_" + "2024" = 5 tokens. Code generation tasks often deal with high token counts relative to character counts.'},
+];
+
+(function buildTokChips(){
+  const wrap=document.getElementById('tok-chips-wrap');
+  TOKENS.forEach((t,i)=>{
+    const chip=document.createElement('span');
+    chip.className='tok-chip'+(i===0?' on':'');
+    chip.innerHTML=`<span style="font-weight:600">${t.word}</span><span class="tok-badge" style="background:${t.color}">${t.tok} token${t.tok>1?'s':''}</span>`;
+    chip.onclick=()=>{
+      document.querySelectorAll('.tok-chip').forEach(c=>c.classList.remove('on'));
+      chip.classList.add('on');
+      const bars='█'.repeat(t.bytes);
+      document.getElementById('tok-detail').innerHTML=
+        `<strong style="color:var(--text)">${t.word}</strong> — <span style="color:${t.color}">${t.tok} token${t.tok>1?'s':''}, ${t.bytes} bytes</span>`+
+        `<div style="font-family:monospace;font-size:14px;color:${t.color};margin:6px 0;letter-spacing:2px">${bars}</div>`+
+        `<div style="font-size:12px;color:var(--text2)">${t.note}</div>`;
+    };
+    wrap.appendChild(chip);
+  });
+  document.querySelectorAll('.tok-chip')[0].click();
+})();
+
+// ══ TAB 2: POSITIONAL ENCODING ══
+const PE_INFO={
+  sinusoidal:{title:'Sinusoidal (Vaswani et al. 2017)',body:'Hardcoded sine and cosine waves of different frequencies. Each dimension d uses sin(pos/10000^(d/D)) or cos(pos/10000^(d/D)). No parameters — the pattern is defined by math. Advantage: works at any length, even longer than seen during training. Disadvantage: the model cannot learn the optimal positional pattern for the task. Used in the original transformer and still used in Whisper.'},
+  learned:{title:'Learned absolute (BERT, GPT-1/2)',body:'A trainable embedding table of shape [max_length × D] — one learned vector per position. The model learns the optimal positional pattern from data. Advantage: can adapt to the specific dataset. Disadvantage: cannot generalise beyond the maximum length seen during training. GPT-2 had a hard cap at 1,024 tokens; BERT at 512 tokens. Attempting to extend the context makes the model fail.'},
+  rope:{title:'RoPE — Rotary Position Embedding (Su et al. 2021)',body:'Instead of adding a positional vector to the token embedding, RoPE rotates the Query and Key vectors by an angle proportional to their position before the dot product. The key insight: the attention score Q·K then naturally depends on the relative distance (position_i − position_j) rather than absolute positions. This makes the model inherently able to handle longer contexts than it was trained on, and is why Llama 3 can use base frequencies to scale to 128K context. Standard in all Llama, Mistral, Falcon, Phi, and Gemma models.'},
+  alibi:{title:'ALiBi — Attention with Linear Biases (Press et al. 2022)',body:'No positional embeddings at all. Instead, a linear penalty is subtracted from each attention score based on the distance between the query and key tokens: attention_score -= slope × |i − j|. Different attention heads use different slopes. Extremely simple — zero extra parameters. Strong length generalisation: models trained on 1K tokens can often handle 4K+ without retraining. Used in MPT, BLOOM, and some Falcon variants. Largely superseded by RoPE in most modern architectures.'},
+};
+let peType='sinusoidal';
+
+function setPE(el,type){
+  document.querySelectorAll('.pe-chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  peType=type;
+  drawPE(type);
+  const d=PE_INFO[type];
+  document.getElementById('pe-desc').innerHTML=`<div class="badge" style="background:var(--purple-f);color:var(--purple-t)">${d.title}</div><div class="card-body" style="margin-top:5px">${d.body}</div>`;
+}
+
+function drawPE(type){
+  const canvas=document.getElementById('pe-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=isDark?'#252522':'#f5f4f0';
+  ctx.fillRect(0,0,W,H);
+  const positions=32,dims=40;
+  const cw=W/positions,ch=H/dims;
+  for(let p=0;p<positions;p++){
+    for(let d=0;d<dims;d++){
+      let val;
+      if(type==='sinusoidal'){
+        val=d%2===0?Math.sin(p/Math.pow(10000,d/dims)):Math.cos(p/Math.pow(10000,(d-1)/dims));
+      } else if(type==='learned'){
+        val=Math.sin(p*0.3+d*0.7)*Math.cos(d*0.2+p*0.1)*0.8+Math.random()*0.2-0.1;
+        val=Math.max(-1,Math.min(1,val));
+      } else if(type==='rope'){
+        const theta=p/Math.pow(10000,(2*(d>>1))/dims);
+        val=d%2===0?Math.cos(theta):Math.sin(theta);
+      } else {
+        val=Math.max(-1,Math.min(1,1-p*0.06-d*0.01+Math.sin(d*0.5)*0.3));
+      }
+      const norm=(val+1)/2;
+      const r=Math.round(norm*120+(1-norm)*62);
+      const g=Math.round(norm*158+(1-norm)*33);
+      const b=Math.round(norm*213+(1-norm)*137);
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fillRect(p*cw,d*ch,cw-0.5,ch-0.5);
+    }
+  }
+}
+
+// ══ TAB 3: SEMANTIC WORD MAP ══
+const WORDS=[
+  {w:'king',x:18,y:22,g:'royalty',c:'#7F77DD',cf:'#EEEDFE'},
+  {w:'queen',x:22,y:38,g:'royalty',c:'#7F77DD',cf:'#EEEDFE'},
+  {w:'prince',x:30,y:28,g:'royalty',c:'#7F77DD',cf:'#EEEDFE'},
+  {w:'crown',x:14,y:32,g:'royalty',c:'#7F77DD',cf:'#EEEDFE'},
+  {w:'man',x:18,y:52,g:'gender',c:'#378ADD',cf:'#E6F1FB'},
+  {w:'woman',x:24,y:65,g:'gender',c:'#378ADD',cf:'#E6F1FB'},
+  {w:'he',x:12,y:58,g:'gender',c:'#378ADD',cf:'#E6F1FB'},
+  {w:'she',x:18,y:72,g:'gender',c:'#378ADD',cf:'#E6F1FB'},
+  {w:'cat',x:52,y:18,g:'animals',c:'#1D9E75',cf:'#E1F5EE'},
+  {w:'kitten',x:58,y:26,g:'animals',c:'#1D9E75',cf:'#E1F5EE'},
+  {w:'dog',x:62,y:14,g:'animals',c:'#1D9E75',cf:'#E1F5EE'},
+  {w:'puppy',x:68,y:22,g:'animals',c:'#1D9E75',cf:'#E1F5EE'},
+  {w:'lion',x:56,y:36,g:'animals',c:'#1D9E75',cf:'#E1F5EE'},
+  {w:'Paris',x:52,y:60,g:'capitals',c:'#EF9F27',cf:'#FAEEDA'},
+  {w:'France',x:58,y:70,g:'capitals',c:'#EF9F27',cf:'#FAEEDA'},
+  {w:'Berlin',x:68,y:56,g:'capitals',c:'#EF9F27',cf:'#FAEEDA'},
+  {w:'Germany',x:74,y:65,g:'capitals',c:'#EF9F27',cf:'#FAEEDA'},
+  {w:'Tokyo',x:62,y:78,g:'capitals',c:'#EF9F27',cf:'#FAEEDA'},
+  {w:'happy',x:24,y:82,g:'emotions',c:'#D85A30',cf:'#FAECE7'},
+  {w:'joy',x:30,y:88,g:'emotions',c:'#D85A30',cf:'#FAECE7'},
+  {w:'sad',x:38,y:82,g:'emotions',c:'#D85A30',cf:'#FAECE7'},
+  {w:'anger',x:36,y:88,g:'emotions',c:'#D85A30',cf:'#FAECE7'},
+  {w:'democracy',x:38,y:40,g:'abstract',c:'#888780',cf:'#F1EFE8'},
+  {w:'freedom',x:44,y:48,g:'abstract',c:'#888780',cf:'#F1EFE8'},
+  {w:'justice',x:34,y:52,g:'abstract',c:'#888780',cf:'#F1EFE8'},
+];
+const GROUP_INFO={
+  royalty:'Royalty cluster — words related to monarchy cluster together. Note that "king" and "queen" are close but separated along a gender direction.',
+  gender:'Gender words — "man/woman", "he/she" form a tight cluster. The vector from "man"→"woman" is nearly identical to "king"→"queen": this is how embedding arithmetic works.',
+  animals:'Animals cluster — "cat" and "kitten" are very close (similar meaning, different age). "dog" is nearby but not identical to "cat". "lion" is slightly farther — same category but different context.',
+  capitals:'Capitals cluster — cities and their countries cluster together. Paris:France and Berlin:Germany maintain a parallel relationship in vector space, which is why analogy tasks work.',
+  emotions:'Emotions cluster — "happy" and "joy" are close (synonyms). "sad" is nearby in the emotions cluster but in a different direction from "happy". Antonyms are closer to each other than to unrelated words.',
+  abstract:'Abstract concepts — "democracy", "freedom", "justice" cluster together. These are far from concrete nouns like "cat" or "Paris" because they represent different types of meaning.',
+};
+let mapBuilt=false;
+function buildWordMap(){
+  if(mapBuilt) return;
+  mapBuilt=true;
+  const map=document.getElementById('word-map');
+  const tip=document.getElementById('map-tooltip');
+  WORDS.forEach(w=>{
+    const dot=document.createElement('div');
+    dot.className='word-dot';
+    dot.textContent=w.w;
+    dot.style.cssText=`left:${w.x}%;top:${w.y}%;background:${w.cf};border-color:${w.c};color:${w.c}`;
+    dot.onmouseenter=()=>{tip.textContent=GROUP_INFO[w.g];};
+    dot.onmouseleave=()=>{tip.textContent='Hover over a word to see its semantic cluster';};
+    map.appendChild(dot);
+  });
+}
+
+// ══ TAB 4: SCALE COMPARISON ══
+const SCALE_DATA={
+  params:[
+    {label:'Word2Vec (2013)',val:0.3,display:'300M',max:false,c:'#888780'},
+    {label:'BERT-base (2018)',val:1.1,display:'110M',max:false,c:'#1D9E75'},
+    {label:'GPT-3 (2020)',val:100,display:'175B',max:false,c:'#7F77DD'},
+    {label:'GPT-4 est. (2023)',val:250,display:'~1T est.',max:true,c:'#534AB7'},
+  ],
+  embed:[
+    {label:'Word2Vec (2013)',val:8,display:'100 dims',max:false,c:'#888780'},
+    {label:'BERT-base (2018)',val:60,display:'768 dims',max:false,c:'#1D9E75'},
+    {label:'GPT-3 (2020)',val:100,display:'12,288 dims',max:true,c:'#7F77DD'},
+    {label:'Llama 3 70B (2024)',val:82,display:'8,192 dims',max:false,c:'#534AB7'},
+  ],
+  data:[
+    {label:'Word2Vec (2013)',val:1,display:'~1B words',max:false,c:'#888780'},
+    {label:'BERT-base (2018)',val:3,display:'~3B words',max:false,c:'#1D9E75'},
+    {label:'GPT-3 (2020)',val:20,display:'300B tokens',max:false,c:'#7F77DD'},
+    {label:'Llama 3 (2024)',val:100,display:'15T tokens',max:true,c:'#534AB7'},
+  ],
+};
+
+function buildScale(){
+  const el=document.getElementById('scale-chart');
+  if(el.innerHTML) return;
+  const sections=[
+    {key:'params',title:'Parameters (model size)'},
+    {key:'embed',title:'Embedding dimensions (D)'},
+    {key:'data',title:'Training data'},
+  ];
+  sections.forEach(sec=>{
+    const d=document.createElement('div');
+    d.className='scale-section';
+    d.textContent=sec.title;
+    el.appendChild(d);
+    SCALE_DATA[sec.key].forEach(row=>{
+      const wrap=document.createElement('div');
+      wrap.className='scale-row';
+      const lbl=document.createElement('div');
+      lbl.className='scale-label';
+      lbl.textContent=row.label.replace(' (','​ (');
+      const bwrap=document.createElement('div');
+      bwrap.className='scale-bar-wrap';
+      const bar=document.createElement('div');
+      bar.className='scale-bar';
+      bar.style.cssText=`background:${row.c};color:#fff;width:${Math.max(4,row.val)}%`;
+      bar.textContent=row.display;
+      const val=document.createElement('div');
+      val.className='scale-val';
+      if(row.max) val.textContent='↑ largest';
+      bwrap.appendChild(bar);
+      wrap.appendChild(lbl);
+      wrap.appendChild(bwrap);
+      wrap.appendChild(val);
+      el.appendChild(wrap);
+    });
+  });
+}
+
+// init tab 1 visual + default pe description
+document.getElementById('pe-desc').innerHTML=`<div class="badge" style="background:var(--purple-f);color:var(--purple-t)">${PE_INFO.sinusoidal.title}</div><div class="card-body" style="margin-top:5px">${PE_INFO.sinusoidal.body}</div>`;
+</script>
+</body>
+</html>

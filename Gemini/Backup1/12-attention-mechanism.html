@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 3 — The Attention Mechanism</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);
+  --radius:10px;--radius-sm:6px;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg3); color:var(--text); line-height:1.6; padding-bottom:40px; }
+header { background:var(--bg); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+header h1 { font-size:18px; font-weight:500; }
+header p { font-size:12px; color:var(--text2); }
+.badge { display:inline-block; font-size:10px; font-weight:600; padding:4px 10px; border-radius:4px; }
+.panel { padding:30px; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+.card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.card-title { font-size:16px; font-weight:600; margin:10px 0; color:var(--teal-t); }
+.card-body { font-size:14px; color:var(--text2); line-height:1.7; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+
+/* Interactive Attention Styles */
+.sentence-box { background:var(--bg2); border-radius:var(--radius-sm); padding:30px; text-align:center; border:1px dashed var(--border); margin:20px 0; position:relative; }
+.word { display:inline-block; padding:8px 16px; margin:5px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; font-size:18px; font-weight:500; transition:all 0.3s ease; position:relative; z-index:2; }
+.word:hover { filter:brightness(1.5); border-color:var(--teal-s); }
+.score-badge { position:absolute; top:-12px; right:-12px; background:var(--teal-s); color:#000; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:10px; opacity:0; transform:translateY(10px); transition:all 0.3s ease; }
+.word.attending .score-badge { opacity:1; transform:translateY(0); }
+
+/* Attention Connections (SVG) */
+#attention-lines { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+.v-line { stroke:var(--teal-s); stroke-width:3; stroke-linecap:round; transition:opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); opacity:0; filter:url(#glow); }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>Layer 3 — The Attention Mechanism</h1><p>The magic that lets AI "read" context like a human</p></div>
+  <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L3</span>
+</header>
+
+
+<div class="panel">
+  <div class="card" style="border-top:3px solid var(--teal-s)">
+    <div class="badge" style="background:var(--teal-f);color:var(--teal-t)">The "Highlight Reel" Analogy</div>
+    <div class="card-title">How do you solve a mystery? You connect the clues.</div>
+    <div class="card-body">
+      Think about reading a mystery novel. When you read the word "bank", how do you know if it's a river bank or a money bank? You don't look at the word in isolation—you scan the surrounding sentences for clues. If you see the words "water" or "fishing" nearby, you mentally <strong>highlight</strong> those words to give "bank" its meaning. <br><br>
+      This is exactly how an AI's <strong>Attention Mechanism</strong> works. When the AI processes a sentence, it doesn't just read left-to-right. Every single word acts like a detective, looking at every other word in the text and assigning an "attention score" to decide which words are the most important clues. 
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: Be the Detective</div>
+    <div class="card-body">
+      Hover over any word below to see what it "pays attention to". Thicker, brighter lines mean a higher <strong>Attention Score</strong>. Notice how context words heavily influence the main subjects!
+    </div>
+    
+    <div class="sentence-box">
+      <svg id="attention-lines">
+        <defs>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+      <div id="sentence-container">
+        <span class="word" id="w0" data-attn='{"w1":0.8,"w5":0.2}'>The</span>
+        <span class="word" id="w1" data-attn='{"w2":0.9,"w3":0.6}'>bear</span>
+        <span class="word" id="w2" data-attn='{"w1":0.9,"w3":0.4}'>waded</span>
+        <span class="word" id="w3" data-attn='{"w2":0.4,"w6":0.8}'>into</span>
+        <span class="word" id="w4" data-attn='{"w5":0.8,"w6":0.3}'>the</span>
+        <span class="word" id="w5" data-attn='{"w6":0.9,"w7":0.8}'>river</span>
+        <span class="word" id="w6" data-attn='{"w2":0.3,"w5":0.8,"w7":0.4}'>bank</span>
+        <span class="word" id="w7" data-attn='{"w6":0.9,"w1":0.5}'>to</span>
+        <span class="word" id="w8" data-attn='{"w1":0.7,"w9":0.9}'>catch</span>
+        <span class="word" id="w9" data-attn='{"w8":0.9,"w5":0.4}'>fish.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--purple-f);color:var(--purple-t)">Queries, Keys, and Values</div>
+      <div class="card-title">The Three Questions</div>
+      <div class="card-body">
+        Under the hood, every word asks and answers three things:<br><br>
+        <strong>1. Query (What am I looking for?)</strong><br>
+        The word "bank" says: <em>"I need a clue to tell me what kind of bank I am."</em><br><br>
+        <strong>2. Key (What do I contain?)</strong><br>
+        The word "river" says: <em>"I am related to water and nature."</em><br><br>
+        <strong>3. Value (What is my actual meaning?)</strong><br>
+        If the Query matches the Key, the "bank" word absorbs the Value of the "river" word. Now, "bank" mathematically contains the concept of water!
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--amber-f);color:var(--amber-t)">Why it changed the world</div>
+      <div class="card-title">Parallel Reading</div>
+      <div class="card-body">
+        Before the Attention mechanism was invented in 2017 (in a famous Google paper called <em>Attention Is All You Need</em>), AI read text one word at a time, like a cassette tape. <br><br>
+        Attention lets the AI look at <strong>everything all at once</strong>. Word 1 looks at Word 100 on the exact same step that Word 100 looks at Word 1. This parallel processing is the secret behind why modern LLMs can be trained so quickly on millions of books using giant graphics cards (GPUs).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const words = document.querySelectorAll('.word');
+const svg = document.getElementById('attention-lines');
+
+function drawLine(w1, w2, score) {
+  const rect1 = w1.getBoundingClientRect();
+  const rect2 = w2.getBoundingClientRect();
+  const containerRect = svg.getBoundingClientRect();
+
+  const x1 = rect1.left + rect1.width/2 - containerRect.left;
+  const y1 = rect1.top + rect1.height/2 - containerRect.top;
+  const x2 = rect2.left + rect2.width/2 - containerRect.left;
+  const y2 = rect2.top + rect2.height/2 - containerRect.top;
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  
+  // Create arc for nice visual
+  const midX = (x1 + x2)/2;
+  const curve = Math.abs(x1 - x2) * 0.3; // arc height based on distance
+  const pathData = `M ${x1} ${y1} Q ${midX} ${y1 - curve} ${x2} ${y2}`;
+  
+  line.setAttribute('d', pathData);
+  line.setAttribute('fill', 'none');
+  line.classList.add('v-line');
+  
+  // Style based on score
+  line.style.opacity = score;
+  line.style.strokeWidth = score * 5;
+  
+  // Add marching ants effect if score is high
+  if(score > 0.6) {
+    line.style.strokeDasharray = "5,5";
+    line.innerHTML = `<animate attributeName="stroke-dashoffset" from="10" to="0" dur="0.5s" repeatCount="indefinite" />`;
+  }
+
+  svg.appendChild(line);
+}
+
+words.forEach(word => {
+  word.addEventListener('mouseenter', () => {
+    svg.innerHTML = ''; // clear old lines
+    const attentionData = JSON.parse(word.dataset.attn || '{}');
+    
+    // Add badge to self
+    let oldBadge = word.querySelector('.score-badge');
+    if(!oldBadge) {
+      oldBadge = document.createElement('div');
+      oldBadge.className = 'score-badge';
+      oldBadge.textContent = '100%';
+      word.appendChild(oldBadge);
+    }
+    word.classList.add('attending');
+
+    Object.keys(attentionData).forEach(targetId => {
+      const targetWord = document.getElementById(targetId);
+      const score = attentionData[targetId];
+      if(targetWord) {
+        drawLine(word, targetWord, score);
+        
+        targetWord.style.background = `rgba(29, 158, 117, ${score * 0.4})`; // highlight target
+        let tBadge = targetWord.querySelector('.score-badge');
+        if(!tBadge) {
+          tBadge = document.createElement('div');
+          tBadge.className = 'score-badge';
+          targetWord.appendChild(tBadge);
+        }
+        tBadge.textContent = Math.round(score * 100) + '%';
+        targetWord.classList.add('attending');
+      }
+    });
+  });
+
+  word.addEventListener('mouseleave', () => {
+    svg.innerHTML = '';
+    words.forEach(w => {
+      w.style.background = '';
+      w.classList.remove('attending');
+      const b = w.querySelector('.score-badge');
+      if(b) b.remove();
+    });
+  });
+});
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_12'), 500);
+});
+</script>
+</body>
+</html>

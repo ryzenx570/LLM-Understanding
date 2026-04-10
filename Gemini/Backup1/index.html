@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Curriculum — Complete Layer Map</title>
+<link rel="stylesheet" href="sub-clone-style.css?v=2">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollToPlugin.min.js"></script>
+<script src="sub-clone-scrollytelling.js?v=2" defer></script>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<div class="bg-canvas">
+  <div class="grain"></div>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+</div>
+<header>
+  <div>
+    <h1>LLM Curriculum — Complete Layer Map</h1>
+    <p>Every topic from this course placed mapping the entire ecosystem — 20 Topics, L0 → L19</p>
+  </div>
+  <span class="badge-header">20 Topics · L0 → L19</span>
+</header>
+
+<div id="app">
+<div id="sidebar">
+  <div class="sidebar-label">LLM layer map</div>
+  <button class="layer-btn on" style="--accent:#888780" onclick="show('overview')"><span class="layer-num">Overview</span>Full curriculum stack</button>
+  <button class="layer-btn" style="--accent:#EF9F27;color:var(--amber-t)" onclick="show('l0')"><span class="layer-num">Topic 0 — input</span>Data &amp; tokenisation</button>
+  <button class="layer-btn" style="--accent:#7F77DD;color:var(--purple-t)" onclick="show('l1')"><span class="layer-num">Topic 1 — embedding</span>Token + position</button>
+  <button class="layer-btn" style="--accent:#AFA9EC;color:var(--purple-t)" onclick="show('l2')"><span class="layer-num">Topic 2 — embedding algo</span>CBOW, Skip-gram, Word2Vec</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-t)" onclick="show('l3')"><span class="layer-num">Topic 3 — attention</span>Self-attention &amp; masking</button>
+  <button class="layer-btn" style="--accent:#5DCAA5;color:var(--teal-t)" onclick="show('l4')"><span class="layer-num">Topic 4 — transformer block</span>FFN, LayerNorm, residuals</button>
+  <button class="layer-btn" style="--accent:#378ADD;color:var(--blue-t)" onclick="show('l5')"><span class="layer-num">Topic 5 — architecture</span>Encoder / decoder families</button>
+  <button class="layer-btn" style="--accent:#D85A30;color:var(--coral-t)" onclick="show('l6')"><span class="layer-num">Topic 6 — output head</span>Softmax, next token</button>
+  <button class="layer-btn" style="--accent:#378ADD;color:var(--blue-t)" onclick="show('l7')"><span class="layer-num">Topic 7 — inference &amp; deployment</span>KV cache · Quant · Speculative</button>
+  <button class="layer-btn" style="--accent:#993C1D;color:var(--coral-t)" onclick="show('l8')"><span class="layer-num">Topic 8 — pretraining</span>Objectives &amp; scale</button>
+  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-t)" onclick="show('l9')"><span class="layer-num">Topic 9 — optimizations</span>AdamW, mixed precision…</button>
+  <button class="layer-btn" style="--accent:#639922;color:var(--green-t)" onclick="show('l10')"><span class="layer-num">Topic 10 — supervised FT</span>SFT, LoRA, QLoRA, PEFT</button>
+  <button class="layer-btn" style="--accent:#534AB7;color:var(--purple-t)" onclick="show('l11')"><span class="layer-num">Topic 11 — alignment</span>RLHF, PPO, DPO</button>
+  <button class="layer-btn" style="--accent:#993556;color:var(--pink-t)" onclick="show('l12')"><span class="layer-num">Topic 12 — reasoning</span>GRPO, RLVR, benchmarks</button>
+  <button class="layer-btn" style="--accent:#EF9F27;color:var(--amber-t)" onclick="show('l13')"><span class="layer-num">Topic 13 — frameworks &amp; tooling</span>TRL · SFTTrainer · GRPOTrainer · Unsloth</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-t)" onclick="show('l14')"><span class="layer-num">Topic 14 — modalities</span>Vision &amp; speech</button>
+  <button class="layer-btn" style="--accent:#BA7517;color:var(--amber-t)" onclick="show('l15')"><span class="layer-num">Topic 15 — VAE / diffusion</span>Generative image models</button>
+  <button class="layer-btn" style="--accent:#378ADD;color:var(--blue-t)" onclick="show('l16')"><span class="layer-num">Topic 16 – Ecosystem</span>The AI Companies</button>
+  <button class="layer-btn" style="--accent:#7F77DD;color:var(--purple-t)" onclick="show('l17')"><span class="layer-num">Topic 17 – Workflows</span>Prompts & Agents</button>
+  <button class="layer-btn" style="--accent:#1D9E75;color:var(--teal-t)" onclick="show('l18')"><span class="layer-num">Topic 18 – Hardware</span>Local Execution & Serving</button>
+  <button class="layer-btn" style="--accent:#EF9F27;color:var(--amber-t)" onclick="show('l19')"><span class="layer-num">Topic 19 – Future</span>Final Thoughts</button>
+
+
+
+</div>
+
+<div id="content">
+
+<!-- OVERVIEW -->
+<div class="panel on" id="panel-overview">
+  <div class="panel-title">Complete LLM curriculum — 20 Topics</div>
+  <div class="panel-sub">Every subtopic placed perfectly inside the Topic where it actually operates. Topic 7 (Inference &amp; Deployment) and Topic 13 (Frameworks &amp; Tooling) bridge the gap between conceptual algorithms and real-world implementation. Click any Topic block to explore.</div>
+  <div class="overview-wrap"><div id="stack"></div></div>
+</div>
+
+<!-- L0 -->
+<div class="panel" id="panel-l0">
+  <div class="panel-title" style="color:var(--amber-t)">Topic 0 — input &amp; data</div>
+  <div class="panel-sub">Before a single weight is updated, raw text must be collected, cleaned, and converted into integer token IDs. Everything the model knows is determined by this layer.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Raw</span><div class="topic-title">Raw Scrape</div><div class="topic-body">Common Crawl scrapes the entire unstructured internet, amassing petabytes of noisy raw data.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Exact</span><div class="topic-title">Exact Deduplication</div><div class="topic-body">Removes physically identical web pages to prevent the model from memorizing identical strings.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Fuzzy</span><div class="topic-title">Fuzzy MinHash</div><div class="topic-body">Locality-Sensitive Hashing removes near-duplicate documents (like slight template shifts).</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Quality</span><div class="topic-title">Quality Filters</div><div class="topic-body">Heuristics and fast classifiers drop low-entropy garbage text and spam automatically.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Toxicity</span><div class="topic-title">Toxicity Masking</div><div class="topic-body">Aggressive pre-filtering to strip PII and highly toxic material before it enters the pretraining corpus.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Byte-Pair</span><div class="topic-title">Byte-Pair Encoding</div><div class="topic-body">Algorithmically compressing frequent word combinations into single optimal token IDs.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Subword</span><div class="topic-title">Subword Chunks</div><div class="topic-body">Splitting entirely unrecognized words into distinct morphological syllables rather than crashing.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Vocab</span><div class="topic-title">Vocab Escalation</div><div class="topic-body">Increasing the vocabulary dictionary (e.g. 128k) massively increases compression efficiency but forces a massive Embedding Matrix.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="21-token-pipeline.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#1D9E75;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L0</span><div class="topic-title" style="color:#fff">The Token Pipeline</div><div class="topic-body">Text Input · Byte-Pair Encoding · Vector Embedding Matrix</div></a>
+  <div class="paper"><strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361).</div>
+  <div class="paper"><strong>Training Compute-Optimal LLMs (Chinchilla)</strong> — Hoffmann et al., DeepMind 2022.</div>
+  <div class="paper"><strong>The Llama 3 Herd of Models</strong> — Meta 2024 (arXiv:2407.21783).</div>
+</div>
+
+<!-- L1 -->
+<div class="panel" id="panel-l1">
+  <div class="panel-title" style="color:var(--purple-t)">Topic 1 — token + positional embedding</div>
+  <div class="panel-sub">Integer token IDs are looked up in a giant table to retrieve dense vectors. Positional information is injected so the transformer knows word order.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Lookup</span><div class="topic-title">Lookup Matrix</div><div class="topic-body">Translating distinct integer Token IDs into multi-dimensional floating point vectors.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Dense</span><div class="topic-title">Dense Representation</div><div class="topic-body">Encoding linguistic traits geometrically. Words with similar meanings cluster together spatially.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Lexical</span><div class="topic-title">Lexical Ambiguity</div><div class="topic-body">Why basic embeddings fail to physically separate contextual differences like 'River Bank' vs 'Bank Vault'.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">The</span><div class="topic-title">The Order Problem</div><div class="topic-body">Transformers process all vectors simultaneously as an unordered set, leaving them entirely sequence-blind.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Absolute</span><div class="topic-title">Absolute Encodings</div><div class="topic-body">Using mathematically static Sine and Cosine waves clamped to integer timestamps (The 2017 standard).</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Relative</span><div class="topic-title">Relative Distances</div><div class="topic-body">Learning the specific positional distance between two tokens, rather than relying on absolute grid timestamps.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">RoPE</span><div class="topic-title">RoPE Mechanics</div><div class="topic-body">Rotary Positional Embeddings uniquely rotate vectors mathematically in coordinate space to perfectly encode relative overlap.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">VRAM</span><div class="topic-title">VRAM Loading</div><div class="topic-body">Why huge embedding matrices are often parallel sharded across multiple GPUs to prevent memory exhaustion.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="05-embedding-deepdive.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#7F77DD;text-decoration:none;display:block;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Course File: L0–1</span><div class="topic-title" style="color:#fff">Embedding deep-dive</div><div class="topic-body">Tokens · Position · Semantics · Scale</div></a>
+  <a class="topic course-file" href="22-qkv-projection.html" target="_blank" style="margin-top: 0px; margin-bottom: 24px; --accent:#D4537E;text-decoration:none;display:block;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Course File: L1</span><div class="topic-title" style="color:#fff">QKV Matrix Projection</div><div class="topic-body">Linear Projections · MatMul · Query, Key, Value</div></a>
+  <div class="paper"><strong>RoFormer: Enhanced Transformer with Rotary Position Embedding</strong> — Su et al. 2021 (arXiv:2104.09864).</div>
+</div>
+
+<!-- L2 -->
+<div class="panel" id="panel-l2">
+  <div class="panel-title" style="color:var(--purple-t)">Topic 2 — embedding algorithms</div>
+  <div class="panel-sub">How the embedding vectors in Layer 1 are trained. A progression from shallow count-based methods to deep contextual transformers.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">One-Hot</span><div class="topic-title">One-Hot Vectors</div><div class="topic-body">The primitive approach. A vocabulary of 50K requires a 50K array of zeros with a single 1. Causes matrix bloat.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Count-Based</span><div class="topic-title">Count-Based TF-IDF</div><div class="topic-body">Term Frequency tracking. Evaluates global word importance but entirely destroys grammatical word locality.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Word2Vec</span><div class="topic-title">Word2Vec</div><div class="topic-body">The breakthrough shallow neural network that mapped vectors securely by training them to predict local adjacent context windows.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">CBOW</span><div class="topic-title">CBOW Paradigm</div><div class="topic-body">Continuous Bag of Words: Given the surrounding context words, correctly predict the missing center word.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Skip-Gram</span><div class="topic-title">Skip-Gram</div><div class="topic-body">The inverse of CBOW: Given a single center word, algorithmically predict all the surrounding context words.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">GloVe</span><div class="topic-title">GloVe Matrices</div><div class="topic-body">Global Vectors for Word Representation. Bypasses local context sliding windows by efficiently factorizing global co-occurrence matrices.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">FastText</span><div class="topic-title">FastText</div><div class="topic-body">Further decomposes vocabulary words into literal n-gram character chunks, unlocking the ability to embed totally unseen, out-of-vocabulary words.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">ELMo</span><div class="topic-title">ELMo Context</div><div class="topic-body">The final pre-transformer technique utilizing deep bi-directional LSTMs to evaluate contextual vector shifting.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="06-cbow-skipgram.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#AFA9EC;text-decoration:none;display:block;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Course File: L2</span><div class="topic-title" style="color:#fff">CBOW &amp; Skip-gram</div><div class="topic-body">How word embeddings are learned</div></a>
+  <div class="paper"><strong>Efficient Estimation of Word Representations in Vector Space (Word2Vec)</strong> — Mikolov et al., Google 2013 (arXiv:1301.3781).</div>
+  <div class="paper"><strong>GloVe: Global Vectors for Word Representation</strong> — Pennington, Socher, Manning, Stanford 2014.</div>
+</div>
+
+<!-- L3 -->
+<div class="panel" id="panel-l3">
+  <div class="panel-title" style="color:var(--teal-t)">Topic 3 — attention mechanism</div>
+  <div class="panel-sub">The heart of the transformer. Every token computes relationships with every other token via query, key, and value projections. The K and V vectors computed here are what the KV cache (Layer 7) stores and reuses at inference time.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">QKV</span><div class="topic-title">QKV Projections</div><div class="topic-body">Each token duplicates itself by linearly multiplying into three distinct states: The Query, the Key, and the Value.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Dot-Product</span><div class="topic-title">Dot-Product Match</div><div class="topic-body">The model mathematically multiplies every Query against every single previous Key to evaluate semantic relevance.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Scaling</span><div class="topic-title">Scaling Factor</div><div class="topic-body">Dividing the massive dot-product integer results by the square root of dimensions to prevent gradient explosions.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Causal</span><div class="topic-title">Causal Masking</div><div class="topic-body">Applying an infinite negative value to all diagonal future tokens to physically block the autoregressor from cheating.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Softmax</span><div class="topic-title">Softmax Filter</div><div class="topic-body">Squashing the raw attention scores into a perfect localized probability distribution from zero to one.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Contextual</span><div class="topic-title">Contextual Fusion</div><div class="topic-body">Multiplying the normalized attention distribution directly against the Value arrays to blend relevant context.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Multi-Head</span><div class="topic-title">Multi-Head Slicing</div><div class="topic-body">Splitting the massive dimension arrays into parallel 'heads' so the model can track multiple different grammar relationships simultaneously.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">GQA</span><div class="topic-title">GQA Efficiency</div><div class="topic-body">Group Query Attention aggressively shares Keys and Values across Heads to dramatically drop VRAM cache requirements.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="12-attention-mechanism.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#1D9E75;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L3</span><div class="topic-title" style="color:#fff">The Attention Mechanism</div><div class="topic-body">Interactive highlighting · QKV concepts</div></a>
+  <a class="topic course-file" href="12a-add-attention.html" target="_blank" style="margin-bottom: 24px; --accent:#378ADD;text-decoration:none;display:block;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Course File: L3 Add-On</span><div class="topic-title" style="color:#fff">Inside the Attention Head</div><div class="topic-body">Live heatmaps · Causal mask · QKV matrix multiplier playground</div></a>
+  <div class="paper"><strong>Attention Is All You Need</strong> — Vaswani et al., Google Brain 2017 (arXiv:1706.03762). 90K+ citations.</div>
+  <div class="paper"><strong>FlashAttention-2</strong> — Dao et al. 2022/2023. Standard in nearly every frontier model training and inference run.</div>
+</div>
+
+<!-- L4 -->
+<div class="panel" id="panel-l4">
+  <div class="panel-title" style="color:var(--teal-t)">Topic 4 — transformer block internals</div>
+  <div class="panel-sub">After attention, each token passes through a feed-forward network. Layer normalisation and residual connections stabilise training across many stacked blocks.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Residual</span><div class="topic-title">Residual Skips</div><div class="topic-body">Connecting input pathways directly past the heavy calculation blocks. This is vital to prevent mathematical signals from dissolving in deep networks.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Layer</span><div class="topic-title">Layer Normalization</div><div class="topic-body">Normalizing vectors uniformly. The industry decisively moved from explicit Post-Norm to mathematically stable Pre-Norm configurations.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">RMSNorm</span><div class="topic-title">RMSNorm</div><div class="topic-body">Root Mean Square Normalization strips explicit mean-centering out of the equations, resulting in faster math without accuracy loss.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Factual</span><div class="topic-title">Factual Memory (FFN)</div><div class="topic-body">While Attention routes the active context, the dense Feed Forward block operates as the core internalized factual knowledge bank.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">SwiGLU</span><div class="topic-title">SwiGLU Activations</div><div class="topic-body">The modern baseline activation replacement for RELU, utilizing smoothly gated linear units for faster signal convergence.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Dimension</span><div class="topic-title">Dimension Expansion</div><div class="topic-body">The FFN routinely expands the token dimensionality physically by 4x, aggressively cross-referencing sub-features, before projecting it back down.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Architectural</span><div class="topic-title">Architectural Stacking</div><div class="topic-body">Stringing up to 100+ of these exact sequential modular transformer blocks back-to-back to force immense cognitive depth.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Gradient</span><div class="topic-title">Gradient Highways</div><div class="topic-body">Because of ResNets, backwards-flowing gradients during backpropagation safely travel all the way down to Layer 0 without vanishing.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="13-transformer-block.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#5DCAA5;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L4</span><div class="topic-title" style="color:#fff">Transformer Block Internals</div><div class="topic-body">Interactive Factory Line · LayerNorm · FFN</div></a>
+  <div class="paper"><strong>On Layer Normalization in the Transformer Architecture</strong> — Xiong et al. 2020 (arXiv:2002.04745). Proved Pre-Norm is vital for deep network stability.</div>
+  <div class="paper"><strong>GLU Variants Improve Transformer</strong> — Shazeer 2020 (arXiv:2002.05202). Introduced the SwiGLU activation.</div>
+</div>
+
+<!-- L5 -->
+<div class="panel" id="panel-l5">
+  <div class="panel-title" style="color:var(--blue-t)">Topic 5 — architecture families</div>
+  <div class="panel-sub">How many transformer blocks, in what configuration, with what training objective — these decisions define whether you get BERT, T5, or GPT.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Recurrent</span><div class="topic-title">Recurrent LSTMs</div><div class="topic-body">The archaic baseline. Relied on sequential memory hidden-states that degraded over long distances and throttled parallelization.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Bidirectional</span><div class="topic-title">Bidirectional BERT</div><div class="topic-body">Focuses on reading the entire sequence forwards and backwards simultaneously. Supremely powerful at structural classification and search mapping.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Masked</span><div class="topic-title">Masked Language Task</div><div class="topic-body">Training Encoders by actively blacking out 15% of the text and forcing the model to contextually guess the missing gaps.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Encoder-Decoder</span><div class="topic-title">Encoder-Decoder</div><div class="topic-body">Initial architecture splitting reading and writing. Powerful for explicit tasks like Language Translation but suffered scaling friction.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Decoder-Only</span><div class="topic-title">Decoder-Only</div><div class="topic-body">The current industry monolith. Reaping the benefits of strictly masked autoregression to scale infinitely without architectural fractures.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Next-Token</span><div class="topic-title">Next-Token Reality</div><div class="topic-body">The mathematically pure objective: entirely discard bidirectional reads and simply predict what comes next. Scale unlocks emergence.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Mixture</span><div class="topic-title">Mixture of Experts</div><div class="topic-body">MoE replaces a monolithic dense FFN with multiple sub-networks. A router selectively picks 2 'experts' per token, maintaining speed while inflating raw params.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Scaling</span><div class="topic-title">Scaling Laws</div><div class="topic-body">The empirical discovery that compute, data, and parameter counts scale capability almost linearly on a log-log curve.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="19-encoder-decoder.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#378ADD;text-decoration:none;display:block;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Course File: L5</span><div class="topic-title" style="color:#fff">Inspector vs. Storyteller</div><div class="topic-body">Encoder · Decoder · Interactive Masking Game</div></a>
+  <div class="paper"><strong>Language Models are Few-Shot Learners (GPT-3)</strong> — Brown et al., OpenAI 2020 (arXiv:2005.14165). Ground zero for the modern decoder-only LLM era.</div>
+  <div class="paper"><strong>BERT: Pre-training of Deep Bidirectional Transformers</strong> — Devlin et al., Google 2018 (arXiv:1810.04805).</div>
+  <div class="paper"><strong>Exploring the Limits of Transfer Learning (T5)</strong> — Raffel et al., Google 2019 (arXiv:1910.10683).</div>
+  <div class="paper"><strong>BART: Denoising Sequence-to-Sequence Pre-training</strong> — Lewis et al., Meta 2019 (arXiv:1910.13461).</div>
+</div>
+
+<!-- L6 -->
+<div class="panel" id="panel-l6">
+  <div class="panel-title" style="color:var(--coral-t)">Topic 6 — output head</div>
+  <div class="panel-sub">After N transformer blocks, the final hidden state is projected to vocabulary logits and a probability is sampled for the next token. This closes the forward pass and triggers the inference machinery of Layer 7.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">The</span><div class="topic-title">The Linear Head</div><div class="topic-body">The massive finale matrix. Projects the internal structural hidden state array forcefully outwards back into the exact size of the vocabulary.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Logits</span><div class="topic-title">Logits</div><div class="topic-body">The raw, unnormalized floats mapped to every single word in the dictionary. Extreme peaks indicate certainty.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Softmax</span><div class="topic-title">Softmax Normalization</div><div class="topic-body">The brutal mathematical function that violently converts logits into a flawless probability distribution where all values equal exactly 1.0.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Temperature</span><div class="topic-title">Temperature Scaling</div><div class="topic-body">Dividing logits prior to Softmax. A value of 0.1 locks deterministic paths, while 1.5 flattens probability layers causing chaotic creativity.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Top-K</span><div class="topic-title">Top-K Slicing</div><div class="topic-body">Immediately pruning the distribution to only sample from the absolute top 50 highly-probable words regardless of their distribution tail.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Top-P</span><div class="topic-title">Top-P Slicing</div><div class="topic-body">Nucleus sampling limits the pool to the minimum number of words whose probabilities sum up to a threshold like 0.95, dynamically adjusting to certainty.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Frequency</span><div class="topic-title">Frequency Penalities</div><div class="topic-body">Logit biasing parameters that actively subtract mathematically from words that have already appeared frequently in the generation.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Stop</span><div class="topic-title">Stop Tokens</div><div class="topic-body">Specialized End-of-Text characters injected into the training set. When sampled, the inference engine abruptly severs the connection.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="10-softmax-crossentropy.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#D85A30;text-decoration:none;display:block;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Course File: L6</span><div class="topic-title" style="color:#fff">Softmax &amp; Cross-Entropy</div><div class="topic-body">Output head · Loss · Temperature · Training loop</div></a>
+</div>
+
+<!-- L7 NEW -->
+<div class="panel" id="panel-l7">
+  <div class="panel-title" style="color:var(--blue-t)">Topic 7 — inference &amp; deployment</div>
+  <div class="panel-sub">The missing chapter in most LLM courses. Training happens once — inference runs billions of times. Over 90% of the total cost of running an LLM is inference. This layer covers the key techniques that make production deployment fast, cheap, and scalable.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">The</span><div class="topic-title">The Memory Wall</div><div class="topic-body">Compute is vastly faster than RAM. Inference generation is fundamentally bottlenecked by VRAM memory-bandwidth, not raw floating-point operations.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Prefill</span><div class="topic-title">Prefill Parallelism</div><div class="topic-body">The first step of inference. Taking the entire prompt and blasting it aggressively through parallel matrix multiplications simultaneously.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Serial</span><div class="topic-title">Serial Decoding</div><div class="topic-body">The execution loop. Autoregressively computing generation frame-by-frame, violently starved by the inability to math in parallel.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">The</span><div class="topic-title">The KV Cache</div><div class="topic-body">Massive VRAM overhead. Physically caching all historical Key and Value vectors for the entire context window so they don't have to be recalculated perfectly.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">PagedAttention</span><div class="topic-title">PagedAttention</div><div class="topic-body">The vLLM revelation. Dynamically allocating non-contiguous memory blocks on the GPU to store the KV Cache perfectly, eliminating VRAM fragmentation.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">FlashAttention</span><div class="topic-title">FlashAttention</div><div class="topic-body">A brutal hardware-aware kernel that fuses operations directly into ultra-fast SRAM caches, dramatically cutting slow HBM Round-Trips.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Model</span><div class="topic-title">Model Quantization</div><div class="topic-body">Mathematically dropping weights from 16-bit to 4-bit primitives using frameworks like AWQ, actively doubling inference speed on strict bandwidth bounds.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Speculative</span><div class="topic-title">Speculative Decoding</div><div class="topic-body">Utilizing a tiny, fast 7B 'draft' model to blindly guess 5 future tokens, submitting them to the 70B model for 1-step parallel verification. Massive speedups.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="17-llm-highway.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#378ADD;text-decoration:none;display:block;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Course File: L7</span><div class="topic-title" style="color:#fff">LLM Inference Simulator</div><div class="topic-body">Traffic Highway · KV cache · Speculative Decoding</div></a>
+  <div class="paper"><strong>Efficient Memory Management for Large Language Model Serving with PagedAttention (vLLM)</strong> — Kwon et al., UC Berkeley / SOSP 2023. 24× throughput improvement. Introduced continuous batching + PagedAttention.</div>
+  <div class="paper"><strong>Fast Inference from Transformers via Speculative Decoding</strong> — Leviathan et al., Google 2023 (arXiv:2211.17192). Proved draft+verify produces identical output distribution to the target model.</div>
+  <div class="paper"><strong>AWQ: Activation-aware Weight Quantization for LLM Compression</strong> — Lin et al. 2024 (arXiv:2306.00978). Near-lossless INT4 quantization. Default method in vLLM.</div>
+  <div class="paper"><strong>GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers</strong> — Frantar et al. 2022 (arXiv:2210.17323). 4-bit quantization without retraining. Foundation of GGUF / llama.cpp.</div>
+</div>
+
+<!-- L8 (was L7) -->
+<div class="panel" id="panel-l8">
+  <div class="panel-title" style="color:var(--coral-t)">Topic 8 — pretraining</div>
+  <div class="panel-sub">Training the base model from scratch on trillions of tokens. The most expensive stage — but everything downstream depends on the quality of this foundation.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Weight</span><div class="topic-title">Weight Initialization</div><div class="topic-body">Using strict stochastic algorithms like Kaiming or Xavier to initialize parameters explicitly to prevent immediate catastrophic mathematical collapse.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Gradient</span><div class="topic-title">Gradient Descent</div><div class="topic-body">The core concept of computationally navigating multi-dimensional calculus topography in reverse to map the steepest path to zero loss.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Cross-Entropy</span><div class="topic-title">Cross-Entropy Loss</div><div class="topic-body">Comparing the generated soft probability curve aggressively against the rigid One-Hot target truth vector to calculate numerical error.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Backpropagation</span><div class="topic-title">Backpropagation</div><div class="topic-body">Using the explicit Chain Rule of Calculus to forcefully pass the calculated error curve backwards across every single matrix in the transformer block.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The</span><div class="topic-title">The Epoch Ceiling</div><div class="topic-body">Unlike basic Vision models, LLMs undergo catastrophic degradation and memorization loops if they observe the exact same pretraining text more than twice.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Emergence</span><div class="topic-title">Emergence Grokking</div><div class="topic-body">The phenomenon where massive network parameters violently snap into geometric alignment after massive iteration scales, spontaneously unlocking unprogrammed logic.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Trillion</span><div class="topic-title">Trillion Token Scale</div><div class="topic-body">Llama 3 absorbed over 15 Trillion tokens of data, definitively proving that massive parameter counts are deeply under-trained without immense datasets.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Perplexity</span><div class="topic-title">Perplexity Physics</div><div class="topic-body">The primary evaluation mathematical metric. A lower perplexity indicates the network's probability distributions are explicitly converging with reality.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="11-next-token-emergence.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#993C1D;text-decoration:none;display:block;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Course File: L8</span><div class="topic-title" style="color:#fff">Beyond Next-Token Prediction</div><div class="topic-body">Emergence · In-context learning · The iceberg</div></a>
+  <div class="paper"><strong>Scaling Laws for Neural Language Models</strong> — Kaplan et al., OpenAI 2020 (arXiv:2001.08361).</div>
+  <div class="paper"><strong>Training Compute-Optimal LLMs (Chinchilla)</strong> — Hoffmann et al., DeepMind 2022.</div>
+</div>
+
+<!-- L9 (was L8) -->
+<div class="panel" id="panel-l9">
+  <div class="panel-title" style="color:var(--amber-t)">Topic 9 — training optimizations</div>
+  <div class="panel-sub">Engineering solutions that make large-scale training stable, fast, and memory-efficient. Every frontier training run uses all of these simultaneously.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">AdamW</span><div class="topic-title">AdamW Dynamics</div><div class="topic-body">The undisputed standard optimizer. Aggressively separates Weight Decay from the primary gradient updates to stop the model from rapidly forgetting structures.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Moving</span><div class="topic-title">Moving Momentum</div><div class="topic-body">The optimizer forcefully tracks exponential moving averages of past gradients (Beta 1), allowing the optimization 'ball' to seamlessly skip over fake local valleys.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Cosine</span><div class="topic-title">Cosine Learning Rates</div><div class="topic-body">Gradually decaying the intensity of updates following a Cosine wave. A brutal drop-off in the final 5% of training is crucial for fine-detail convergence.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Linear</span><div class="topic-title">Linear Warmups</div><div class="topic-body">Starting the learning rate functionally at zero and ramping it rapidly across the first 2,000 steps to prevent instant matrix explosion on unaligned variables.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Mixed</span><div class="topic-title">Mixed Precision BF16</div><div class="topic-body">Running the heavy forward and backward passes using stripped-down BFloat16 precision, but carefully logging gradients back into FP32 Master Weights.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Data</span><div class="topic-title">Data Parallelism</div><div class="topic-body">Duplicating the entire Model across multiple GPU nodes. Each GPU trains intensely on a different slice of data, averaging gradients at the end of the microstep.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Tensor</span><div class="topic-title">Tensor Parallelism</div><div class="topic-body">When a model is too big for a single GPU, massive linear matrices are violently sharded horizontally and vertically across interconnected NVLink pipelines.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">ZeRO</span><div class="topic-title">ZeRO Redundancy</div><div class="topic-body">Microsoft's DeepSpeed integration. Eliminating duplicate Optimizer States and Gradient tracking across nodes to massively decrease multi-node VRAM requirements.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="15-training-optimizations.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#BA7517;text-decoration:none;display:block;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Course File: L9</span><div class="topic-title" style="color:#fff">Training Optimizations</div><div class="topic-body">Interactive Mountain Climber · Momentum</div></a>
+</div>
+
+<!-- L10 (was L9) -->
+<div class="panel" id="panel-l10">
+  <div class="panel-title" style="color:var(--green-t)">Topic 10 — supervised fine-tuning &amp; PEFT</div>
+  <div class="panel-sub">Adapting the base model to follow instructions and domain tasks. LoRA and QLoRA make this feasible on consumer hardware by training only 1% of parameters.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">The</span><div class="topic-title">The Formatting Shift</div><div class="topic-body">Pretraining teaches text continuation. SFT (Supervised Fine Tuning) structurally teaches the model that it must definitively format completions as conversational Answers.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Instruction</span><div class="topic-title">Instruction Masking</div><div class="topic-body">During backpropagation, loss is explicitly 'masked' on the Prompt tokens. We ONLY grade and penalize the model for its explicit generated Response logic.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">ChatML</span><div class="topic-title">ChatML System Prompts</div><div class="topic-body">Embedding specialized `<|im_start|>` meta-tokens to rigorously define boundaries between the immutable System directive and the volatile User prompt.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Full-Parameter</span><div class="topic-title">Full-Parameter VRAM</div><div class="topic-body">Standard Fine-Tuning forces gradient updates natively across all 70B weights. This requires massive clustered H100s to hold the optimizer states.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Low-Rank</span><div class="topic-title">Low-Rank Adaptation</div><div class="topic-body">LoRA explicitly freezes the base brain. It trains two tiny, microscopic matrices (A and B) that inject calculated gradient deviations alongside the frozen weights.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">QLoRA</span><div class="topic-title">QLoRA Int4 Stacking</div><div class="topic-body">Quantizing the heavy frozen brain aggressively down to 4-bits, leaving only the tiny LoRA adapters in 16-bit. Unlocks 70B fine-tuning securely on desktop grids.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Rank</span><div class="topic-title">Rank & Alpha Tuning</div><div class="topic-body">The 'R' establishes how thick the microscopic matrices are. The 'Alpha' multiplier ensures the signal broadcasts loud enough to overpower the frozen brain.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Merged</span><div class="topic-title">Merged Inferences</div><div class="topic-body">At deployment, the tiny calculated LoRA matrix parameters are violently summed directly into the base weights, completely eliminating inference latency overhead.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="18-peft-lora.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#639922;text-decoration:none;display:block;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Course File: L10</span><div class="topic-title" style="color:#fff">The Frozen Brain &amp; Backpack</div><div class="topic-body">LoRA · Full Fine-Tuning · VRAM Interactive</div></a>
+  <div class="paper"><strong>LoRA: Low-Rank Adaptation of Large Language Models</strong> — Hu et al., Microsoft 2021 (arXiv:2106.09685).</div>
+  <div class="paper"><strong>QLoRA: Efficient Finetuning of Quantized LLMs</strong> — Dettmers et al. 2023 (arXiv:2305.14314).</div>
+</div>
+
+<!-- L11 (was L10) -->
+<div class="panel" id="panel-l11">
+  <div class="panel-title" style="color:var(--purple-t)">Topic 11 — alignment (RLHF)</div>
+  <div class="panel-sub">Turning a text predictor into a helpful, honest, harmless assistant. The reward model encodes human preferences; reinforcement learning optimises the policy against it.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Alignment</span><div class="topic-title">Alignment Dilemma</div><div class="topic-body">The constant tug-of-war. Forcing an AI to be aggressively 'Harmless' fundamentally destroys its ability to be computationally 'Helpful' without strict calibration.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Human</span><div class="topic-title">Human Preference Grids</div><div class="topic-body">Hiring armies of human annotators to strictly evaluate two parallel model outputs (A vs B) and flag the explicitly superior formatting and logic.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">The</span><div class="topic-title">The Reward Model</div><div class="topic-body">Training an entirely separate LLM to read the (A vs B) comparisons and learn to natively output a scalar float 'Score' mapping human preference logic.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">PPO</span><div class="topic-title">PPO Policy Gradients</div><div class="topic-body">Proximal Policy Optimization. The intense reinforcement loop where the base generator desperately adjusts its output distribution solely to maximize the Reward Model's scalar score.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">KL</span><div class="topic-title">KL Divergence</div><div class="topic-body">A mathematical leash constraint explicitly locking the PPO model from drifting violently away from its pretrained statistical understanding just to hack high scores.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">DPO</span><div class="topic-title">DPO Optimization</div><div class="topic-body">Direct Preference Optimization. An algorithmic revelation that entirely removes the separate Reward Model, utilizing binary cross-entropy to train PPO logic directly into the base weights.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Constitutional</span><div class="topic-title">Constitutional Prompts</div><div class="topic-body">Anthropic's methodology. Providing a high-end LLM an explicitly written Constitution to auto-generate and self-align its own synthetic preference data securely.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Jailbreak</span><div class="topic-title">Jailbreak Collapse</div><div class="topic-body">The unfortunate byproduct of soft-alignment. Creative role-play formatting or base64 overrides frequently bypass the superficial safety boundary mechanisms.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="16-rlhf-alignment.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#534AB7;text-decoration:none;display:block;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Course File: L11</span><div class="topic-title" style="color:#fff">RLHF &amp; Alignment</div><div class="topic-body">Taste Tester Minigame · Reward Models</div></a>
+  <div class="paper"><strong>Training language models to follow instructions (InstructGPT)</strong> — Ouyang et al., OpenAI 2022 (arXiv:2203.02155).</div>
+  <div class="paper"><strong>Direct Preference Optimization</strong> — Rafailov et al., Stanford 2023 (arXiv:2305.18290).</div>
+</div>
+
+<!-- L12 (was L11) -->
+<div class="panel" id="panel-l12">
+  <div class="panel-title" style="color:var(--pink-t)">Topic 12 — reasoning training (RLVR)</div>
+  <div class="panel-sub">Teaching models to generate extended chain-of-thought reasoning using verifiable rewards instead of learned reward models.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">System</span><div class="topic-title">System 2 Reasoning</div><div class="topic-body">Shifting the AI paradigm from intuitive fast-twitch generation (System 1) into explicit, heavily token-consuming logical trace pathways (System 2).</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Chain-of-Thought</span><div class="topic-title">Chain-of-Thought</div><div class="topic-body">Forcing the model to explicitly write out step-by-step calculations. This physically unlocks hidden sequential logic states by consuming computational token time.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Test-Time</span><div class="topic-title">Test-Time Scaling</div><div class="topic-body">The massive revelation that allowing a model to generate 10x more intermediate tokens prior to answering scales accuracy faster than 10x larger model weights.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">GRPO</span><div class="topic-title">GRPO Framework</div><div class="topic-body">Group Relative Policy Optimization. Generating 8 variations of an answer and dynamically rewarding the versions that logically deviate towards correctness without a separate value model.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Verifiable</span><div class="topic-title">Verifiable Rewards</div><div class="topic-body">Completely overriding subjective human Reward Models with explicit Python Unit-Tests and strict math heuristics that return definitive binary Truth feedback.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Eliminating</span><div class="topic-title">Eliminating the Judge</div><div class="topic-body">By relying on explicit mathematical truth rather than vague human 'Helpfulness', RLVR scales aggressively into unmapped super-human logic discovery.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Majority</span><div class="topic-title">Majority Voting</div><div class="topic-body">Taking the 10 parallel generated responses from explicit test-time compute drops and aggressively filtering them securely using Consensus logic.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">DeepSeek</span><div class="topic-title">DeepSeek Architectures</div><div class="topic-body">The pinnacle of reinforcement logic. Aggressively scaling pure GRPO across mathematically verifiable tasks until the model spontaneously learns to strictly self-correct errors.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="03-rlhf-reasoning.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#993556;text-decoration:none;display:block;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Course File: L11–12</span><div class="topic-title" style="color:#fff">RLHF &amp; Reasoning</div><div class="topic-body">PPO · DPO · GRPO · Benchmarks</div></a>
+  <div class="paper"><strong>DeepSeekMath: Pushing the Limits of Mathematical Reasoning</strong> — Shao et al. 2024 (arXiv:2402.03300). Introduced GRPO.</div>
+  <div class="paper"><strong>DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via RL</strong> — DeepSeek-AI 2025 (arXiv:2501.12948).</div>
+</div>
+
+<!-- L13 NEW — Frameworks & Tooling -->
+<div class="panel" id="panel-l13">
+  <div class="panel-title" style="color:var(--amber-t)">Topic 13 — frameworks &amp; tooling</div>
+  <div class="panel-sub">Where conceptual algorithms become running code. TRL (Transformers Reinforcement Learning) is the production library that implements everything in Layers 10–12 — SFT, reward modelling, DPO, GRPO, and PPO — in one unified, stable API. Unsloth patches TRL's GRPO kernels to achieve 90% VRAM reduction, enabling desktop-level reasoning model training.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">HuggingFace</span><div class="topic-title">HuggingFace Transformers</div><div class="topic-body">The monolithic backbone library mapping complex Multi-Head Attention equations securely into simplistic python imports (AutoModelForCausalLM).</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">TRL</span><div class="topic-title">TRL Standardization</div><div class="topic-body">Transformer Reinforcement Learning seamlessly connects the SFT Data pipeline directly into robust Reward, PPO, and DPO Trainer execution handlers.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Dataclass</span><div class="topic-title">Dataclass Configs</div><div class="topic-body">Utilizing strict HuggingFace TrainingArguments parameters to universally toggle Mixed Precision, DDP configurations, and Gradient Accumulation parameters natively.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Unsloth</span><div class="topic-title">Unsloth AI Profiles</div><div class="topic-body">A radical framework that manually rewrites intense CUDA background kernels using Triton to achieve unbelievable VRAM shedding and raw speed optimization.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Attention</span><div class="topic-title">Attention Kernel Slicing</div><div class="topic-body">By optimizing memory mapping explicitly at the GPU-register phase, Unsloth routinely hits 2x speed capabilities using standard Consumer GPUs.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">vLLM</span><div class="topic-title">vLLM Integration</div><div class="topic-body">To efficiently train GRPO, models must generate tens of thousands of mock tokens. Merging vLLM natively as the generation backend yields 8x pipeline throughput.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Multi-Node</span><div class="topic-title">Multi-Node Sharding</div><div class="topic-body">Leveraging frameworks like Ray and DeepSpeed natively through SLURM arrays to string hundreds of independent processing nodes into cohesive orchestrations.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Evaluation</span><div class="topic-title">Evaluation Gauntlets</div><div class="topic-body">Running strict zero-shot evaluation harnesses (LM Eval, HellaSwag, MMLU) across the quantized binaries to definitively map emergent performance regressions.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="09-trl-grpo.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#EF9F27;text-decoration:none;display:block;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Course File: L13</span><div class="topic-title" style="color:#fff">TRL &amp; GRPO</div><div class="topic-body">Frameworks · Alignment pipeline · Unsloth</div></a>
+  <div class="paper"><strong>TRL: Transformer Reinforcement Learning</strong> — von Werra et al., Hugging Face 2020–2026. v1.0.0 April 2026. Apache 2.0. github.com/huggingface/trl</div>
+  <div class="paper"><strong>Unsloth RL: Transforming LLMs Into Reasoning Models With GRPO</strong> — Unsloth AI 2025. 90% VRAM reduction. 380K context support. Desktop-level reasoning model training.</div>
+  <div class="paper"><strong>DeepSeekMath: Pushing the Limits of Mathematical Reasoning in LLMs</strong> — Shao et al. 2024 (arXiv:2402.03300). Introduced GRPO as implemented in TRL's GRPOTrainer.</div>
+</div>
+<!-- L13.5 NEW -->
+<div class="panel" id="panel-l13-5">
+    <div class="panel-title" style="color:var(--teal-t)">Topic 13.5 — prompt engineering &amp; RAG <span class="new-badge">NEW</span></div>
+    <div class="panel-sub">Models are frozen in time after training. To give them fresh data without expensive fine-tuning, we use Retrieval-Augmented Generation (RAG) to dynamically fetch and inject facts into their prompt context before they generate.</div>
+    <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Context</span><div class="topic-title">The Context Window</div><div class="topic-body">The model's short-term memory during a single conversation. Raging from 8K tokens (Llama 3 8B) to 2M tokens (Gemini 1.5 Pro). Extremely expensive computationally to fill completely due to quadratic attention scaling.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 0.0s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Ingestion</span><div class="topic-title">Data Ingestion</div><div class="topic-body">To feed data into an LLM, raw files (PDFs, docs, unstructured web scrapes) are systematically parsed and cleaned via ETL pipelines into pure text before processing.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 1.5s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Chunking</span><div class="topic-title">Semantic Chunking</div><div class="topic-body">Deep documents cannot be searched effectively en masse. They are algorithmically sliced into 500-token chunks with a 50-token semantic overlap to ensure critical context isn't severed in half.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 3.0s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Embed</span><div class="topic-title">Vectorization</div><div class="topic-body">Each individual chunk is mathematically passed through a distinct Embedding Model (like text-embedding-3) which translates the human linguistics into a dense spatial array of floats (e.g. [0.15, -0.62...]).</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Hybrid</span><div class="topic-title">Hybrid Search</div><div class="topic-body">Standard vector cosine similarity fails at exact keyword matching (like ID JIRA-712). Hybrid Search algorithms pair Vectors heavily with traditional keyword-based BM25 to achieve optimal retrieval accuracy.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Rerank</span><div class="topic-title">Reranking Encoders</div><div class="topic-body">Because Vector DBs only perform mathematically approximate searches for speed, a heavy Cross-Encoder AI is often deployed to slowly and intimately re-sort the Top-50 results to pick out the absolute Top-5 golden documents.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">GraphRAG</span><div class="topic-title">Knowledge Graphs</div><div class="topic-body">A cutting-edge technique where vector data is additionally mapped out onto vast nodal relationship structures. This solves holistic queries like "Who works for who?" simply by tracing the explicitly coded edges.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">RAG</span><div class="topic-title">Retrieval workflow</div><div class="topic-body">User queries system → System queries Vector DB → DB returns Top-K documents → System pastes documents + user query into a giant prompt → LLM reads it all natively and generates correct answer.</div></div>
+    </div>
+    <a class="topic course-file" href="20-rag-prompting.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#1D9E75;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L13.5</span><div class="topic-title" style="color:#fff">RAG Open-Book Test</div><div class="topic-body">Context Windows · Vector DBs · Interactive Minigame</div></a>
+    <div class="paper"><strong>Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</strong> — Lewis et al., Meta 2020 (arXiv:2005.11401). Coined RAG.</div>
+  </div>
+
+  <!-- L14 (was L13) -->
+<div class="panel" id="panel-l14">
+  <div class="panel-title" style="color:var(--teal-t)">Topic 14 — multimodal: vision &amp; speech</div>
+  <div class="panel-sub">The same transformer architecture extended to images and audio by changing only the input tokenisation layer. Everything after that is identical.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Modality</span><div class="topic-title">Modality Agnostic</div><div class="topic-body">The sheer revelation that Transformer architectures are functionally blind to modality constraints if the source material is cleanly converted into flat embeddings.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Vision</span><div class="topic-title">Vision Encoders (ViT)</div><div class="topic-body">Abandoning Convolutional grids. Slicing massive dense 4K image rasters natively into hundreds of independent 16x16 pixel blocks treated perfectly identical to text.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">CLIP</span><div class="topic-title">CLIP Contrastive Grids</div><div class="topic-body">Forcing isolated Vision and Text engines to geometrically align their mathematical vectors so that an image of a dog overlaps flawlessly with the word 'Dog'.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">Convolutional</span><div class="topic-title">Convolutional Overlaps</div><div class="topic-body">Injecting minor 2D Convolution layers natively in the front-end before flattening, ensuring the transformer doesn't immediately forget local physical proximities.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Audio</span><div class="topic-title">Audio Spectrograms</div><div class="topic-body">Whisper architectures entirely converting rapid 16kHz audio physical waves into 80-bin visual Log-Mel Spectrogram frequency images before reading them natively.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Cross-Attention</span><div class="topic-title">Cross-Attention Binding</div><div class="topic-body">A dynamic architectural hook natively intercepting LLM Query vectors and explicitly pulling localized Key-Value feature maps strictly from the frozen Vision Engine.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">Interleaved</span><div class="topic-title">Interleaved Tokens</div><div class="topic-body">Allowing users to explicitly stack `<|image|>` token identifiers flawlessly back-to-back inside standard text logic strings to unlock deep sequential visual tracking.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Whisper</span><div class="topic-title">Whisper Auto-Regression</div><div class="topic-body">Running a fully specialized Audio-Encoder directly against an autoregressive Text-Decoder to flawlessly generate multilingual transcripts in extreme noise environments.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="04-vision-speech.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#1D9E75;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L14</span><div class="topic-title" style="color:#fff">Vision &amp; Speech</div><div class="topic-body">ViT · CLIP · Whisper · Wav2Vec</div></a>
+  <a class="topic course-file" href="23-multimodal-cross-attention.html" target="_blank" style="margin-bottom: 24px; --accent:#378ADD;text-decoration:none;display:block;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Course File: L14 Add-On</span><div class="topic-title" style="color:#fff">Cross-Attention Fusion</div><div class="topic-body">Interactive Vision Module · Patch Decoder</div></a>
+  <div class="paper"><strong>An Image is Worth 16×16 Words (ViT)</strong> — Dosovitskiy et al., Google Brain 2020 (arXiv:2010.11929).</div>
+  <div class="paper"><strong>CLIP</strong> — Radford et al., OpenAI 2021 (arXiv:2103.00020).</div>
+  <div class="paper"><strong>Robust Speech Recognition via Large-Scale Weak Supervision (Whisper)</strong> — Radford et al., OpenAI 2022 (arXiv:2212.04356).</div>
+  <div class="paper"><strong>wav2vec 2.0</strong> — Baevski et al., Meta 2020 (arXiv:2006.11477).</div>
+</div>
+
+<!-- L15 (was L14) -->
+<div class="panel" id="panel-l15">
+  <div class="panel-title" style="color:var(--amber-t)">Topic 15 — VAE &amp; stable diffusion</div>
+  <div class="panel-sub">Generative image models that combine a VAE for compression, a U-Net diffusion process for denoising, and a CLIP text encoder for guidance.</div>
+  <div class="topic-grid">
+      <div class="topic fluid-box" style="--accent:#1D9E75; animation-delay: 0.0s;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Pixel</span><div class="topic-title">Pixel Autoregression Failure</div><div class="topic-body">Why generating massive 4K structures pixel-by-pixel autoregressively requires physically impossible computational overhead ceilings.</div></div>
+      <div class="topic fluid-box" style="--accent:#BA7517; animation-delay: 1.5s;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Latent</span><div class="topic-title">Latent Space Compression</div><div class="topic-body">Routing brutal RGB arrays explicitly through a Variational Autoencoder (VAE) to shatter and compress them by 64x into dense microscopic numeric maps.</div></div>
+      <div class="topic fluid-box" style="--accent:#D85A30; animation-delay: 3.0s;"><span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Forward</span><div class="topic-title">Forward Noise Profiles</div><div class="topic-body">The initial core training objective of actively bleeding mathematical Gaussian static incrementally into perfect Latent space structures until destroyed.</div></div>
+      <div class="topic fluid-box" style="--accent:#639922; animation-delay: 4.5s;"><span class="badge" style="background:var(--green-f);color:var(--green-t)">The</span><div class="topic-title">The U-Net Denoiser</div><div class="topic-body">Training immense multi-scale architectural loops identically capable of isolating and stripping mathematical noise explicitly from the latent structure natively.</div></div>
+      <div class="topic fluid-box" style="--accent:#7F77DD; animation-delay: 0.0s;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Cross-Attention</span><div class="topic-title">Cross-Attention Steering</div><div class="topic-body">Actively forcing CLIP Text-Embeddings into the U-Net execution array, securely commanding the denoiser to strictly hallucinate features matching the prompt.</div></div>
+      <div class="topic fluid-box" style="--accent:#D4537E; animation-delay: 1.5s;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">CFG</span><div class="topic-title">CFG Step Mechanics</div><div class="topic-body">Classifier-Free Guidance. Computing a 'Blank' noise prediction natively alongside the Prompt prediction and mathematically extrapolating the vector difference aggressively.</div></div>
+      <div class="topic fluid-box" style="--accent:#E24B4A; animation-delay: 3.0s;"><span class="badge" style="background:var(--red-f);color:var(--red-t)">ControlNet</span><div class="topic-title">ControlNet Anchors</div><div class="topic-body">Copying and freezing the base generative brain natively, injecting strict geometric mapping layers (Canny Edges, Poses) to forcefully constrain the generation bounds.</div></div>
+      <div class="topic fluid-box" style="--accent:#378ADD; animation-delay: 4.5s;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Temporal</span><div class="topic-title">Temporal Video Diffusion</div><div class="topic-body">Stacking complex Pseudo-3D Attention layers seamlessly across temporal frames securely locking diffusion consistency across 24FPS generation loops.</div></div>
+    </div>
+    
+  <a class="topic course-file" href="14-vae-diffusion.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#BA7517;text-decoration:none;display:block;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Course File: L15</span><div class="topic-title" style="color:#fff">VAE &amp; Stable Diffusion</div><div class="topic-body">Reverse Diffusion UI · CLIP Prompts</div></a>
+  <a class="topic course-file" href="24-latent-space-explorer.html" target="_blank" style="margin-bottom: 24px; --accent:#D4537E;text-decoration:none;display:block;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Course File: L15 Add-On</span><div class="topic-title" style="color:#fff">Latent Space Explorer</div><div class="topic-body">Interactive Coordinate System · Concept Interpolation</div></a>
+  <div class="paper"><strong>Auto-Encoding Variational Bayes (VAE)</strong> — Kingma &amp; Welling 2013 (arXiv:1312.6114). Invented VAEs and the reparameterisation trick.</div>
+  <div class="paper"><strong>High-Resolution Image Synthesis with Latent Diffusion Models</strong> — Rombach et al., CVPR 2022 (arXiv:2112.10752). The Stable Diffusion paper.</div>
+</div>
+
+
+<!-- L16 -->
+<div class="panel" id="panel-l16">
+<div class="panel-title" style="color:var(--blue-t)">Topic 16 — The AI Companies & Ecosystem</div>
+<div class="panel-sub">The organizations and platforms physically training and hosting massive frontier networks.</div>
+<div class="topic-grid">
+  <div class="topic fluid-box" style="--accent:#378ADD;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Leaders</span><div class="topic-title">The Frontier Giants</div><div class="topic-body">Mapping the hyper-scale labs dictating closed-weight intelligence: OpenAI's dominance in parameter scaling, Anthropic's Constitutional AI safety rails, and Google DeepMind's native multimodal Gemini ecosystem.</div></div>
+  <div class="topic fluid-box" style="--accent:#7F77DD;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Open-Source</span><div class="topic-title">The Open-Weight Hubs</div><div class="topic-body">To break the API monopoly, Meta shattered compute barriers natively releasing the colossal Llama 3 weights publicly, utilizing Hugging Face as the central distribution nervous system bridging millions of open-source fine-tuners.</div></div>
+  <div class="topic fluid-box" style="--accent:#D4537E;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Challengers</span><div class="topic-title">Emerging Titans (Group 2)</div><div class="topic-body">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; font-size:12px;">
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>DeepSeek:</strong> MoE architecture dropping limits.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Mistral AI:</strong> Hyper-efficient EU open-weights.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>xAI:</strong> Real-time unfiltered tracking via X.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Cohere:</strong> Strict focus on Enterprise RAG.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Microsoft:</strong> 3-Billion param SLM Phi series.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>NVIDIA:</strong> Silicon backbone & Nemotron models.</div>
+      </div>
+  </div></div>
+</div>
+  <a class="topic course-file" href="25-huggingface-git.html" target="_blank" style="margin-top: 32px; margin-bottom: 12px; --accent:#378ADD;text-decoration:none;display:block;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Course File: L16</span><div class="topic-title" style="color:#fff">Navigate Hugging Face / Git LFS</div><div class="topic-body">Cloning 40GB neural networks locally</div></a>
+  <a class="topic course-file" href="26-multimodal-film.html" target="_blank" style="margin-bottom: 24px; --accent:#D4537E;text-decoration:none;display:block;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Course File: L16 Add-On</span><div class="topic-title" style="color:#fff">Explore AI Film Studios</div><div class="topic-body">Sora, Luma, Runway Gen-3 & ElevenLabs Synthesis</div></a>
+</div>
+
+<!-- L17 -->
+<div class="panel" id="panel-l17">
+<div class="panel-title" style="color:var(--purple-t)">Topic 17 — Prompts, Agents & Workflows</div>
+<div class="panel-sub">How developers transition natively from standard chat interfaces into orchestrating robust codebase architectures and multi-agent loops.</div>
+<div class="topic-grid">
+  <div class="topic fluid-box" style="--accent:#1D9E75;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Connectivity</span><div class="topic-title">Orchestration Chains</div><div class="topic-body">Raw models cannot parse real-time weather APIs. Libraries like LangChain and LlamaIndex provide the strict Python architecture required to securely pipeline unstructured prompts mathematically into executable functions.</div></div>
+  <div class="topic fluid-box" style="--accent:#EF9F27;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Autonomy</span><div class="topic-title">Autonomous Action Agents</div><div class="topic-body">Frameworks such as OpenClaw and Antigravity utilize specialized models like Hermes to break infinite loops. The AI inherently acts, executing raw bash commands in a terminal, sliding through folders natively.</div></div>
+  <div class="topic fluid-box" style="--accent:#378ADD;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Integration</span><div class="topic-title">AI-Native Engineering</div><div class="topic-body">Developers are abandoning separate chat windows entirely. Next-generation IDEs like Cursor natively inject models straight into the VS Code environment, allowing the AI to scan thousands of local files seamlessly.</div></div>
+  <div class="topic fluid-box" style="--accent:#D4537E;"><span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Complexity</span><div class="topic-title">Multi-Agent Swarms</div><div class="topic-body">Why rely on a single brain? AutoGen and CrewAI frameworks instantiate multiple hyper-specialized agents (e.g., one 'Coder', one 'Reviewer'). They mathematically debate, debug, and construct colossal systems completely independently.</div></div>
+</div>
+  <a class="topic course-file" href="27-consumer-interfaces.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#7F77DD;text-decoration:none;display:block;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Course File: L17</span><div class="topic-title" style="color:#fff">Compare Consumer IDE Frameworks</div><div class="topic-body">Claude Artifacts · ChatGPT Canvas · Gemini Studio</div></a>
+</div>
+
+<!-- L18 -->
+<div class="panel" id="panel-l18">
+<div class="panel-title" style="color:var(--teal-t)">Topic 18 — Local Execution & Serving</div>
+<div class="panel-sub">The harsh reality of silicon memory constraints and how to bypass cloud paywalls natively on a desktop GPU.</div>
+<div class="topic-grid">
+  <div class="topic fluid-box" style="--accent:#BA7517;"><span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Mathematics</span><div class="topic-title">Frameworks & Compilers</div><div class="topic-body">Because a 100-Billion parameter matrix multiplication is impossible sequentially, PyTorch, TensorFlow, and JAX act as the compilers strictly transcribing readable high-level Python commands deep into parallelized C++ CUDA arrays.</div></div>
+  <div class="topic fluid-box" style="--accent:#378ADD;"><span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Compression</span><div class="topic-title">Local Independence</div><div class="topic-body">Using programs like Ollama and LM Studio, consumers can download 40GB neural networks locally. By crushing the precision variables massively down from float16 to int4 via `.gguf` compression, the model mathematically fits inside consumer VRAM.</div></div>
+  <div class="topic fluid-box" style="--accent:#7F77DD;"><span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Deployment</span><div class="topic-title">Production Server Stacks</div><div class="topic-body">When deploying to millions of users, latency drops to 1 token per second due to KV memory bottlenecks. Tooling like vLLM leverages revolutionary PagedAttention, virtually mapping VRAM blocks like a modern operating system OS.</div></div>
+  <div class="topic fluid-box" style="--accent:#1D9E75;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Metrics</span><div class="topic-title">Hardware Classification Tier</div><div class="topic-body">
+      <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-top:10px; font-size:12px;">
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Consumer Grade (16GB - 24GB):</strong> Local quantized 8B executions.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Workstation Compute (32GB - 48GB):</strong> Scaling up to RTX 6000 Ada handling massive MoE configurations.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--border);"><strong>Server Node Grade:</strong> Stacking A100s up to advanced H100 arrays via NVLink High Bandwidth Memory links.</div>
+          <div style="background:var(--bg2); padding:10px; border-radius:6px; border:1px solid var(--teal-s);"><strong>Pretraining (GPT-3):</strong> ~10,000 V100 GPUs for roughly 34 days.<br><strong>Pretraining (Llama 3):</strong> Meta uniquely clustered 24,000 H100 GPUs exclusively to train their flagship 400B intelligence loops.</div>
+      </div>
+  </div></div>
+</div>
+  <a class="topic course-file" href="28-offline-engines.html" target="_blank" style="margin-top: 32px; margin-bottom: 24px; --accent:#1D9E75;text-decoration:none;display:block;"><span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L18</span><div class="topic-title" style="color:#fff">Explore .GGUF Offline Executions</div><div class="topic-body">Ollama & LM Studio Visual Mapping Pipelines</div></a>
+</div>
+
+<!-- L19 -->
+<div class="panel" id="panel-l19">
+<div style="max-width:800px; margin:0 auto; text-align:center; padding:100px 0;">
+   <div class="panel-title" style="font-size:48px; color:var(--text); letter-spacing:-1px;">Final Thoughts</div>
+   <div class="panel-sub" style="font-size:18px; margin-top:20px;">Listen to the ultimate capstone narration wrapping up the massive AI frontier landscape.</div>
+   <div style="margin-top:60px; display:inline-block; padding: 30px 40px; background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+     <div style="font-size:14px; color:var(--text2); text-transform:uppercase; letter-spacing:2px; margin-bottom:15px;">Audio Module</div>
+     <div style="font-size:24px; font-weight:600; color:var(--amber-t); margin-bottom:10px;">The Future of Intelligence</div>
+     <div style="font-size:14px; color:var(--text3); line-height:1.7;">Featuring explicitly: Anthropic Interpretability, Synthetic Data Generation,<br>Test-Time Computation Limits, and $100 Billion Cluster Infrastructure.</div>
+   </div>
+</div>
+</div>
+</div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+const LAYERS=[
+  {id:'overview',h:'Full curriculum stack',color:'#888780',topics:[]},
+  {id:'l0', h:'Topic 0 — input &amp; data',               color:'#EF9F27', topics:['Raw text corpus','BPE tokenisation','Byte sizes per token','Chinchilla scaling laws']},
+  {id:'l1', h:'Topic 1 — token + positional embedding',    color:'#7F77DD', topics:['Lookup table','Vector as meaning','Positional encoding evolution','RoPE / YaRN']},
+  {id:'l2', h:'Topic 2 — embedding algorithms',            color:'#AFA9EC', topics:['CBOW','Skip-gram + negative sampling','GloVe','FastText subwords']},
+  {id:'l3', h:'Topic 3 — attention mechanism',             color:'#1D9E75', topics:['Scaled dot-product (Q K V)','Causal mask','Sliding window','GQA + FlashAttention']},
+  {id:'l4', h:'Topic 4 — transformer block',               color:'#5DCAA5', topics:['Feed-forward network','Layer normalisation','Residual connections','Stacking × N blocks']},
+  {id:'l5', h:'Topic 5 — architecture families',           color:'#378ADD', topics:['BERT / RoBERTa / DeBERTa','T5 / BART / mT5','GPT / Llama / Claude','Why decoder-only dominates']},
+  {id:'l6', h:'Topic 6 — output head',                     color:'#D85A30', topics:['Linear projection to logits','Softmax + sampling','Cross-entropy loss','Decoding strategies']},
+  {id:'l7', h:'Topic 7 — inference &amp; deployment',      color:'#378ADD', topics:['Prefill vs decode phases','KV cache + PagedAttention','Quantization INT4/INT8/AWQ/GPTQ','Speculative decoding · Continuous batching']},
+  {id:'l8', h:'Topic 8 — pretraining',                     color:'#993C1D', topics:['Next-token prediction','Scaling laws &amp; emergence','Continued pretraining','Data quality beats size']},
+  {id:'l9', h:'Topic 9 — training optimizations',          color:'#BA7517', topics:['AdamW optimizer','Mixed precision BF16','Warmup + cosine decay','ZeRO + gradient checkpointing']},
+  {id:'l10',h:'Topic 10 — SFT &amp; PEFT',                 color:'#639922', topics:['Supervised fine-tuning','LoRA low-rank adaptation','QLoRA 4-bit quantized','Adapters · DoRA · rsLoRA']},
+  {id:'l11',h:'Topic 11 — alignment (RLHF)',               color:'#534AB7', topics:['Bradley-Terry reward model','Best-of-N rejection sampling','PPO-KL and PPO-Clip','Direct preference optimisation']},
+  {id:'l12',h:'Topic 12 — reasoning training (RLVR)',      color:'#993556', topics:['GRPO algorithm','Verifiable rewards','Emergent reasoning behaviours','AIME / MATH / GPQA benchmarks']},
+  {id:'l13',h:'Topic 13 — frameworks &amp; tooling',        color:'#EF9F27', topics:['TRL full-stack alignment library','SFTTrainer → RewardTrainer → GRPOTrainer','Unsloth: 90% VRAM reduction','Reward rubrics · vLLM rollout · RLVR patience']},
+  {id:'l14',h:'Topic 14 — vision &amp; speech',            color:'#1D9E75', topics:['ViT image patches + CLS token','CLIP contrastive pretraining','Log-Mel spectrogram','Whisper encoder-decoder ASR','Cross-Attention Fusion','Any-to-Any Native Models']},
+  {id:'l15',h:'Topic 15 — VAE &amp; stable diffusion',     color:'#BA7517', topics:['Variational autoencoder','Latent space structure','Denoising diffusion process','Stable Diffusion (latent DM)','ControlNet &amp; Adapters','Flow Matching']},
+  {id:'l16',h:'Topic 16 – Ecosystem',                color:'#378ADD', topics:['Closed Frontier labs','Open-Weight Rebellion','AI Film Studios (Sora, Runway)','Emerging Titans','Hugging Face Model Hubs']},
+  {id:'l17',h:'Topic 17 – Workflows',                color:'#7F77DD', topics:['LangChain orchestration','Autonomous execution loops','Cursor & Contextual IDEs','Multi-agent problem swarms']},
+  {id:'l18',h:'Topic 18 – Hardware',                 color:'#1D9E75', topics:['PyTorch & CUDA abstractions','Ollama quantitative bypass','PagedAttention API serving','GPU compute cost mapping']},
+  {id:'l19',h:'Topic 19 – Future',                   color:'#EF9F27', topics:['The Data Wall','Interpretability constraints','Billion-dollar cluster compute','Post-transformer networks']}
+];
+
+function buildStack(){
+  const el=document.getElementById('stack');
+  LAYERS.slice(1).forEach((l,i)=>{
+    if(i>0){const a=document.createElement('div');a.className='stack-arrow';a.textContent='↓';el.appendChild(a);}
+    const row=document.createElement('div');row.className='stack-layer';row.onclick=()=>show(l.id);
+    const num=document.createElement('div');
+    num.className='stack-num';
+    num.style.cssText=`background:${l.color}22;color:${l.color};border:1px solid ${l.color}44`;
+    num.textContent=i;
+    const box=document.createElement('div');box.className='stack-box';
+    box.style.cssText=`background:${l.color}${l.isNew?'22':'11'};border-color:${l.color}${l.isNew?'':'55'};${l.isNew?'border-width:2px':''}`;
+    const newTag=l.isNew?` <span style="font-size:9px;font-weight:700;padding:1px 5px;background:#EF9F27;color:#fff;border-radius:3px;vertical-align:middle">NEW</span>`:'';
+    box.innerHTML=`<h3 style="color:${l.color}">${l.h}${newTag}</h3><p style="color:var(--text2)">${l.topics.join(' · ')}</p>`;
+    row.appendChild(num);row.appendChild(box);el.appendChild(row);
+  });
+}
+
+function show(id){
+  const target = document.getElementById('panel-'+id);
+  if(target && window.gsap) {
+    gsap.to(window, {
+      duration: 1, 
+      scrollTo: { y: target, offsetY: 0 }, 
+      ease: "power3.inOut"
+    });
+  } else if(target) {
+    target.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+buildStack();
+</script>
+</body>
+</html>

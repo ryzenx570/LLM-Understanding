@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QKV Matrix Projection</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+    padding-bottom: 50px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+  .arena {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: inset 0 10px 40px rgba(0,0,0,0.8);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Vector Input */
+  .embed-box {
+    text-align: center;
+    position: relative;
+    z-index: 10;
+  }
+  .vector {
+    display: inline-flex;
+    flex-direction: column;
+    background: #111;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 10px;
+    gap: 4px;
+    transition: all 0.5s;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+  }
+  .vec-cell {
+    width: 60px;
+    height: 25px;
+    background: #1a1a1a;
+    border: 1px solid #222;
+    color: #fff;
+    font-family: monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: background 0.3s;
+  }
+  .embed-label {
+    margin-top: 15px;
+    font-weight: bold;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+  
+  /* Matrices */
+  .matrices {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    position: relative;
+    z-index: 10;
+  }
+  .matrix-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.3; /* Inactive initially */
+    transform: translateY(20px);
+    transition: all 0.8s;
+  }
+  .matrix-block.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    background: #222;
+    padding: 5px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    position: relative;
+    overflow: hidden;
+  }
+  .m-cell {
+    width: 25px; height: 25px;
+    background: #111;
+    border-radius: 2px;
+  }
+  
+  .matrix-label {
+    margin-bottom: 10px;
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-style: italic;
+  }
+
+  /* Scanline effect */
+  .scanline {
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: #fff;
+    box-shadow: 0 0 10px #fff, 0 0 20px #fff;
+    opacity: 0;
+  }
+  
+  /* Specific styling per matrix */
+  .m-q .matrix { border-color: var(--pink-s); }
+  .m-q .matrix-label { color: var(--pink-t); }
+  .m-q .scanline { background: var(--pink-t); box-shadow: 0 0 10px var(--pink-t), 0 0 20px var(--pink-t); }
+  
+  .m-k .matrix { border-color: var(--amber-s); }
+  .m-k .matrix-label { color: var(--amber-t); }
+  .m-k .scanline { background: var(--amber-t); box-shadow: 0 0 10px var(--amber-t), 0 0 20px var(--amber-t); }
+  
+  .m-v .matrix { border-color: var(--teal-s); }
+  .m-v .matrix-label { color: var(--teal-t); }
+  .m-v .scanline { background: var(--teal-t); box-shadow: 0 0 10px var(--teal-t), 0 0 20px var(--teal-t); }
+
+  /* Output QKV Vectors */
+  .output-vectors {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    opacity: 0;
+    transition: opacity 1s;
+    position: relative;
+    z-index: 10;
+  }
+  .output-vectors.active { opacity: 1; }
+  
+  .ov-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .ov-block .vector { padding: 8px; border-width: 1px; }
+  .ov-q .vector { border-color: var(--pink-s); box-shadow: 0 0 15px rgba(212,83,126,0.3); }
+  .ov-k .vector { border-color: var(--amber-s); box-shadow: 0 0 15px rgba(186,117,23,0.3); }
+  .ov-v .vector { border-color: var(--teal-s); box-shadow: 0 0 15px rgba(29,158,117,0.3); }
+  
+  .ov-label {
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+  }
+  .ov-desc {
+    font-size: 11px;
+    color: #888;
+    margin-top: 5px;
+    text-align: center;
+    max-width: 120px;
+    line-height: 1.4;
+  }
+
+  /* Controls */
+  .controls {
+    text-align: center;
+    margin-top: 20px;
+  }
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--purple-s);
+    color: var(--text);
+    padding: 15px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+  .btn:hover { background: var(--purple-f); color: var(--purple-t); border-color: var(--purple-t); }
+
+  /* Data flow connections */
+  .flow-line {
+    position: absolute;
+    width: 2px;
+    background: dashed 2px #333;
+    z-index: 1;
+  }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>QKV Matrix Projection</h1>
+    <p>Before a token can pay attention to other words, it must split its single dense embedding into three distinct mathematical roles: <strong>Query</strong> (Q), <strong>Key</strong> (K), and <strong>Value</strong> (V). It does this by multiplying its embedding vector against three massive learned weight matrices ($W_Q$, $W_K$, $W_V$).</p>
+  </div>
+
+  <div class="arena" id="arena">
+    <!-- Top: The Embedding Vector -->
+    <div class="embed-box" id="step-1">
+      <div class="vector" id="embed-vector">
+        <div class="vec-cell">0.412</div>
+        <div class="vec-cell">-1.104</div>
+        <div class="vec-cell">0.893</div>
+        <div class="vec-cell">2.301</div>
+      </div>
+      <div class="embed-label">Token Embedding Vector (e.g. "king")</div>
+    </div>
+    
+    <!-- Middle: The Mats -->
+    <div class="matrices">
+      <!-- W_Q -->
+      <div class="matrix-block m-q" id="mat-q">
+        <div class="matrix-label">W<sub>Q</sub> Matrix</div>
+        <div class="matrix" id="grid-q">
+          <div class="scanline" id="scan-q"></div>
+          <!-- 16 cells -->
+        </div>
+      </div>
+      <!-- W_K -->
+      <div class="matrix-block m-k" id="mat-k">
+        <div class="matrix-label">W<sub>K</sub> Matrix</div>
+        <div class="matrix" id="grid-k">
+          <div class="scanline" id="scan-k"></div>
+        </div>
+      </div>
+      <!-- W_V -->
+      <div class="matrix-block m-v" id="mat-v">
+        <div class="matrix-label">W<sub>V</sub> Matrix</div>
+        <div class="matrix" id="grid-v">
+          <div class="scanline" id="scan-v"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bottom: QKV Vectors -->
+    <div class="output-vectors" id="step-3">
+      <div class="ov-block ov-q">
+        <div class="vector" id="out-q">
+           <div class="vec-cell">0.12</div><div class="vec-cell">0.45</div><div class="vec-cell">-0.9</div><div class="vec-cell">1.1</div>
+        </div>
+        <div class="ov-label" style="color:var(--pink-t)">Query (Q)</div>
+        <div class="ov-desc">"What I am looking for"</div>
+      </div>
+      
+      <div class="ov-block ov-k">
+        <div class="vector" id="out-k">
+           <div class="vec-cell">1.80</div><div class="vec-cell">-0.2</div><div class="vec-cell">0.31</div><div class="vec-cell">0.77</div>
+        </div>
+        <div class="ov-label" style="color:var(--amber-t)">Key (K)</div>
+        <div class="ov-desc">"What properties I contain"</div>
+      </div>
+      
+      <div class="ov-block ov-v">
+        <div class="vector" id="out-v">
+           <div class="vec-cell">-0.6</div><div class="vec-cell">2.34</div><div class="vec-cell">0.11</div><div class="vec-cell">-1.9</div>
+        </div>
+        <div class="ov-label" style="color:var(--teal-t)">Value (V)</div>
+        <div class="ov-desc">"My actual semantic payload"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="btn-run" onclick="runMatMul()">Apply Linear Projection (X · W)</button>
+  </div>
+</div>
+
+<script>
+  // Setup Grids
+  function fillGrid(id) {
+    const el = document.getElementById(id);
+    for(let i=0; i<16; i++) {
+        let cell = document.createElement('div');
+        cell.className = 'm-cell';
+        // Random opacity to look like weights
+        cell.style.opacity = 0.2 + Math.random() * 0.8;
+        el.appendChild(cell);
+    }
+  }
+  fillGrid('grid-q');
+  fillGrid('grid-k');
+  fillGrid('grid-v');
+
+  function scanAnimate(id) {
+    const scan = document.getElementById(id);
+    scan.style.opacity = 1;
+    let pos = 0;
+    const interval = setInterval(() => {
+        pos += 2;
+        scan.style.top = pos + '%';
+        if(pos >= 100) {
+            clearInterval(interval);
+            scan.style.opacity = 0;
+            scan.style.top = '0';
+        }
+    }, 15);
+  }
+
+  function runMatMul() {
+    const btn = document.getElementById('btn-run');
+    btn.disabled = true;
+    btn.style.opacity = 0.5;
+    
+    // Stage 1: Pulse input vector
+    const emb = document.getElementById('embed-vector');
+    emb.style.borderColor = "#fff";
+    emb.style.boxShadow = "0 0 20px #fff";
+    
+    setTimeout(() => {
+        emb.style.borderColor = "#333";
+        emb.style.boxShadow = "0 5px 20px rgba(0,0,0,0.5)";
+        
+        // Stage 2: Activate Matrices
+        ['mat-q', 'mat-k', 'mat-v'].forEach(id => document.getElementById(id).classList.add('active'));
+    }, 500);
+
+    // Stage 2.5: Matrix Sweep Animation (MatMul calculation)
+    setTimeout(() => {
+        scanAnimate('scan-q');
+        scanAnimate('scan-k');
+        scanAnimate('scan-v');
+    }, 1200);
+
+    // Stage 3: Reveal Output QKV
+    setTimeout(() => {
+        document.getElementById('step-3').classList.add('active');
+        btn.innerText = "Projection Complete";
+    }, 2200);
+
+  }
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_22'), 500);
+});
+</script>
+</body>
+</html>

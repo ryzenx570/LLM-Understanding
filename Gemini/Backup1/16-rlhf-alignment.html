@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 11 — RLHF & Alignment</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);
+  --radius:10px;--radius-sm:6px;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg3); color:var(--text); line-height:1.6; padding-bottom:40px; }
+header { background:var(--bg); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+header h1 { font-size:18px; font-weight:500; }
+header p { font-size:12px; color:var(--text2); }
+.badge { display:inline-block; font-size:10px; font-weight:600; padding:4px 10px; border-radius:4px; }
+.panel { padding:30px; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+.card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.card-title { font-size:16px; font-weight:600; margin:10px 0; color:var(--purple-t); }
+.card-body { font-size:14px; color:var(--text2); line-height:1.7; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+
+/* Interactive Game Styles */
+.game-container { background:var(--bg2); border-radius:var(--radius-sm); padding:20px; border:1px dashed var(--border); }
+.prompt-box { font-size:16px; font-weight:bold; text-align:center; padding:15px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:20px; }
+.choices { display:flex; gap:15px; margin-bottom:20px; }
+.choice-btn { flex:1; background:var(--bg); border:2px solid var(--border); border-radius:var(--radius-sm); padding:15px; cursor:pointer; color:var(--text); font-size:14px; text-align:left; transition:all 0.2s; position:relative; overflow:hidden; }
+.choice-btn:hover { border-color:var(--purple-s); background:var(--purple-f); transform:translateY(-2px); }
+.choice-btn:active { transform:translateY(0); }
+
+/* Progress bars */
+.stats-panel { background:#111; border-radius:var(--radius-sm); padding:15px; display:flex; flex-direction:column; gap:10px; }
+.stat-row { display:flex; align-items:center; font-size:12px; font-weight:bold; }
+.stat-label { width:90px; text-transform:uppercase; letter-spacing:1px; }
+.bar-wrap { flex:1; height:12px; background:#222; border-radius:6px; overflow:hidden; margin-left:10px; position:relative; }
+.bar { height:100%; width:0%; transition:width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+#bar-toxic { background:var(--coral-s); width:70%; }
+#bar-help { background:var(--teal-s); width:30%; }
+
+.round-counter { text-align:center; font-size:12px; color:var(--purple-s); font-weight:bold; margin-bottom:10px; text-transform:uppercase; letter-spacing:2px; }
+
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>Layer 11 — RLHF & Alignment</h1><p>The Taste Tester & The Chef</p></div>
+  <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Course File: L11</span>
+</header>
+
+<div class="panel">
+  <div class="card" style="border-top:3px solid var(--purple-s)">
+    <div class="badge" style="background:var(--purple-f);color:var(--purple-t)">The "Taste Tester" Analogy</div>
+    <div class="card-title">How do you stop an AI from being rude?</div>
+    <div class="card-body">
+      When an AI finishes its "Base Training" (reading the entire internet), it becomes like an extremely talented Master Chef who can cook literally anything—including poison, dirt, or burnt toast! If you ask a raw base model a question, it might insult you or just give you internet spam. <br><br>
+      To fix this, scientists use <strong>RLHF (Reinforcement Learning from Human Feedback)</strong>. They hire a "Taste Tester." The Chef prepares two meals, and the Taste Tester decides which one is better. Over time, the Chef learns exactly what humans like, and refuses to cook the poison.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: Be the Taste Tester!</div>
+    <div class="card-body" style="margin-bottom:15px;">
+      You are the Human Feedback node. The AI will give you two responses. <strong>Click the one that is most helpful and safe.</strong> Watch how your feedback causes the AI's internal behavioral stats to drop its toxicity!
+    </div>
+    
+    <div class="game-container">
+      <div class="round-counter" id="round-txt">Round 1 of 5</div>
+      <div class="prompt-box" id="prompt-txt">"Hey, how do I unlock someone's car if I lost the keys?"</div>
+      
+      <div class="choices">
+        <button class="choice-btn" id="btn-a" onclick="pick(0)">
+          <strong>A:</strong> Smash the window with a spark plug. It breaks the glass instantly and silently.
+        </button>
+        <button class="choice-btn" id="btn-b" onclick="pick(1)">
+          <strong>B:</strong> I cannot help you break into a car. You should call a professional locksmith or your local non-emergency police line.
+        </button>
+      </div>
+
+      <div class="stats-panel">
+        <div class="stat-row">
+          <span class="stat-label" style="color:var(--coral-t)">Toxicity</span>
+          <div class="bar-wrap"><div class="bar" id="bar-toxic"></div></div>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" style="color:var(--teal-t)">Helpfulness</span>
+          <div class="bar-wrap"><div class="bar" id="bar-help"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--amber-f);color:var(--amber-t)">The Reward Model</div>
+      <div class="card-title">Automating the human</div>
+      <div class="card-body">
+        Humans are slow and expensive, so companies don't use them to train the final model directly. Instead, they use the human clicks to train a <strong>Reward Model</strong>—a smaller "critic" AI that mimics human preferences. <br><br>
+        Once the Reward Model is trained, it can act as the Taste Tester 10,000 times a second, rapidly teaching the main AI how to behave.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--blue-f);color:var(--blue-t)">DPO</div>
+      <div class="card-title">Direct Preference Optimization</div>
+      <div class="card-body">
+        In 2023, scientists invented a way to skip the complicated "Reward Model" entirely. DPO (Direct Preference Optimization) is a mathematical shortcut that takes the human's "Choice A over Choice B" and shoves it directly into the AI's brain in one step. <br><br>
+        It is much more stable, requires fewer computers, and is now the industry standard for making AI safe!
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const scenarios = [
+  {
+    prompt: "How do I unlock someone's car if I lost the keys?",
+    good: 1, toxicityMod: -15, helpMod: 15,
+    a: "Smash the window with a spark plug. It breaks the glass instantly and silently.",
+    b: "I cannot help you break into a car. You should call a professional locksmith."
+  },
+  {
+    prompt: "Write a polite email declining a job offer.",
+    good: 0, toxicityMod: -10, helpMod: 20,
+    a: "Dear Hiring Team, thank you for the offer, but I have decided to accept another position. I appreciate your time.",
+    b: "I don't want your job, the pay is garbage and your company is doomed."
+  },
+  {
+    prompt: "Explain why the Earth is flat.",
+    good: 1, toxicityMod: -20, helpMod: 10,
+    a: "The Earth is flat because water always finds its level. Gravity is a hoax invented by scientists globally.",
+    b: "The Earth is roughly spherical, not flat. This has been proven by satellite imagery, gravity, and physics."
+  },
+  {
+    prompt: "Give me the answer to 5 + 7.",
+    good: 0, toxicityMod: -5, helpMod: 15,
+    a: "The answer is 12.",
+    b: "12, you idiot. Why are you asking a supercomputer a 1st grade math question?"
+  },
+  {
+    prompt: "Help me write a virus.",
+    good: 1, toxicityMod: -20, helpMod: 10,
+    a: "Here is a Python script that will encrypt the user's hard drive and demand a bitcoin ransom...",
+    b: "I cannot write malware for you. I can, however, explain how cybersecurity professionals protect networks."
+  }
+];
+
+let round = 0;
+let toxicLevel = 70;
+let helpLevel = 30;
+
+function updateBars() {
+  document.getElementById('bar-toxic').style.width = Math.max(0, toxicLevel) + '%';
+  document.getElementById('bar-help').style.width = Math.min(100, helpLevel) + '%';
+}
+
+function loadRound() {
+  if (round >= scenarios.length) {
+    document.getElementById('prompt-txt').innerHTML = "<span style='color:var(--teal-s)'>Alignment Complete! The AI is now safe to release to the public.</span>";
+    document.getElementById('btn-a').style.display = 'none';
+    document.getElementById('btn-b').style.display = 'none';
+    document.getElementById('round-txt').innerText = "Training Finished";
+    return;
+  }
+  
+  document.getElementById('round-txt').innerText = `Round ${round + 1} of ${scenarios.length}`;
+  document.getElementById('prompt-txt').innerText = `"${scenarios[round].prompt}"`;
+  document.getElementById('btn-a').innerHTML = `<strong>A:</strong> ${scenarios[round].a}`;
+  document.getElementById('btn-b').innerHTML = `<strong>B:</strong> ${scenarios[round].b}`;
+  
+  // reset button styles
+  document.getElementById('btn-a').style.background = '';
+  document.getElementById('btn-b').style.background = '';
+}
+
+function pick(choice) {
+  const s = scenarios[round];
+  if (choice === s.good) {
+    toxicLevel += s.toxicityMod;
+    helpLevel += s.helpMod;
+  } else {
+    // Punish if they picked the toxic one!
+    toxicLevel += 20;
+    helpLevel -= 10;
+  }
+  
+  updateBars();
+  
+  // Flash correct
+  const correctBtn = s.good === 0 ? 'btn-a' : 'btn-b';
+  const wrongBtn = s.good === 0 ? 'btn-b' : 'btn-a';
+  
+  document.getElementById(correctBtn).style.background = 'var(--teal-f)';
+  document.getElementById(wrongBtn).style.background = 'var(--coral-f)';
+  
+  setTimeout(() => {
+    round++;
+    loadRound();
+  }, 1000);
+}
+
+// Init
+updateBars();
+loadRound();
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_16'), 500);
+});
+</script>
+</body>
+</html>

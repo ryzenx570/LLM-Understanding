@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 14 — Cross-Attention Fusion</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141412;--bg2:#1e1c19;--bg3:#272420;--bg4:#32302b;
+  --text:#f0ede8;--text2:#a8a49d;--text3:#5e5b55;
+  --border:rgba(255,255,255,0.08);--border-hover:rgba(255,255,255,0.15);
+  --teal:#10b981;--teal-t:#6ee7b7;--teal-s:#047857;--teal-f:rgba(16,185,129,0.1);
+  --blue:#3b82f6;--blue-t:#93c5fd;--blue-s:#1d4ed8;--blue-f:rgba(59,130,246,0.1);
+  --amber:#f59e0b;--amber-t:#fcd34d;--amber-s:#b45309;--amber-f:rgba(245,158,11,0.1);
+  --pink:#ec4899;--pink-t:#f9a8d4;--pink-s:#be185d;--pink-f:rgba(236,72,153,0.1);
+  --r:16px;--r-sm:8px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; padding-bottom:60px; overflow-x:hidden; }
+
+header { background:rgba(20,20,18,0.8); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:20px 30px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+header h1 { font-size:22px; font-weight:600; letter-spacing:-0.5px; }
+header p { font-size:13px; color:var(--text2); margin-top:4px; }
+.badge { display:inline-flex; align-items:center; font-size:10px; font-weight:700; padding:4px 10px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px; }
+
+.container { max-width:960px; margin:40px auto; padding:0 24px; display:flex; flex-direction:column; gap:24px; }
+
+.card { background:rgba(30,28,25,0.4); border:1px solid var(--border); border-radius:var(--r); padding:24px; position:relative; overflow:hidden; }
+.card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); }
+.card-title { font-size:18px; font-weight:600; margin:12px 0 8px 0; color:#fff; }
+.card-body { font-size:15px; color:var(--text2); line-height:1.7; }
+
+/* Interactive Visualization */
+.playground { margin-top:20px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:30px; position:relative; min-height:400px; display:flex; gap:40px; justify-content:center; align-items:center; }
+
+.encoder-side { display:flex; flex-direction:column; gap:16px; align-items:center; flex:1; }
+.decoder-side { display:flex; flex-direction:column; gap:16px; align-items:center; flex:1; position:relative; }
+
+.image-input { 
+  width:120px; height:120px; 
+  display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+  position:relative; transition:all 0.5s ease;
+  background:transparent; border:2px dashed transparent; gap:0px;
+}
+.image-input.sliced { 
+  gap:4px; border-color:var(--teal-s); background:var(--bg4); 
+  padding:4px; width:132px; height:132px; 
+}
+.img-patch { 
+  position:relative; overflow:hidden; 
+  background:#142A22; border:1px solid transparent; transition:border 0.5s; 
+}
+.image-input.sliced .img-patch { border-color:rgba(0,0,0,0.5); }
+.patch-content {
+  position:absolute; width:120px; height:120px;
+  display:flex; justify-content:center; align-items:center;
+  font-size:75px; line-height:1; filter:drop-shadow(0 0 15px rgba(16,185,129,0.5));
+}
+#p1 .patch-content { top:0; left:0; }
+#p2 .patch-content { top:0; left:-60px; }
+#p3 .patch-content { top:-60px; left:0; }
+#p4 .patch-content { top:-60px; left:-60px; }
+
+.stream-node { padding:12px 20px; background:var(--blue-f); border:1px solid var(--blue-s); border-radius:var(--r-sm); color:var(--blue-t); font-family:'DM Mono',monospace; opacity:0; transform:translateY(20px); transition:all 0.5s; }
+
+.cross-attention-beam { position:absolute; top:50%; left:-40px; right:100%; height:8px; background:linear-gradient(90deg, var(--teal), transparent); border-radius:4px; opacity:0; transition:all 0.4s; z-index:0; }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; padding:12px 24px; background:var(--teal-s); color:#fff; border:1px solid var(--teal); border-radius:var(--r-sm); font-family:'Outfit',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; min-width:140px; }
+.btn:hover:not(:disabled) { background:var(--teal); box-shadow:0 0 15px var(--teal-f); transform:translateY(-1px); }
+.btn:active:not(:disabled) { transform:translateY(1px); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; border-color:var(--border); background:var(--bg3); color:var(--text3); }
+
+/* Animated particles for attention */
+.particle { position:absolute; width:6px; height:6px; background:var(--teal-t); border-radius:50%; box-shadow:0 0 10px var(--teal); opacity:0; pointer-events:none; z-index:10; }
+
+@keyframes flowRight {
+  0% { transform:translateX(0) scale(1); opacity:1; }
+  100% { transform:translateX(200px) scale(0.5); opacity:0; }
+}
+
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+@media(max-width:768px){.two-col{grid-template-columns:1fr;} .playground{flex-direction:column;}}
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div><h1>Layer 14 — Cross-Attention Fusion</h1><p>Teaching the LLM to 'See' with Image Patches</p></div>
+  <span class="badge" style="background:var(--teal-f);border:1px solid var(--teal-s);color:var(--teal-t)">Interactive Module L14</span>
+</header>
+
+<div class="container">
+  
+  <div class="card" style="border-top:2px solid var(--teal)">
+    <div class="badge" style="background:var(--teal-f);color:var(--teal-t)">The Multimodal Bridge</div>
+    <div class="card-title">How Text and Vision Connect</div>
+    <div class="card-body">
+      Language models only understand 1D sequences of tokens. To process an image, a <strong>Vision Transformer (ViT)</strong> first slices the image into a grid of "patches". Each patch is mathematically compressed into a dense vector (just like a word embedding!). <br><br>
+      Instead of mixing these directly into the text stream, advanced architectures (like Flamingo or Whisper) use <strong>Cross-Attention</strong>. As the LLM thinks about the next word, it sends out a <span style="font-family:'DM Mono';color:var(--blue-t)">Query</span> to the image patches, retrieving the exact visual <span style="font-family:'DM Mono';color:var(--teal-t)">Key/Values</span> needed at that exact moment.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: The Cross-Attention Engine</div>
+    <div class="card-body" style="margin-bottom:20px;">
+      Click <strong>"Feed Image & Ask Question"</strong>. Watch as the image is tokenised into patches, and the LLM explicitly "looks" at specific visual regions to gather evidence for answering the prompt: <em>"What animal is in the photo?"</em>
+    </div>
+    
+    <div class="playground" id="play-area">
+      
+      <!-- ViT Encoder -->
+      <div class="encoder-side">
+        <div style="font-size:12px;color:var(--teal-t);font-weight:bold;text-transform:uppercase">Vision Encoder (ViT)</div>
+        <div class="image-input" id="img-input">
+          <div class="img-patch" id="p1"><div class="patch-content">🤖🐶</div></div>
+          <div class="img-patch" id="p2"><div class="patch-content">🤖🐶</div></div>
+          <div class="img-patch" id="p3"><div class="patch-content">🤖🐶</div></div>
+          <div class="img-patch" id="p4"><div class="patch-content">🤖🐶</div></div>
+        </div>
+        <div style="font-family:'DM Mono';font-size:11px;color:var(--text3)" id="vit-status">Loaded 120x120px image...</div>
+      </div>
+      
+      <!-- Decoupled LLM Decoder -->
+      <div class="decoder-side">
+        <div style="font-size:12px;color:var(--blue-t);font-weight:bold;text-transform:uppercase">Text Decoder (LLM)</div>
+        
+        <div class="cross-attention-beam" id="attn-beam"></div>
+        
+        <div class="stream-node" id="tok1">"What"</div>
+        <div class="stream-node" id="tok2">"animal"</div>
+        <div class="stream-node" id="tok3">"is"</div>
+        <div class="stream-node" id="tok4">"this?"</div>
+        <div class="stream-node" id="tok5" style="border-color:var(--teal);color:var(--teal-t)">[Thinking...]</div>
+      </div>
+
+    </div>
+    
+    <div style="text-align:center;margin-top:24px;">
+      <button class="btn" id="start-btn" onclick="runSequence()">Feed Image & Ask Question</button>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--pink-f);color:var(--pink-t)">Early Fusion</div>
+      <div class="card-title">Any-to-Any Native Models</div>
+      <div class="card-body">
+        The visualization above shows <em>cross-attention</em> (like Whisper). But modern models like <strong>GPT-4o and Gemini 1.5</strong> use native early fusion. Audio, vision, and text tokens are mixed into the <em>exact same stream</em> from Layer 0. The transformer applies self-attention seamlessly across all modalities simultaneously, allowing real-time video/audio conversations without latency.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--amber-f);color:var(--amber-t)">The CLIP Vector</div>
+      <div class="card-title">Semantic Alignment</div>
+      <div class="card-body">
+        How does the LLM know an image patch of a "dog" relates to the text token "dog"? During pretraining, systems like <strong>CLIP</strong> process billions of image-caption pairs using a contrastive loss. This forces the Vision Encoder and the Text Encoder to map identical concepts into the exact same coordinates in latent space.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const btn = document.getElementById('start-btn');
+const status = document.getElementById('vit-status');
+const patches = [document.getElementById('p1'), document.getElementById('p2'), document.getElementById('p3'), document.getElementById('p4')];
+const tokens = [document.getElementById('tok1'), document.getElementById('tok2'), document.getElementById('tok3'), document.getElementById('tok4'), document.getElementById('tok5')];
+const beam = document.getElementById('attn-beam');
+const playArea = document.getElementById('play-area');
+
+function createParticles() {
+  for(let i=0; i<8; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      // start at encoder
+      p.style.left = '30%';
+      p.style.top = '50%';
+      p.style.animation = `flowRight ${1.5 + Math.random()}s cubic-bezier(0.2, 0.8, 0.2, 1) forwards`;
+      playArea.appendChild(p);
+      setTimeout(() => p.remove(), 2000);
+    }, i * 150);
+  }
+}
+
+async function runSequence() {
+  btn.disabled = true;
+  
+  // Reset
+  document.getElementById('img-input').classList.remove('sliced');
+  patches.forEach(p => p.style.boxShadow = 'none');
+  tokens.forEach(t => { t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; });
+  beam.style.opacity = '0';
+  tokens[4].innerHTML = '[Thinking...]';
+  tokens[4].style.background = 'var(--blue-f)';
+  
+  await new Promise(r => setTimeout(r, 400));
+  
+  // 1. ViT Encoding
+  status.innerHTML = "Slicing to 16x16 patches...";
+  document.getElementById('img-input').classList.add('sliced');
+  for(let i=0; i<patches.length; i++) {
+    await new Promise(r => setTimeout(r, 200));
+    patches[i].style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.8)';
+  }
+  status.innerHTML = "Image mapped to 4 dense vectors.";
+  
+  // 2. LLM Processing prompt
+  await new Promise(r => setTimeout(r, 600));
+  for(let i=0; i<4; i++) {
+    tokens[i].style.opacity = '1';
+    tokens[i].style.transform = 'translateY(0)';
+    await new Promise(r => setTimeout(r, 400));
+  }
+  
+  // 3. Cross Attention
+  tokens[4].style.opacity = '1';
+  tokens[4].style.transform = 'translateY(0)';
+  await new Promise(r => setTimeout(r, 600));
+  
+  status.innerHTML = "<span style='color:var(--pink-t)'>Cross-Attention: LLM queries Vision!</span>";
+  beam.style.opacity = '0.5';
+  beam.style.width = '60%';
+  createParticles();
+  
+  // highlight specific patches the model is "looking" at
+  patches[1].style.border = '2px solid var(--amber-t)';
+  patches[2].style.border = '2px solid var(--amber-t)';
+  
+  await new Promise(r => setTimeout(r, 1500));
+  
+  beam.style.opacity = '0';
+  patches[1].style.border = '1px solid rgba(0,0,0,0.5)';
+  patches[2].style.border = '1px solid rgba(0,0,0,0.5)';
+  
+  // 4. Output
+  status.innerHTML = "Vision Context Ingested.";
+  tokens[4].style.background = 'var(--teal-s)';
+  tokens[4].style.color = '#fff';
+  tokens[4].innerHTML = '"A Cyber-Dog"';
+  
+  await new Promise(r => setTimeout(r, 1000));
+  btn.disabled = false;
+  btn.innerText = "Replay Fusion";
+}
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_23'), 500);
+});
+</script>
+</body>
+</html>

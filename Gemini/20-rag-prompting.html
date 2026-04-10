@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retrieval-Augmented Generation (RAG)</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+  /* Grid Layout */
+  .rag-arena {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 30px;
+  }
+  @media (max-width: 768px) { .rag-arena { grid-template-columns: 1fr; } }
+  
+  .llm-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .db-side {
+    background: #0a0a0e;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--teal-s);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: inset 0 5px 20px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .box-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Chat UI */
+  .chat-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+  }
+  .msg {
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.5;
+    position: relative;
+  }
+  .msg.user { background: var(--blue-f); color: var(--blue-t); border: 1px solid var(--blue-s); margin-right: 20%; align-self: flex-start; }
+  .msg.bot { background: var(--purple-f); color: var(--purple-t); border: 1px solid var(--purple-s); margin-left: 20%; align-self: flex-end; }
+  .msg.err { background: var(--red-f); color: var(--red-t); border: 1px solid var(--red-s); margin-left: 20%; align-self: flex-end; }
+
+  /* Context Window */
+  .context-window {
+    background: #111;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 120px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .context-window.filled {
+    border-color: var(--teal-t);
+    background: var(--teal-f);
+  }
+  .context-doc {
+    background: var(--bg);
+    border: 1px solid var(--teal-s);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--teal-t);
+    opacity: 0;
+    transform: translateY(-20px);
+    margin-bottom:10px;
+  }
+
+  /* Vector DB internals */
+  .db-item {
+    background: #151515;
+    border: 1px solid #333;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: #888;
+    cursor: default;
+    transition: all 0.3s;
+    opacity: 1;
+  }
+  .db-item.target {
+    border-color: var(--teal-s);
+    color: var(--teal-t);
+  }
+  .db-item.sending {
+    background: var(--teal-f);
+    border-color: var(--teal-t);
+  }
+  .db-item.hidden-start {
+    opacity: 0.2;
+    transform: scale(0.9);
+  }
+  
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+    flex: 1;
+    text-align: center;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .btn.active-rag { border-color: var(--teal-t); background: var(--teal-f); color: var(--teal-t); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Particles */
+  .drone {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: var(--teal-t);
+    border-radius: 50%;
+    box-shadow: 0 0 20px var(--teal-t);
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0;
+  }
+
+  /* Ingestion Pipeline Arena */
+  .ingest-arena {
+    background: #0d0d11;
+    border: 1px solid var(--border);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border-top: 3px solid var(--amber-s);
+    position: relative;
+    overflow:hidden;
+  }
+  .ingest-nodes {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    position: relative;
+  }
+  
+  .doc-node {
+    border: 1px solid #444;
+    background: #1a1a20;
+    width: 80px; height: 100px;
+    border-radius: 6px;
+    display: flex; flex-direction:column; align-items:center; justify-content:center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    z-index: 2;
+  }
+  .doc-node span { font-size: 32px; }
+  .doc-node p { font-size: 10px; color: var(--text-muted); margin-top: 5px; text-align:center;}
+
+  .chunk-col {
+    display: flex; flex-direction: column; gap: 8px; z-index: 2;
+  }
+  .chunk-node {
+    background: var(--bg2); border: 1px dashed var(--amber-s); color: var(--amber-t);
+    padding: 8px; font-size: 11px; border-radius: 4px; width: 140px; text-align:left;
+    opacity: 0; transform: translateX(-20px);
+  }
+
+  .embedder-node {
+    border: 2px solid var(--purple-s); background: var(--purple-f);
+    padding: 20px 10px; border-radius: 8px; width: 120px; text-align:center;
+    z-index: 2; color: var(--purple-t); font-size: 12px; font-weight: bold;
+    opacity: 0;
+  }
+
+  .vec-col {
+    display: flex; flex-direction: column; gap: 8px; z-index: 2;
+  }
+  .vec-node {
+    background: #111; border: 1px solid var(--teal-s); color: var(--teal-t);
+    font-family: monospace; padding: 8px; font-size: 11px; border-radius: 4px; width: 150px; text-align:center;
+    opacity: 0; transform: translateX(-20px);
+  }
+
+  /* Connecting lines container */
+  .line-svg {
+    position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1; pointer-events: none;
+  }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>Retrieval-Augmented Generation (RAG)</h1>
+    <p>Large Language Models are frozen in time the day they finish training. If you ask them about proprietary data or recent events, they confidently hallucinate. <strong>RAG</strong> solves this by turning the system into an "open-book test". But first, data must be systematically parsed, <strong>chunked</strong>, transformed into mathematical <strong>vectors</strong>, and pushed into a dense Vector Database.</p>
+  </div>
+
+  <!-- INGESTION PIPELINE -->
+  <div class="ingest-arena">
+    <div class="box-title" style="color:var(--amber-t)">Step 1: Data Ingestion &amp; Chunking Pipeline</div>
+    <div class="ingest-nodes">
+      
+      <!-- Raw Doc -->
+      <div class="doc-node" id="i-doc">
+        <span>📄</span>
+        <p>Security<br>Manual.pdf</p>
+      </div>
+
+      <!-- Arrow 1 -->
+      <div style="color:#555; font-size:24px;">→</div>
+
+      <!-- Chunks -->
+      <div class="chunk-col">
+        <div class="chunk-node" id="c1">[Chunk 1] Dress code is business casual...</div>
+        <div class="chunk-node" id="c2" style="border-color:var(--teal-s); color:var(--teal-t)">[Chunk 2] The override passcode is OMEGA-9...</div>
+        <div class="chunk-node" id="c3">[Chunk 3] Cafeteria Taco Tuesday...</div>
+      </div>
+
+      <!-- Arrow 2 -->
+      <div style="color:#555; font-size:24px;">→</div>
+
+      <!-- Embedding Model -->
+      <div class="embedder-node" id="i-embed">
+        Embedding Model<br><span style="font-size:10px; font-weight:normal; opacity:0.8">text-embedding-3</span>
+      </div>
+
+      <!-- Arrow 3 -->
+      <div style="color:#555; font-size:24px;">→</div>
+
+      <!-- Vectors -->
+      <div class="vec-col">
+        <div class="vec-node" id="v1">[0.12, -0.99, 0.45, ...]</div>
+        <div class="vec-node" id="v2">[0.88, 0.21, -0.63, ...]</div>
+        <div class="vec-node" id="v3">[-0.41, 0.33, 0.17, ...]</div>
+      </div>
+      
+    </div>
+    
+    <div style="text-align: center; margin-top: 30px;">
+      <button class="btn" id="btn-ingest" onclick="runIngestion()" style="border-color:var(--amber-s); max-width: 300px;">Ingest PDF to Vector DB</button>
+    </div>
+  </div>
+
+  <!-- RAG ARENA -->
+  <div class="rag-arena">
+    <!-- Left side: LLM Execution -->
+    <div class="llm-side">
+      <div class="box-title">Step 2: Generation Context Window</div>
+      <div class="context-window" id="context-window">
+        <span style="color:#666; font-family:monospace; font-size:13px;" id="context-placeholder">System Prompt: You are a helpful assistant. Provide factual answers from the context.</span>
+        <div class="context-doc" id="context-doc-t2">
+          <strong>[Retrieved Document: Chunk 2]</strong><br>
+          "The top secret override passcode for the mainframe is: OMEGA-9."
+        </div>
+      </div>
+      
+      <div class="box-title">User Chat Interface</div>
+      <div class="chat-box" id="chat">
+        <!-- Messages go here -->
+      </div>
+      
+      <div class="btn-row">
+        <button class="btn" id="btn-ask" style="border-color:var(--blue-s); color:var(--blue-t);" onclick="askQuestion()" disabled>Ask: "What is the secret passcode?"</button>
+      </div>
+    </div>
+    
+    <!-- Right side: Vector DB -->
+    <div class="db-side" id="db-panel">
+      <div class="box-title" style="color:var(--teal-t)">Vector Database</div>
+      <div class="db-item hidden-start" id="db-1">[Doc 011] Quarterly Earnings 2025: Revenue up 14%...</div>
+      <div class="db-item hidden-start" id="db-c1">[Doc 501 / Chunk 1] Dress code is business...</div>
+      <div class="db-item target hidden-start" id="target-doc"><strong>[Doc 502 / Chunk 2] Security Protocol: The override passcode is OMEGA-9.</strong></div>
+      <div class="db-item hidden-start" id="db-c3">[Doc 503 / Chunk 3] Cafeteria Menu: Taco Tuesday...</div>
+      <div class="db-item hidden-start" id="db-2">[Doc 891] Holiday schedule updated for Dec...</div>
+      
+      <div class="drone" id="drone"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let ingested = false;
+  
+  // INGESTION ANIMATION
+  function runIngestion() {
+    if(ingested) return;
+    document.getElementById('btn-ingest').disabled = true;
+    document.getElementById('btn-ingest').innerText = "Processing Pipeline...";
+    
+    const tl = gsap.timeline();
+    
+    // 1. Shake PDF
+    tl.to("#i-doc", { x: 5, y: -5, yoyo: true, repeat: 5, duration: 0.1 });
+    
+    // 2. Chunks appear
+    tl.to(["#c1", "#c2", "#c3"], { opacity: 1, x: 0, stagger: 0.3, duration: 0.5, ease: "back.out(1.7)" });
+    
+    // 3. Embedder turns on
+    tl.to("#i-embed", { opacity: 1, boxShadow: "0 0 20px var(--purple-t)", duration: 0.5 }, "+=0.3");
+    
+    // 4. Vectors pop out
+    tl.to(["#v1", "#v2", "#v3"], { opacity: 1, x: 0, stagger: 0.2, duration: 0.5, ease: "power2.out" }, "+=0.2");
+    
+    // 5. Vectors fly into DB
+    tl.to(["#v1"], { opacity: 0, scale: 0.5, x: 200, duration: 0.5, ease: "power2.in" }, "+=0.5");
+    tl.to("#db-c1", { opacity: 1, scale: 1, duration: 0.3 }, "-=0.2");
+    
+    tl.to(["#v2"], { opacity: 0, scale: 0.5, x: 200, duration: 0.5, ease: "power2.in" });
+    tl.to("#target-doc", { opacity: 1, scale: 1, duration: 0.3 }, "-=0.2");
+    
+    tl.to(["#v3"], { opacity: 0, scale: 0.5, x: 200, duration: 0.5, ease: "power2.in" });
+    tl.to("#db-c3", { opacity: 1, scale: 1, duration: 0.3 }, "-=0.2");
+    
+    // Also reveal existing DB items to simulate a full DB
+    tl.to(["#db-1", "#db-2"], { opacity: 1, scale: 1, duration: 0.5 }, "-=0.3");
+    
+    tl.call(() => {
+      ingested = true;
+      document.getElementById('btn-ingest').innerText = "Ingestion Complete - DB Populated";
+      const btnAsk = document.getElementById('btn-ask');
+      btnAsk.disabled = false;
+      btnAsk.innerText = "Ask the LLM: 'What is the secret passcode?'";
+      
+      // Notify narrator
+      if (window.Narrator) { /* could play a success sound */ }
+    });
+  }
+
+  // CHAT EXECUTION
+  let chatBox = document.getElementById('chat');
+
+  function appendUser(txt) {
+    const el = document.createElement('div');
+    el.className = 'msg user';
+    el.innerText = txt;
+    chatBox.appendChild(el);
+  }
+  
+  function appendBot(txt, isErr) {
+    const el = document.createElement('div');
+    el.className = isErr ? 'msg err' : 'msg bot';
+    el.innerText = txt;
+    chatBox.appendChild(el);
+  }
+
+  function askQuestion() {
+    if(!ingested) return;
+    document.getElementById('btn-ask').disabled = true;
+    chatBox.innerHTML = ''; 
+    
+    // 1. User asks
+    appendUser("What is the secret passcode?");
+    
+    const targetDoc = document.getElementById('target-doc');
+    const drone = document.getElementById('drone');
+    
+    const tl = gsap.timeline();
+    
+    // Step A: Search highlights document (Cosine Similarity Match)
+    tl.to(targetDoc, { background: "var(--teal-f)", borderColor: "var(--teal-t)", duration: 0.4 }, "+=0.5");
+    
+    // Step B: Drone animation from DB to Context Window
+    tl.set(drone, {
+      opacity: 1,
+      x: 0,
+      y: targetDoc.offsetTop - 20
+    });
+    tl.to(drone, { 
+      x: -600, // Roughly flies across to left panel
+      y: -250, // Roughly up to context window
+      scale: 2,
+      duration: 1.2, 
+      ease: "power2.inOut" 
+    }, "+=0.3");
+    
+    // Step C: Document natively appears in context window
+    tl.to(drone, { opacity: 0, duration: 0.1 });
+    tl.call(() => { targetDoc.style.background = "#151515"; });
+    
+    tl.to("#context-window", { background: "var(--teal-f)", borderColor: "var(--teal-t)", duration: 0.3 });
+    tl.to("#context-doc-t2", { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.5)" });
+    
+    // Step D: LLM responds natively using the new context
+    tl.call(() => {
+      appendBot("Based on the provided security protocols, the override passcode is OMEGA-9.", false);
+      document.getElementById('btn-ask').disabled = false;
+      document.getElementById('btn-ask').innerText = "RAG Request Complete";
+    }, null, "+=0.8");
+  }
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_20'), 500);
+});
+</script>
+</body>
+</html>

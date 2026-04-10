@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transformer Architecture Families</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);--radius:10px;--radius-sm:6px;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+  --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+  --red-f:#501313;--red-s:#E24B4A;--red-t:#F7C1C1;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+  --pink-f:#4B1528;--pink-s:#D4537E;--pink-t:#F4C0D1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg3);color:var(--text);line-height:1.6;padding-bottom:40px}
+header{background:var(--bg);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;font-weight:500}
+header p{font-size:12px;color:var(--text2)}
+.tab-bar{display:flex;background:var(--bg3);border-bottom:1px solid var(--border);overflow-x:auto;padding:10px 20px 0;}
+.tab{padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--text2);transition:all .2s;white-space:nowrap;border-radius:var(--radius-sm) var(--radius-sm) 0 0;margin-right:5px;}
+.tab:hover{color:var(--text);background:var(--bg2);}
+.tab.on{color:var(--text);background:var(--bg);border-color:var(--border);}
+.panel{display:none;padding:30px;max-width:900px;margin:0 auto}
+.panel.on{display:flex;flex-direction:column;gap:20px;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:0px;box-shadow:0 4px 20px rgba(0,0,0,0.15);}
+.card-title{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text);}
+.card-body{font-size:14px;color:var(--text2);line-height:1.7;}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+@media(max-width:580px){.two,.three{grid-template-columns:1fr}}
+.paper{background:var(--bg2);border-left:3px solid var(--border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:9px 12px;margin-bottom:6px;font-size:12px;color:var(--text2)}
+.paper strong{color:var(--text);font-weight:500}
+/* architecture block diagrams */
+.arch{display:flex;flex-direction:column;gap:4px;align-items:center;flex:1;min-width:180px}
+.arch-title{font-size:13px;font-weight:600;text-align:center;margin-bottom:6px}
+.arch-block{width:100%;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid;font-size:11px;font-weight:500;text-align:center}
+.arch-arrow{font-size:14px;color:var(--text3)}
+.arch-input{background:var(--bg2);border-color:var(--border);color:var(--text2);font-size:10px}
+/* model cards grid */
+.model-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
+.model-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;border-top:3px solid var(--accent,#888)}
+.model-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.model-org{font-size:10px;color:var(--text3);margin-bottom:4px}
+.model-tags{display:flex;flex-wrap:wrap;gap:3px}
+.model-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text2)}
+/* comparison table */
+.cmp-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.cmp-table th{padding:8px 10px;text-align:left;background:var(--bg2);border:1px solid var(--border);font-weight:600;color:var(--text)}
+.cmp-table td{padding:7px 10px;border:1px solid var(--border);color:var(--text2);vertical-align:top}
+.cmp-table tr:hover td{background:var(--bg2)}
+.yes{color:var(--teal-t)}
+.no{color:var(--coral-t)}
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>Transformer Architecture Families</h1><p>Encoder-only · Encoder-decoder · Decoder-only — the three design choices that define every modern LLM</p></div>
+  <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Layer 5</span>
+</header>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">Full transformer</button>
+  <button class="tab"     onclick="showTab(1)">Encoder-only</button>
+  <button class="tab"     onclick="showTab(2)">Decoder-only</button>
+  <button class="tab"     onclick="showTab(3)">Why decoder wins</button>
+  <button class="tab"     onclick="showTab(4)">Model catalogue</button>
+</div>
+
+<!-- TAB 0: FULL TRANSFORMER -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The original 2017 design</span>
+    <div class="card-title">The encoder-decoder transformer — built for translation</div>
+    <div class="card-body">The original transformer (Vaswani et al. 2017) was designed for machine translation: take a sentence in German, understand it fully (encoder), then generate an English sentence word-by-word (decoder). This required two separate stacks of transformer blocks: the encoder with full bidirectional attention, and the decoder with causal attention plus a cross-attention bridge to the encoder.</div>
+  </div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+    <div class="arch">
+      <div class="arch-title" style="color:var(--teal-t)">Encoder stack</div>
+      <div class="arch-block arch-input">Input tokens + positional embedding</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Multi-head self-attention<br><span style="font-size:9px;font-weight:400">bidirectional — sees all tokens</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Add & Norm</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Feed-forward network</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Add & Norm</div>
+      <div class="arch-arrow">↓ × N</div>
+      <div class="arch-block" style="background:var(--teal-s);border-color:#0F6E56;color:#fff">Encoder output<br><span style="font-size:9px">rich context vectors</span></div>
+    </div>
+    <div style="display:flex;align-items:center;font-size:20px;color:var(--text3);padding-top:60px">→</div>
+    <div class="arch">
+      <div class="arch-title" style="color:var(--purple-t)">Decoder stack</div>
+      <div class="arch-block arch-input">Output tokens (shifted right)</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Masked self-attention<br><span style="font-size:9px;font-weight:400">causal — no future tokens</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Add & Norm</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)">Cross-attention<br><span style="font-size:9px;font-weight:400">Q from decoder, K+V from encoder</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Feed-forward + Norm</div>
+      <div class="arch-arrow">↓ × N</div>
+      <div class="arch-block" style="background:var(--purple-s);border-color:#534AB7;color:#fff">Softmax output<br><span style="font-size:9px">next token probabilities</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Cross-attention — the bridge</span>
+    <div class="card-title">How the decoder reads the encoder's understanding</div>
+    <div class="card-body">In cross-attention, the decoder generates Queries (Q) from its own tokens, but the Keys (K) and Values (V) come from the encoder's output. This lets the decoder ask "which part of the input is relevant right now?" at every generation step. Used in T5, BART, and Whisper (encoder reads audio, decoder generates text transcript using cross-attention to the encoder output).</div>
+  </div>
+
+  <div class="paper"><strong>Attention Is All You Need</strong> — Vaswani et al., Google Brain 2017 (arXiv:1706.03762). The original transformer paper. Introduced the encoder-decoder architecture, multi-head attention, positional encoding, and scaled dot-product attention. 90K+ citations.</div>
+</div>
+
+<!-- TAB 1: ENCODER-ONLY -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Encoder-only models</span>
+    <div class="card-title">Understanding-first — BERT and the bidirectional family</div>
+    <div class="card-body">Encoder-only models remove the decoder entirely. They use bidirectional attention — every token can attend to every other token in both directions simultaneously. This gives each token a deeply contextual representation that depends on the full input sentence. These models excel at understanding tasks: classification, named entity recognition, question answering (extractive), semantic similarity, and search.</div>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-bottom:12px">
+    <div class="arch" style="max-width:320px">
+      <div class="arch-title" style="color:var(--teal-t)">Encoder-only (BERT-style)</div>
+      <div class="arch-block arch-input">[CLS] token₁ token₂ … tokenN [SEP]</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Bidirectional self-attention<br><span style="font-size:9px;font-weight:400">no mask — sees left AND right context</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Feed-forward + Norm</div>
+      <div class="arch-arrow">↓ × N layers</div>
+      <div style="display:flex;gap:8px;width:100%">
+        <div class="arch-block" style="flex:1;background:var(--teal-s);border-color:#0F6E56;color:#fff;font-size:10px">[CLS] output<br>→ classification</div>
+        <div class="arch-block" style="flex:1;background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t);font-size:10px">Token outputs<br>→ NER / QA</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">BERT pretraining objectives</span>
+      <div class="card-body"><strong>Masked Language Modelling (MLM):</strong> Randomly mask 15% of tokens. Predict them from context in both directions. Enables bidirectional understanding impossible with causal masking.<br><br><strong>Next Sentence Prediction (NSP):</strong> Given two sentences A and B, predict whether B follows A in the original text. Teaches inter-sentence relationships. (Later shown to be less important than MLM.)</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Special tokens</span>
+      <div class="card-body"><strong>[CLS]</strong> — prepended to every input. Its final output vector is used for classification tasks. Analogous to ViT's CLS token (borrowed from BERT).<br><br><strong>[MASK]</strong> — replaces masked tokens during MLM pretraining.<br><br><strong>[SEP]</strong> — separates two segments (e.g. question vs passage in QA). Tells the model where one text ends and another begins.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Key encoder-only models</span>
+    <div class="card-body">
+      <strong>BERT-base (2018)</strong> — 110M params, 12 layers, 12 heads. The model that popularised pretraining for NLP. Google Search uses BERT variants to understand queries.<br><br>
+      <strong>RoBERTa (2019)</strong> — BERT trained more carefully: more data, longer training, larger batches, no NSP. Consistently outperforms original BERT. Became the standard baseline.<br><br>
+      <strong>DeBERTa (2020)</strong> — Disentangled attention: uses separate vectors for content and position. Microsoft. Often best-in-class on NLU benchmarks.<br><br>
+      <strong>ModernBERT (2024)</strong> — Updated BERT architecture with flash attention, RoPE, and a 8,192 token context window. Trained on 2T tokens. Represents the current state of encoder-only models.
+    </div>
+  </div>
+
+  <div class="paper"><strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</strong> — Devlin et al., Google 2018 (arXiv:1810.04805). MLM + NSP. Foundation of the BERT family. Fine-tuning BERT on 11 NLP tasks set new state of the art across all of them in 2018.</div>
+  <div class="paper"><strong>Exploring the Limits of Transfer Learning (T5)</strong> — Raffel et al., Google 2019 (arXiv:1910.10683). Encoder-decoder, text-to-text framing for every NLP task.</div>
+</div>
+
+<!-- TAB 2: DECODER-ONLY -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Decoder-only models</span>
+    <div class="card-title">Generation-first — GPT and the causal family</div>
+    <div class="card-body">Decoder-only models remove the encoder entirely. They use only causal (masked) self-attention — each token can only attend to tokens that came before it. This makes them natural text generators: given a context, they predict the next token, then the next, building up a response one token at a time. All modern frontier assistant models use this design.</div>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-bottom:12px">
+    <div class="arch" style="max-width:320px">
+      <div class="arch-title" style="color:var(--purple-t)">Decoder-only (GPT-style)</div>
+      <div class="arch-block arch-input">token₁ token₂ … tokenN</div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Causal self-attention<br><span style="font-size:9px;font-weight:400">upper-triangle mask — no future tokens</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Feed-forward + Norm</div>
+      <div class="arch-arrow">↓ × N layers</div>
+      <div class="arch-block" style="background:var(--purple-s);border-color:#534AB7;color:#fff">Linear + Softmax<br><span style="font-size:9px">next token probabilities</span></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-block arch-input" style="font-style:italic">tokenN+1 (sampled)</div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The causal mask</span>
+      <div class="card-body">The causal mask is an upper-triangular matrix of −∞. After softmax, −∞ becomes exactly 0 — so no attention flows from earlier positions to later ones. During training, all positions are computed simultaneously in one forward pass. At inference, each new token is generated one at a time, extending the context by 1 token per step.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The prompt IS the context</span>
+      <div class="card-body">Unlike encoder-decoder models which have a separate encoding phase, decoder-only models simply prepend the prompt to the generation. The model attends back to the prompt tokens causally. This is why "system prompts" work: they are just tokens that appear before the user's input in the same sequence.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Key decoder-only models</span>
+    <div class="card-body">
+      <strong>GPT-2 (2019)</strong> — 1.5B params, 48 layers. OpenAI. First model large enough to produce fluent multi-paragraph text. Released as "too dangerous" — now considered tiny.<br><br>
+      <strong>GPT-3 (2020)</strong> — 175B params. Few-shot learning emerged at this scale. The model that made people take LLMs seriously as general-purpose tools.<br><br>
+      <strong>Llama 3 (2024)</strong> — Meta. Open weights. 8B, 70B, and 405B variants. 15T training tokens, RoPE positional encoding, GQA. The dominant open-source base model family.<br><br>
+      <strong>Gemma 3 (2025)</strong> — Google. Small efficient models (1B–27B). Designed for consumer hardware. Strong on instruction following at small scale.<br><br>
+      <strong>Mistral / Mixtral</strong> — European. Sliding window attention (SWA) and mixture of experts (MoE). Mixtral-8×7B routes each token through 2 of 8 expert FFN layers.
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3: WHY DECODER WINS -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">The convergence of the field on decoder-only</span>
+    <div class="card-title">Why almost every frontier model is decoder-only</div>
+    <div class="card-body">In 2018–2020, the field was divided: BERT-family for understanding, GPT-family for generation, T5-family for both. By 2023, virtually every major assistant model — GPT-4, Claude, Gemini, Llama, Mistral — is decoder-only. Here is why.</div>
+  </div>
+
+  <table class="cmp-table">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th style="color:var(--teal-t)">Encoder-only (BERT)</th>
+        <th style="color:var(--amber-t)">Encoder-decoder (T5)</th>
+        <th style="color:var(--purple-t)">Decoder-only (GPT)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Can generate text</strong></td>
+        <td class="no">No (classification only)</td>
+        <td class="yes">Yes (encode then decode)</td>
+        <td class="yes">Yes (directly)</td>
+      </tr>
+      <tr>
+        <td><strong>Training objective</strong></td>
+        <td>MLM (masked tokens)</td>
+        <td>Denoising + seq2seq</td>
+        <td>Next-token prediction</td>
+      </tr>
+      <tr>
+        <td><strong>Scales to any text</strong></td>
+        <td>Limited (needs labels)</td>
+        <td>Moderate</td>
+        <td class="yes">Yes — any raw text</td>
+      </tr>
+      <tr>
+        <td><strong>Architecture complexity</strong></td>
+        <td>Simple</td>
+        <td>Complex (2 stacks + cross-attn)</td>
+        <td class="yes">Simple (1 stack)</td>
+      </tr>
+      <tr>
+        <td><strong>Works with RLHF</strong></td>
+        <td class="no">No (can't generate)</td>
+        <td>Yes but awkward</td>
+        <td class="yes">Natural fit</td>
+      </tr>
+      <tr>
+        <td><strong>Inference efficiency</strong></td>
+        <td>Fast (classification)</td>
+        <td>Slower (2 passes)</td>
+        <td>Fast (KV cache)</td>
+      </tr>
+      <tr>
+        <td><strong>Long context support</strong></td>
+        <td>Limited</td>
+        <td>Limited</td>
+        <td class="yes">Yes (RoPE, SWA, etc.)</td>
+      </tr>
+      <tr>
+        <td><strong>Example models</strong></td>
+        <td>BERT, RoBERTa, DeBERTa</td>
+        <td>T5, BART, FLAN-T5</td>
+        <td>GPT-4, Llama 3, Claude, Gemini</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card" style="margin-top:12px">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The key insight</span>
+    <div class="card-title">Decoder-only + RLHF = everything</div>
+    <div class="card-body">The breakthrough was realising that a decoder-only model, after pretraining on next-token prediction, can be converted into a useful assistant through SFT and RLHF — without any architecture changes. The prompt becomes the "encoder input" — the model attends to it causally before generating. This simplicity means all the engineering effort can go into scaling one architecture rather than maintaining two. The field converged on decoder-only as a result.</div>
+  </div>
+
+  <div class="paper"><strong>Language Models are Unsupervised Multitask Learners (GPT-2)</strong> — Radford et al., OpenAI 2019. Showed that a decoder-only model trained on next-token prediction develops zero-shot capabilities across many tasks without any task-specific fine-tuning.</div>
+  <div class="paper"><strong>Language Models are Few-Shot Learners (GPT-3)</strong> — Brown et al., OpenAI 2020 (arXiv:2005.14165). Demonstrated that scale + decoder-only + in-context learning (few-shot prompting) could match or exceed task-specific fine-tuned models.</div>
+</div>
+
+<!-- TAB 4: MODEL CATALOGUE -->
+<div class="panel" id="p4">
+  <div class="card">
+    <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The model landscape</span>
+    <div class="card-title">Key models from each architecture family — click a card to explore</div>
+    <div class="card-body">Every model below is a transformer at heart — the differences are in which components they use, what data they trained on, and what objectives they optimised for.</div>
+  </div>
+
+  <div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--teal-t)">Encoder-only</div>
+  <div class="model-grid" style="margin-bottom:16px">
+    <div class="model-card" style="--accent:var(--teal-s)">
+      <div class="model-name">BERT</div><div class="model-org">Google 2018</div>
+      <div class="model-tags"><span class="model-tag">110M</span><span class="model-tag">MLM</span><span class="model-tag">bidirectional</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--teal-s)">
+      <div class="model-name">RoBERTa</div><div class="model-org">Meta 2019</div>
+      <div class="model-tags"><span class="model-tag">125M</span><span class="model-tag">improved BERT</span><span class="model-tag">no NSP</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--teal-s)">
+      <div class="model-name">DeBERTa v3</div><div class="model-org">Microsoft 2021</div>
+      <div class="model-tags"><span class="model-tag">86M</span><span class="model-tag">disentangled</span><span class="model-tag">SOTA NLU</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--teal-s)">
+      <div class="model-name">ModernBERT</div><div class="model-org">HuggingFace 2024</div>
+      <div class="model-tags"><span class="model-tag">8K context</span><span class="model-tag">RoPE</span><span class="model-tag">2T tokens</span></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--amber-t)">Encoder-decoder</div>
+  <div class="model-grid" style="margin-bottom:16px">
+    <div class="model-card" style="--accent:var(--amber-s)">
+      <div class="model-name">T5</div><div class="model-org">Google 2019</div>
+      <div class="model-tags"><span class="model-tag">60M–11B</span><span class="model-tag">text-to-text</span><span class="model-tag">relative pos</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--amber-s)">
+      <div class="model-name">BART</div><div class="model-org">Meta 2019</div>
+      <div class="model-tags"><span class="model-tag">400M</span><span class="model-tag">denoising</span><span class="model-tag">summarisation</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--amber-s)">
+      <div class="model-name">FLAN-T5</div><div class="model-org">Google 2022</div>
+      <div class="model-tags"><span class="model-tag">instruction tuned</span><span class="model-tag">1800+ tasks</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--amber-s)">
+      <div class="model-name">Whisper</div><div class="model-org">OpenAI 2022</div>
+      <div class="model-tags"><span class="model-tag">39M–1.55B</span><span class="model-tag">speech</span><span class="model-tag">96 languages</span></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--purple-t)">Decoder-only</div>
+  <div class="model-grid">
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">GPT-3</div><div class="model-org">OpenAI 2020</div>
+      <div class="model-tags"><span class="model-tag">175B</span><span class="model-tag">few-shot</span><span class="model-tag">closed</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">GPT-4o</div><div class="model-org">OpenAI 2024</div>
+      <div class="model-tags"><span class="model-tag">multimodal</span><span class="model-tag">omni</span><span class="model-tag">closed</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Llama 3.3</div><div class="model-org">Meta 2024</div>
+      <div class="model-tags"><span class="model-tag">70B</span><span class="model-tag">open weights</span><span class="model-tag">RoPE</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Claude 3.7</div><div class="model-org">Anthropic 2025</div>
+      <div class="model-tags"><span class="model-tag">reasoning</span><span class="model-tag">200K ctx</span><span class="model-tag">closed</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Gemini 2.5</div><div class="model-org">Google 2025</div>
+      <div class="model-tags"><span class="model-tag">multimodal</span><span class="model-tag">1M ctx</span><span class="model-tag">closed</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Mistral 7B</div><div class="model-org">Mistral AI 2023</div>
+      <div class="model-tags"><span class="model-tag">7B</span><span class="model-tag">SWA</span><span class="model-tag">open</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">DeepSeek-R1</div><div class="model-org">DeepSeek 2025</div>
+      <div class="model-tags"><span class="model-tag">reasoning</span><span class="model-tag">GRPO</span><span class="model-tag">open</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Qwen 2.5</div><div class="model-org">Alibaba 2024</div>
+      <div class="model-tags"><span class="model-tag">0.5B–72B</span><span class="model-tag">multilingual</span><span class="model-tag">open</span></div>
+    </div>
+    <div class="model-card" style="--accent:var(--purple-s)">
+      <div class="model-name">Gemma 3</div><div class="model-org">Google 2025</div>
+      <div class="model-tags"><span class="model-tag">1B–27B</span><span class="model-tag">consumer HW</span><span class="model-tag">open</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+}
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_07'), 500);
+});
+</script>
+</body>
+</html>

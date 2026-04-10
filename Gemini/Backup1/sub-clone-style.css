@@ -1,0 +1,308 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #03080c;
+  --bg-gradient: radial-gradient(circle at 50% 50%, #0a1f2c 0%, #03080c 80%);
+  --text: #fdfbf7;
+  --text-muted: rgba(253, 251, 247, 0.6);
+  --accent: #D4AF37;
+  --border: rgba(255, 255, 255, 0.1);
+  --glass: rgba(255, 255, 255, 0.03);
+  --teal-f: #04342C; --teal-t: #9FE1CB;
+  --amber-f: #412402; --amber-t: #FAC775;
+  --pink-f: #4B1528; --pink-t: #F4C0D1;
+  --purple-f: #26215C; --purple-t: #CECBF6;
+  --blue-f: #042C53; --blue-t: #B5D4F4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* Hide original sidebar and header visually but keep them in DOM if needed, 
+   actually we will hide the old sidebar entirely */
+header, #sidebar { display: none !important; }
+
+#app {
+  display: block;
+}
+
+#content {
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  overflow: visible; /* Override original overflow-y:auto */
+}
+
+/* Fixed Animated Background Canvas */
+.bg-canvas {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--bg-gradient);
+  z-index: 0;
+}
+
+.bg-canvas .grain {
+  position: absolute; top:0; left:0; width:100%; height:100%;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Decorative abstract circles in background */
+.blob {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
+  z-index: 1; transition: all 1.5s ease-out;
+}
+.blob-1 { width: 400px; height: 400px; background: #0c447c; top: 10%; left: -10%; }
+.blob-2 { width: 500px; height: 500px; background: #4a1b0c; bottom: -10%; right: -10%; }
+
+/* Scroll Tracker / Progress */
+.scroll-tracker {
+  position: fixed;
+  left: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Increased from 12px for better spacing */
+}
+
+.tracker-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+}
+
+@keyframes flare {
+  0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.4); transform: scale(1.8); }
+  50% { box-shadow: 0 0 20px rgba(212, 175, 55, 1), 0 0 40px rgba(212, 175, 55, 0.6); transform: scale(2.4); background: #FFDF00; }
+  100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.4); transform: scale(1.8); }
+}
+
+.tracker-dot.active {
+  background: var(--accent);
+  animation: flare 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tracker-dot .label {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.tracker-dot:hover .label, .tracker-dot.active .label {
+  opacity: 1;
+  transform: translateY(-50%) translateX(5px);
+}
+
+/* Scrollytelling Panels */
+.panel {
+  display: flex !important; /* Override old hide/show logic */
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 120px 10% 120px 150px;
+  max-width: 1400px;
+  margin: 0 auto;
+  opacity: 0; /* JS will animate this */
+}
+
+/* Typography for panels */
+.panel-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(40px, 5vw, 70px);
+  font-weight: 400;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  letter-spacing: -1px;
+  /* Override inline colors securely */
+  color: #fff !important; 
+}
+
+.panel-sub {
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--text-muted);
+  max-width: 800px;
+  margin-bottom: 60px;
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* Grid for topics */
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+.topic {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  padding: 40px 30px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), background 0.5s ease;
+  border-top-width: 3px;
+}
+
+.topic:hover {
+  transform: translateY(-10px);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@keyframes fluid-float {
+  0% { transform: translateY(0) scale(1); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+  50% { transform: translateY(-15px) scale(1.05); box-shadow: 0 20px 35px rgba(0,0,0,0.6); }
+  100% { transform: translateY(0) scale(1); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+}
+
+.topic.fluid-box {
+  animation: fluid-float 4s ease-in-out infinite;
+  z-index: 1; /* Ensure floating above non-fluid boxes */
+  position: relative;
+}
+.topic.fluid-box:hover {
+  animation-play-state: paused;
+  transform: translateY(-20px) scale(1.08);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 45px rgba(0,0,0,0.8);
+  z-index: 10;
+}
+
+.topic-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  margin: 15px 0 10px 0;
+  color: var(--text);
+  font-weight: 400;
+}
+
+.topic-body {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.badge {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  font-size: 10px;
+  border-radius: 20px;
+  margin-bottom: 15px;
+}
+
+.paper {
+  margin-top: 20px;
+  background: transparent;
+  border-left: 1px solid var(--accent);
+  padding: 10px 20px;
+  font-style: italic;
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+}
+
+.overview-wrap {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Stack layer restyling */
+.stack-layer { align-items: center; margin-bottom: 12px; }
+.stack-box {
+  background: var(--glass) !important;
+  border: 1px solid var(--border) !important;
+  transition: all 0.3s;
+}
+.stack-box h3 { font-family: 'Playfair Display', serif; font-size: 18px; color: #fff !important; }
+.stack-box:hover { background: rgba(255,255,255,0.08) !important; transform: scale(1.02); }
+.stack-num { border: none !important; background: var(--accent) !important; color: #000 !important; }
+
+/* Course File fixes */
+a.course-file,
+a.course-file:link,
+a.course-file:visited,
+a.course-file:hover,
+a.course-file:active {
+  color: #fff !important;
+}
+
+a.course-file .badge {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  font-size: 11.5px !important; /* 15% larger than default 10px */
+}
+
+a.course-file .topic-title {
+  color: #fff !important;
+  font-size: 27.6px !important; /* 15% larger than 24px */
+}
+
+a.course-file .topic-body {
+  color: var(--text-muted) !important;
+}
+
+/* =========================================
+   Responsive Breakpoints for Mobile & Tablet
+   ========================================= */
+@media (max-width: 1024px) {
+  .panel {
+    padding: 100px 5% 100px 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 80px 5% 80px 60px;
+  }
+  .scroll-tracker {
+    left: 15px;
+  }
+  .tracker-dot .label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 60px 25px; /* Reclaim maximum horizontal space for phones */
+  }
+  .scroll-tracker {
+    display: none; /* Eliminate tracking dots completely on tiny screens */
+  }
+  .topic-grid {
+    grid-template-columns: 1fr; /* Force completely vertical stacking */
+  }
+  .panel-title {
+    font-size: 36px !important;
+  }
+  .panel-sub {
+    font-size: 15px;
+    margin-bottom: 40px;
+  }
+  .topic {
+    padding: 25px 20px;
+  }
+}

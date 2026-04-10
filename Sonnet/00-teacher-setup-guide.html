@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Setup Guide — LLM Curriculum</title>
+<style>
+  :root {
+    --bg:#ffffff; --bg2:#f5f4f0; --bg3:#eeedea;
+    --text:#1a1a18; --text2:#5f5e5a; --text3:#888780;
+    --border:rgba(0,0,0,0.12);
+    --purple:#3C3489; --purple-fill:#EEEDFE;
+    --teal:#085041; --teal-fill:#E1F5EE;
+    --amber:#633806; --amber-fill:#FAEEDA;
+    --coral:#4A1B0C; --coral-fill:#FAECE7;
+    --green:#27500A; --green-fill:#EAF3DE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1e1e1c; --bg2:#252522; --bg3:#2c2c29;
+      --text:#e8e6de; --text2:#a8a69e; --text3:#6e6c66;
+      --border:rgba(255,255,255,0.1);
+      --purple:#CECBF6; --purple-fill:#26215C;
+      --teal:#9FE1CB; --teal-fill:#04342C;
+      --amber:#FAC775; --amber-fill:#412402;
+      --coral:#F5C4B3; --coral-fill:#4A1B0C;
+      --green:#C0DD97; --green-fill:#173404;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: var(--bg3); color: var(--text); line-height: 1.7;
+         padding: 0 0 60px; }
+  .hero { background: var(--bg); border-bottom: 1px solid var(--border);
+          padding: 32px 40px; max-width: 860px; margin: 0 auto; }
+  .hero h1 { font-size: 24px; font-weight: 500; margin-bottom: 6px; }
+  .hero p { font-size: 14px; color: var(--text2); max-width: 620px; }
+  .main { max-width: 860px; margin: 0 auto; padding: 32px 40px; }
+  @media (max-width: 600px) { .hero, .main { padding: 20px; } }
+
+  h2 { font-size: 16px; font-weight: 500; margin: 32px 0 10px;
+       padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 14px; font-weight: 500; margin: 18px 0 6px; }
+  p  { font-size: 14px; color: var(--text2); margin-bottom: 10px; }
+  a  { color: var(--purple); }
+
+  .step-grid { display: grid; gap: 12px; margin: 16px 0; }
+  .step { background: var(--bg); border: 1px solid var(--border);
+          border-radius: 10px; padding: 16px 18px;
+          display: flex; gap: 14px; align-items: flex-start; }
+  .step-num { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+              display: flex; align-items: center; justify-content: center;
+              font-size: 13px; font-weight: 600; background: var(--purple-fill);
+              color: var(--purple); }
+  .step-body h3 { margin-top: 0; }
+  .step-body p  { margin-bottom: 4px; }
+
+  .file-list { background: var(--bg); border: 1px solid var(--border);
+               border-radius: 10px; overflow: hidden; margin: 16px 0; }
+  .file-row { display: flex; align-items: flex-start; gap: 14px;
+              padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .file-row:last-child { border-bottom: none; }
+  .file-num { font-size: 11px; font-weight: 600; padding: 2px 8px;
+              border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .file-body { flex: 1; }
+  .file-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; font-family: monospace; }
+  .file-desc { font-size: 12px; color: var(--text2); }
+
+  .tip { background: var(--teal-fill); border-left: 3px solid #1D9E75;
+         border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; }
+  .tip p { color: var(--teal); margin: 0; font-size: 13px; }
+  .warn { background: var(--amber-fill); border-left: 3px solid #EF9F27;
+          border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0; }
+  .warn p { color: var(--amber); margin: 0; font-size: 13px; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  @media (max-width: 600px) { .two { grid-template-columns: 1fr; } }
+  .option { background: var(--bg); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px; }
+  .option h3 { margin-top: 0; }
+  .option .tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+                 display: inline-block; margin-bottom: 8px; }
+  .tag-rec { background: var(--teal-fill); color: var(--teal); }
+  .tag-alt { background: var(--bg3); color: var(--text3); }
+  .tag-adv { background: var(--purple-fill); color: var(--purple); }
+
+  code { font-family: "Courier New", monospace; font-size: 12px;
+         background: var(--bg3); padding: 1px 5px; border-radius: 3px; }
+  .code-block { font-family: "Courier New", monospace; font-size: 12px;
+                background: var(--bg2); border: 1px solid var(--border);
+                border-radius: 8px; padding: 14px 16px; margin: 10px 0;
+                color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>Teacher setup guide — LLM curriculum</h1>
+  <p>Step-by-step instructions for deploying all interactive widgets to Google Classroom. No coding experience required.</p>
+</div>
+<div class="main">
+
+<h2>What you have</h2>
+<p>This curriculum consists of 8 standalone HTML files. Each file is completely self-contained — it requires no internet connection after the first download and works in any modern browser on any device including Chromebooks and phones.</p>
+
+<div class="file-list">
+  <div class="file-row">
+    <span class="file-num" style="background:var(--bg3);color:var(--text3)">00</span>
+    <div class="file-body">
+      <div class="file-name">00-teacher-setup-guide.html</div>
+      <div class="file-desc">This guide — keep for your own reference</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#EEEDFE;color:#3C3489">01</span>
+    <div class="file-body">
+      <div class="file-name">01-curriculum-layer-map.html</div>
+      <div class="file-desc">Master curriculum navigator — all 14 layers, clickable sidebar, topic cards, and paper annotations. Start here.</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#FAEEDA;color:#633806">02</span>
+    <div class="file-body">
+      <div class="file-name">02-pretraining-pipeline.html</div>
+      <div class="file-desc">Pretraining, training optimizations, SFT, and PEFT — 4-tab interactive widget</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#EEEDFE;color:#3C3489">03</span>
+    <div class="file-body">
+      <div class="file-name">03-rlhf-reasoning.html</div>
+      <div class="file-desc">RLHF alignment, PPO variants, DPO, GRPO, reasoning training, and benchmarks — 6-tab widget</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#E1F5EE;color:#085041">04</span>
+    <div class="file-body">
+      <div class="file-name">04-vision-speech.html</div>
+      <div class="file-desc">Vision Transformers and Speech Transformers — 10-slide interactive deck</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#FAEEDA;color:#633806">05</span>
+    <div class="file-body">
+      <div class="file-name">05-embedding-deepdive.html</div>
+      <div class="file-desc">Token bytes, positional encoding, corpus word map, scale comparison — 4-tab widget</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#EEEDFE;color:#3C3489">06</span>
+    <div class="file-body">
+      <div class="file-name">06-cbow-skipgram.html</div>
+      <div class="file-desc">CBOW and Skip-gram interactive animated explainer with negative sampling</div>
+    </div>
+  </div>
+  <div class="file-row">
+    <span class="file-num" style="background:#E6F1FB;color:#0C447C">07</span>
+    <div class="file-body">
+      <div class="file-name">07-architecture-families.html</div>
+      <div class="file-desc">Encoder-only, encoder-decoder, decoder-only — clickable architecture diagram with model cards</div>
+    </div>
+  </div>
+</div>
+
+<h2>Option A — Google Sites (recommended for most schools)</h2>
+<p>This is the smoothest path if your school uses Google Workspace. Students access everything through their school Google account with no extra logins.</p>
+
+<div class="step-grid">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>Create a new Google Site</h3>
+      <p>Go to <a href="https://sites.google.com" target="_blank">sites.google.com</a> and click the <strong>+</strong> button to create a new site. Give it a name like "LLM Curriculum" and choose a simple template.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>Add a page for each widget</h3>
+      <p>In the Pages panel on the right, click <strong>+ New page</strong> and name it (e.g. "Layer Map", "Pretraining Pipeline", etc.). Create one page per HTML file.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>Embed the HTML on each page</h3>
+      <p>On each page, click <strong>Insert → Embed</strong>. Switch from "URL" to <strong>Embed code</strong>. Open the HTML file in a text editor, select all the text, copy it, and paste it into the embed box. Click <strong>Next → Insert</strong>.</p>
+      <div class="warn"><p>The embed box has a character limit. If the HTML file is too large to paste, use the Google Drive method in Option B instead.</p></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h3>Resize the embed to fill the page</h3>
+      <p>Click the embed block you just inserted, then drag the resize handle to make it taller. Aim for at least 700px height so the widgets display properly without internal scrollbars.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h3>Publish the site</h3>
+      <p>Click <strong>Publish</strong> in the top-right corner. Set visibility to <strong>Anyone at your organisation</strong> (or public if your school allows). Copy the published URL.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <h3>Add the link to Google Classroom</h3>
+      <p>In Google Classroom, create a new <strong>Material</strong> or <strong>Assignment</strong>. Click <strong>Add → Link</strong> and paste the Google Sites URL. Students click the link and the full interactive curriculum opens in their browser.</p>
+    </div>
+  </div>
+</div>
+
+<h2>Option B — Google Drive (simplest, no setup)</h2>
+<p>Upload the HTML files directly to Google Drive and share the links. This works immediately but requires students to download each file to view it — it does not open in-browser from Drive.</p>
+
+<div class="step-grid">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>Upload files to Google Drive</h3>
+      <p>Drag all 8 HTML files into a folder in Google Drive. Right-click the folder → <strong>Share</strong> → set to <strong>Anyone with the link can view</strong>.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>Add files to Google Classroom</h3>
+      <p>In Google Classroom, create a Material. Click <strong>Add → Google Drive</strong> and select each file. Students click the file → <strong>Download</strong> → open in browser. Works on all devices.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tip"><p>Tip: rename the files with short descriptive names before uploading — for example "Layer Map.html" and "Pretraining Pipeline.html" — so students can identify them easily in Classroom.</p></div>
+
+<h2>Option C — GitHub Pages (permanent public URL)</h2>
+<p>The most durable solution. Creates a permanent public URL that never expires and works anywhere in the world without a school account. Requires a free GitHub account.</p>
+
+<div class="step-grid">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>Create a free GitHub account</h3>
+      <p>Go to <a href="https://github.com" target="_blank">github.com</a> and sign up. Free accounts include unlimited public repositories and GitHub Pages hosting.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>Create a new repository</h3>
+      <p>Click <strong>New repository</strong>. Name it <code>llm-curriculum</code>. Set it to <strong>Public</strong>. Check <strong>Add a README file</strong>. Click <strong>Create repository</strong>.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>Upload the HTML files</h3>
+      <p>In your new repository, click <strong>Add file → Upload files</strong>. Drag all 8 HTML files in. Rename <code>01-curriculum-layer-map.html</code> to <code>index.html</code> so it becomes the home page. Click <strong>Commit changes</strong>.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h3>Enable GitHub Pages</h3>
+      <p>Go to <strong>Settings → Pages</strong>. Under Source, select <strong>Deploy from a branch</strong>. Choose <strong>main</strong> branch, <strong>/ (root)</strong> folder. Click <strong>Save</strong>. Wait 2–3 minutes.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h3>Copy your permanent URL</h3>
+      <p>Your site is now live at <code>https://yourusername.github.io/llm-curriculum/</code>. Each file has its own URL: <code>https://yourusername.github.io/llm-curriculum/02-pretraining-pipeline.html</code> etc. Paste these into Google Classroom as link assignments.</p>
+    </div>
+  </div>
+</div>
+
+<h2>Recommended classroom workflow</h2>
+<div class="two">
+  <div class="option">
+    <span class="tag tag-rec">Start here</span>
+    <h3>Week 1 — Layer Map</h3>
+    <p>Use <code>01-curriculum-layer-map.html</code> as the course syllabus. Show students the full layer stack on day one. Return to it before each new unit so students see where each topic fits in the bigger picture.</p>
+  </div>
+  <div class="option">
+    <span class="tag tag-rec">Foundations</span>
+    <h3>Weeks 2–4 — Embedding &amp; Attention</h3>
+    <p>Work through files 05 (Embedding deep-dive) and 06 (CBOW/Skip-gram) to build intuition for vectors, then use file 07 (Architecture families) to show how attention combines everything.</p>
+  </div>
+  <div class="option">
+    <span class="tag tag-alt">Mid-course</span>
+    <h3>Weeks 5–7 — Training</h3>
+    <p>Use file 02 (Pretraining pipeline) to cover all four training stages: pretraining, training optimizations, SFT, and PEFT. This is the most technically dense unit — allocate extra time.</p>
+  </div>
+  <div class="option">
+    <span class="tag tag-alt">Advanced</span>
+    <h3>Weeks 8–10 — Alignment &amp; Reasoning</h3>
+    <p>File 03 (RLHF and reasoning) covers PPO, DPO, GRPO, and the benchmarks used to evaluate reasoning models. Pairs well with current AI news about model releases.</p>
+  </div>
+  <div class="option">
+    <span class="tag tag-adv">Extension</span>
+    <h3>Weeks 11–12 — Multimodal</h3>
+    <p>File 04 (Vision &amp; Speech) rounds out the course by showing how the transformer architecture extends to images and audio. A natural ending point connecting back to Layer 12 on the layer map.</p>
+  </div>
+  <div class="option">
+    <span class="tag tag-adv">Reference</span>
+    <h3>Throughout — Paper annotations</h3>
+    <p>Every topic card in the layer map (file 01) includes the original research paper with arXiv link. Encourage advanced students to read the abstracts. Many papers are surprisingly readable once students understand the concepts.</p>
+  </div>
+</div>
+
+<h2>Technical notes for IT / administrators</h2>
+<p>All HTML files are completely self-contained. They have no external dependencies, make no network requests, store no data, and require no authentication. They are safe to host on any school web server or Google Sites instance.</p>
+<p>The files use only standard HTML5, CSS3, and vanilla JavaScript. They have been tested and work correctly in Chrome, Firefox, Safari, and Edge on Windows, macOS, iOS, and Android. They work on Chromebooks via the Chrome browser.</p>
+<p>There are no cookies, no tracking, no analytics, no third-party scripts, and no user data collection of any kind.</p>
+
+<div class="tip"><p>If your school's Content Security Policy blocks inline scripts, the interactive features will not work on a school-hosted server. GitHub Pages and Google Sites both allow inline scripts and are the recommended hosting options.</p></div>
+
+<h2>Getting help</h2>
+<p>If any of the files do not display correctly, the most common cause is that the browser is opening the file as plain text rather than rendering it as HTML. Make sure the file is opened with <strong>File → Open</strong> in the browser (not double-clicked to open in a text editor). The file extension must end in <code>.html</code>.</p>
+<p>For Google Sites embed issues, try pasting the HTML into a plain text editor first to verify it copied correctly, then paste from the text editor into Google Sites.</p>
+
+</div>
+</body>
+</html>

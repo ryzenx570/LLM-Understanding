@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Inference — The Highway Simulator</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+  
+  .controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.3s;
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .btn.active {
+    background: var(--purple-f);
+    color: var(--purple-t);
+    border-color: var(--purple-t);
+  }
+
+  .highway-container {
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    height: 350px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 10px 30px rgba(0,0,0,0.8);
+  }
+  
+  /* The lanes */
+  .lane {
+    position: absolute;
+    left: 0; right: 0;
+    height: 80px;
+    border-bottom: 2px dashed rgba(255,255,255,0.15);
+  }
+  .lane-0 { top: 50px; }
+  .lane-1 { top: 150px; }
+  .lane-2 { top: 250px; border-bottom: none; }
+  
+  .lane-label {
+    position: absolute;
+    left: 20px;
+    top: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Vehicles */
+  .vehicle {
+    position: absolute;
+    background: var(--purple-s);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: transform 0.1s;
+  }
+  
+  .vehicle.car { width: 50px; height: 30px; background: var(--purple-t); border: 2px solid var(--purple-s); }
+  .vehicle.truck { width: 140px; height: 40px; background: var(--teal-t); border: 2px solid var(--teal-s); }
+  .vehicle.scooter { width: 30px; height: 20px; background: var(--amber-t); border: 1px solid var(--amber-s); font-size: 10px; border-radius: 10px; }
+  
+  .vehicle.ghost { opacity: 0.3; }
+  
+  /* Explanatory overlay */
+  .hud {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(5px);
+    width: 250px;
+  }
+  .hud-title { font-size: 14px; color: var(--accent); font-weight: 600; margin-bottom: 5px; }
+  .hud-text { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .stats { font-size: 24px; font-weight: bold; color: #fff; margin-top: 10px; font-family: monospace; }
+  .stats span { font-size: 12px; color: var(--text-muted); font-weight: normal; font-family: 'Inter', sans-serif;}
+
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>The Inference Highway</h1>
+    <p>Generating tokens requires running the entire transformer neural network for every single word. See why native generation is slow, how the KV Cache prevents redundant work, and how Speculative Decoding uses a smaller model to predict the future.</p>
+  </div>
+
+  <div class="controls">
+    <div class="btn active" id="btn-standard" onclick="setMode('standard')">No KV Cache<br><span style="font-size: 11px; opacity: 0.7;">Redundant Computation</span></div>
+    <div class="btn" id="btn-kv" onclick="setMode('kv')">KV Cache<br><span style="font-size: 11px; opacity: 0.7;">State Reuse</span></div>
+    <div class="btn" id="btn-speculative" onclick="setMode('speculative')">Speculative Decoding<br><span style="font-size: 11px; opacity: 0.7;">Draft & Validate</span></div>
+  </div>
+
+  <div class="highway-container" id="highway">
+    <div class="hud">
+      <div class="hud-title" id="hud-title">Standard Generation</div>
+      <div class="hud-text" id="hud-text">The model recalculates all previous tokens on every step. O(N²) scaling leads to massive traffic jams.</div>
+      <div class="stats" id="tok-sec">2.1 <span>tokens/sec</span></div>
+    </div>
+    
+    <div class="lane lane-0"><div class="lane-label">Past Context Layer</div></div>
+    <div class="lane lane-1"><div class="lane-label">Generation Layer</div></div>
+    <div class="lane lane-2"><div class="lane-label">Validation Layer (Speculative)</div></div>
+  </div>
+</div>
+
+<script>
+  let mode = 'standard';
+  const highway = document.getElementById('highway');
+  const hudTitle = document.getElementById('hud-title');
+  const hudText = document.getElementById('hud-text');
+  const tokSec = document.getElementById('tok-sec');
+  
+  let vehicles = [];
+  let tokenCount = 0;
+  let lastSpawn = 0;
+  let speedMultiplier = 1;
+  let rafId;
+  let laneOffset = 0; // Simulate camera moving forward
+  let draftTokens = []; // Track speculative draft tokens
+
+  const CONFIG = {
+    standard: {
+      speed: 1.5,
+      rate: 2.1,
+      title: "O(N²) Traffic Jam",
+      desc: "Without KV Cache, the model recalculates every single word generated so far to produce the next one. Traffic rapidly builds up.",
+      spawnInterval: 1200
+    },
+    kv: {
+      speed: 3.5,
+      rate: 28.4,
+      title: "KV Cache Enabled",
+      desc: "Prior Key-Value pairs are stored in GPU memory. Only the newest token is processed, acting as an express lane. Memory bounds replace compute bounds.",
+      spawnInterval: 400
+    },
+    speculative: {
+      speed: 5.0,
+      rate: 65.2,
+      title: "Speculative Decoding",
+      desc: "A tiny 'scooter' model drafts 3-4 future tokens instantly. The massive 70B 'truck' model validates all of them simultaneously in one batch, doubling speed.",
+      spawnInterval: 1500
+    }
+  };
+
+  function setMode(newMode) {
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + newMode).classList.add('active');
+    mode = newMode;
+    
+    hudTitle.innerText = CONFIG[mode].title;
+    hudText.innerText = CONFIG[mode].desc;
+    tokSec.innerHTML = CONFIG[mode].rate.toFixed(1) + ' <span>tokens/sec</span>';
+    
+    // Clear highway
+    vehicles.forEach(v => v.el.remove());
+    vehicles = [];
+    draftTokens = [];
+    tokenCount = 0;
+  }
+
+  function spawnVehicle(type, lane, x, text, isGhost = false) {
+    const el = document.createElement('div');
+    el.className = `vehicle ${type} ${isGhost ? 'ghost' : ''}`;
+    el.innerText = text;
+    highway.appendChild(el);
+    
+    const yMap = {0: 70, 1: 170, 2: 270};
+    const v = { el, x, lane, y: yMap[lane], speed: CONFIG[mode].speed, type };
+    vehicles.push(v);
+    return v;
+  }
+
+  function animate(time) {
+    laneOffset -= CONFIG[mode].speed * 2; 
+    
+    // Manage spawning based on mode
+    if (time - lastSpawn > CONFIG[mode].spawnInterval) {
+      tokenCount++;
+      lastSpawn = time;
+      
+      if (mode === 'standard') {
+        // Spawn the new token in layer 1
+        spawnVehicle('car', 1, 800, 'T'+tokenCount);
+        // Spawn ALL historical tokens drifting back to represent redundant compute
+        for (let i = 1; i < tokenCount; i++) {
+          spawnVehicle('car', 0, 800 - (tokenCount - i) * 60, 'T'+i, true);
+        }
+      } 
+      else if (mode === 'kv') {
+        // Spawn just the new token. Past is stored lazily (offscreen/cache)
+        spawnVehicle('car', 1, 800, 'T'+tokenCount);
+        if (tokenCount > 1) {
+            spawnVehicle('car', 0, 800 - 60, 'KV', true);
+        }
+      }
+      else if (mode === 'speculative') {
+        // Spawn scooter sending draft tokens
+        spawnVehicle('scooter', 1, 700, 's1');
+        spawnVehicle('scooter', 1, 740, 's2');
+        spawnVehicle('scooter', 1, 780, 's3');
+        spawnVehicle('scooter', 1, 820, 's4');
+        
+        // Spawn BIG truck validating them
+        setTimeout(() => {
+          spawnVehicle('truck', 2, 700, 'BATCH VALIDATE (x4)');
+          tokenCount += 4;
+          tokSec.innerHTML = (CONFIG[mode].rate + (Math.random()*4)).toFixed(1) + ' <span>tokens/sec</span>';
+        }, 300);
+      }
+    }
+
+    // Update positions
+    vehicles.forEach((v, index) => {
+      v.x -= CONFIG[mode].speed;
+      v.el.style.transform = `translate(${v.x}px, ${v.y}px)`;
+      
+      if (v.x < -200) {
+        v.el.remove();
+        vehicles.splice(index, 1);
+      }
+    });
+
+    rafId = requestAnimationFrame(animate);
+  }
+
+  // Init
+  setMode('standard');
+  rafId = requestAnimationFrame(animate);
+
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_17'), 500);
+});
+</script>
+</body>
+</html>

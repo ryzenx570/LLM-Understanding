@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 15 — Latent Space Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141412;--bg2:#1e1c19;--bg3:#272420;--bg4:#32302b;
+  --text:#f0ede8;--text2:#a8a49d;--text3:#5e5b55;
+  --border:rgba(255,255,255,0.08);--border-hover:rgba(255,255,255,0.15);
+  --teal:#10b981;--teal-t:#6ee7b7;--teal-s:#047857;--teal-f:rgba(16,185,129,0.1);
+  --blue:#3b82f6;--blue-t:#93c5fd;--blue-s:#1d4ed8;
+  --amber:#f59e0b;--amber-t:#fcd34d;--amber-s:#b45309;--amber-f:rgba(245,158,11,0.1);
+  --pink:#ec4899;--pink-t:#f9a8d4;--pink-s:#be185d;--pink-f:rgba(236,72,153,0.1);
+  --r:16px;--r-sm:8px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; padding-bottom:60px; overflow-x:hidden; }
+
+header { background:rgba(20,20,18,0.8); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:20px 30px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+header h1 { font-size:22px; font-weight:600; letter-spacing:-0.5px; }
+header p { font-size:13px; color:var(--text2); margin-top:4px; }
+.badge { display:inline-flex; align-items:center; font-size:10px; font-weight:700; padding:4px 10px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px; }
+
+.container { max-width:960px; margin:40px auto; padding:0 24px; display:flex; flex-direction:column; gap:24px; }
+
+.card { background:rgba(30,28,25,0.4); border:1px solid var(--border); border-radius:var(--r); padding:24px; position:relative; overflow:hidden; }
+.card-title { font-size:18px; font-weight:600; margin:12px 0 8px 0; color:#fff; }
+.card-body { font-size:15px; color:var(--text2); line-height:1.7; }
+
+/* Interactive Visualization */
+.playground { margin-top:20px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:30px; display:flex; gap:40px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+
+/* 2D Grid */
+.grid-container { width:300px; height:300px; background:var(--bg4); border:2px solid var(--border); border-radius:var(--r-sm); position:relative; cursor:crosshair; box-shadow:inset 0 0 20px rgba(0,0,0,0.5); }
+
+.axis-x { position:absolute; top:50%; left:0; right:0; height:1px; background:rgba(255,255,255,0.2); }
+.axis-y { position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(255,255,255,0.2); }
+
+.grid-label { position:absolute; font-size:10px; font-weight:bold; color:var(--text2); text-transform:uppercase; letter-spacing:1px; }
+.gl-top { top:8px; left:50%; transform:translateX(-50%); }
+.gl-bottom { bottom:8px; left:50%; transform:translateX(-50%); }
+.gl-left { left:8px; top:50%; transform:translateY(-50%); }
+.gl-right { right:8px; top:50%; transform:translateY(-50%); }
+
+.puck { position:absolute; width:20px; height:20px; background:var(--amber-t); border:2px solid #fff; border-radius:50%; transform:translate(-50%, -50%); box-shadow:0 0 15px var(--amber-s); pointer-events:none; transition:width 0.1s, height 0.1s; }
+
+/* Output screen */
+.output-display { flex:1; min-width:260px; height:300px; background:linear-gradient(135deg, var(--bg3), var(--bg)); border:1px solid var(--border); border-radius:var(--r-sm); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+
+.emoji-render { font-size:120px; line-height:1; filter:drop-shadow(0 10px 10px rgba(0,0,0,0.5)); transition:all 0.15s; }
+.pos-vector { position:absolute; bottom:20px; font-family:'DM Mono',monospace; font-size:13px; color:var(--amber-t); background:rgba(0,0,0,0.3); padding:4px 12px; border-radius:12px; }
+
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+@media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div><h1>Layer 15 — Latent Space Explorer</h1><p>Moving through the mathematics of imagination</p></div>
+  <span class="badge" style="background:var(--amber-f);border:1px solid var(--amber-s);color:var(--amber-t)">Interactive Module L15</span>
+</header>
+
+<div class="container">
+  
+  <div class="card" style="border-top:2px solid var(--amber-s)">
+    <div class="badge" style="background:var(--amber-f);color:var(--amber-t)">The VAE Zip File</div>
+    <div class="card-title">What is a Latent Space?</div>
+    <div class="card-body">
+      Instead of operating on raw pixels (which are heavy and slow), Stable Diffusion uses a <strong>Variational Autoencoder (VAE)</strong> to compress images down by 8x. But it doesn't compress them like a JPEG.<br><br>
+      It compresses them into a continuous <strong>Latent Space</strong>. In this mathematical coordinate system, similar concepts group together. If you move from the "Dog" coordinate towards the "Cat" coordinate, you will smoothly interpolate through fox-like creatures! There are no visual "errors" — the space itself is meaningful.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: Drag to Explore</div>
+    <div class="card-body" style="margin-bottom:20px;">
+      Imagine a tiny 2-Dimensional Latent Space. The X-axis represents the texture (Fluffy vs Scaley) and the Y-axis represents the scale (Small vs Large). Drag your mouse around the grid to watch the VAE dynamically generate the corresponding image!
+    </div>
+    
+    <div class="playground">
+      
+      <!-- Coordinate input -->
+      <div>
+        <div class="grid-container" id="grid">
+          <div class="axis-x"></div>
+          <div class="axis-y"></div>
+          <div class="grid-label gl-top">Large Scale</div>
+          <div class="grid-label gl-bottom">Small Scale</div>
+          <div class="grid-label gl-left">Fluffy / Soft</div>
+          <div class="grid-label gl-right">Scaley / Hard</div>
+          <div class="puck" id="puck" style="left:50%; top:50%;"></div>
+        </div>
+      </div>
+      
+      <!-- Generated Output -->
+      <div class="output-display">
+        <div style="position:absolute;top:20px;color:var(--text2);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">VAE Decoder Output</div>
+        <div class="emoji-render" id="render">🐶</div>
+        <div class="pos-vector" id="vector">z = [0.00, 0.00]</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--pink-f);color:var(--pink-t)">Structural Rules</div>
+      <div class="card-title">ControlNet</div>
+      <div class="card-body">
+        While the standard Latent Space is great for random generation, we often want specific compositions. <strong>ControlNet</strong> adds spatial conditioning. You can pass a stick-figure pose or a depth-map as an extra input. The diffusion process is then mathematically locked into generating the image inside those structural boundaries.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--teal-f);color:var(--teal-t)">Next-Gen Diffusion</div>
+      <div class="card-title">Flow Matching & Consistency Models</div>
+      <div class="card-body">
+        Standard Diffusion takes 20-50 steps of iterative denoising to produce an image. New mathematical approaches like <strong>Flow Matching</strong> and <strong>Consistency Models</strong> map the path from noise to image in straight lines rather than curved paths. This allows high-quality generation in just 1 to 4 steps, fundamentally changing real-time rendering.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const grid = document.getElementById('grid');
+const puck = document.getElementById('puck');
+const render = document.getElementById('render');
+const vector = document.getElementById('vector');
+
+let isDragging = false;
+
+// 2D Latent space conceptual grid
+// x: -1 (Fluffy) to 1 (Scaley)
+// y: -1 (Large) to 1 (Small) (inverted for screen coords)
+
+function updateLatentSpace(x, y) {
+  // map 0-300 to -1 to 1
+  const latX = (x / 300) * 2 - 1;
+  const latY = -((y / 300) * 2 - 1); // standard cartesian
+  
+  vector.innerText = `z = [${latX.toFixed(2)}, ${latY.toFixed(2)}]`;
+  
+  // Interpolation logic
+  let out = "🐶"; // origin
+  
+  if(latY > 0.4) { // Large
+    if(latX < -0.4) out = "🐻"; // Fluffy + Large = Bear
+    else if(latX > 0.4) out = "🐉"; // Scaley + Large = Dragon
+    else out = "🦍"; // Middle + Large = Gorilla
+  } 
+  else if (latY < -0.4) { // Small
+    if(latX < -0.4) out = "🐹"; // Fluffy + Small = Hamster
+    else if(latX > 0.4) out = "🦎"; // Scaley + Small = Lizard
+    else out = "🐁"; // Middle + Small = Mouse
+  }
+  else { // Medium
+    if(latX < -0.4) out = "🦊"; // Fluffy + Med = Fox
+    else if(latX > 0.4) out = "🐢"; // Scaley + Med = Turtle
+    else out = "🐶"; 
+  }
+  
+  // Add some scale transformation based on distance from center for "generating" effect
+  const dist = Math.sqrt(latX*latX + latY*latY);
+  render.style.transform = `scale(${1 + dist*0.2})`;
+  render.innerText = out;
+}
+
+grid.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  movePuck(e);
+});
+
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  puck.style.transform = 'translate(-50%, -50%) scale(1)';
+  puck.style.boxShadow = '0 0 15px var(--amber-s)';
+});
+
+window.addEventListener('mousemove', (e) => {
+  if(!isDragging) return;
+  movePuck(e);
+});
+
+function movePuck(e) {
+  const rect = grid.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  let y = e.clientY - rect.top;
+  
+  // clamp
+  x = Math.max(0, Math.min(300, x));
+  y = Math.max(0, Math.min(300, y));
+  
+  puck.style.left = x + 'px';
+  puck.style.top = y + 'px';
+  puck.style.transform = 'translate(-50%, -50%) scale(1.3)';
+  puck.style.boxShadow = '0 0 25px var(--amber-t)';
+  
+  updateLatentSpace(x, y);
+}
+
+// Mobile touch support
+grid.addEventListener('touchstart', (e) => {
+  isDragging = true;
+  movePuck(e.touches[0]);
+});
+window.addEventListener('touchend', () => isDragging = false);
+window.addEventListener('touchmove', (e) => {
+  if(isDragging) { e.preventDefault(); movePuck(e.touches[0]); }
+}, {passive: false});
+
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_24'), 500);
+});
+</script>
+</body>
+</html>

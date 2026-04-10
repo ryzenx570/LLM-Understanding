@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Inference — How Models Run in Production</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);--radius:10px;--radius-sm:6px;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+  --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+  --red-f:#501313;--red-s:#E24B4A;--red-t:#F7C1C1;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+  --pink-f:#4B1528;--pink-s:#D4537E;--pink-t:#F4C0D1;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes flow{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes tokenPop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes cacheGrow{from{width:0}to{width:var(--target-w,100%)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{background:var(--purple-s);color:#fff}50%{background:var(--purple-f);color:var(--purple-t)}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg3);color:var(--text);line-height:1.6;padding-bottom:30px}
+header{background:var(--bg);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;font-weight:500}
+header p{font-size:12px;color:var(--text2)}
+.tab-bar{display:flex;background:var(--bg3);border-bottom:1px solid var(--border);overflow-x:auto;padding:10px 20px 0;}
+.tab{padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;background:transparent;color:var(--text2);transition:all .2s;white-space:nowrap;border-radius:var(--radius-sm) var(--radius-sm) 0 0;margin-right:5px;}
+.tab:hover{color:var(--text);background:var(--bg2);}
+.tab.on{color:var(--text);background:var(--bg);border-color:var(--border);}
+.panel{display:none;padding:30px;max-width:900px;margin:0 auto}
+.panel.on{display:flex;flex-direction:column;gap:20px;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:0px;box-shadow:0 4px 20px rgba(0,0,0,0.15);}
+.card-title{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text);}
+.card-body{font-size:14px;color:var(--text2);line-height:1.7;}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-bottom:5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+@media(max-width:580px){.two,.three{grid-template-columns:1fr}}
+.stat{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;text-align:center}
+.stat-val{font-size:18px;font-weight:500;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:2px}
+.paper{background:var(--bg2);border-left:3px solid var(--border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:9px 12px;margin-bottom:6px;font-size:12px;color:var(--text2)}
+.paper strong{color:var(--text);font-weight:500}
+/* animated viz area */
+.viz{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:10px;min-height:180px;position:relative;overflow:hidden}
+.viz-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+/* token row */
+.tok-row{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.tok{padding:5px 10px;border-radius:5px;font-size:12px;font-weight:500;border:1px solid;transition:all .3s}
+.tok-input{background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)}
+.tok-gen{background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t);animation:tokenPop .4s ease forwards}
+.tok-active{background:var(--purple-s);border-color:#534AB7;color:#fff;animation:blink .8s ease infinite}
+/* kv cache blocks */
+.kv-grid{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px}
+.kv-block{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;border:1px solid;transition:all .4s}
+.kv-filled{background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)}
+.kv-new{background:var(--amber-s);border-color:#BA7517;color:#fff;animation:tokenPop .4s ease forwards}
+.kv-empty{background:var(--bg);border-color:var(--border);color:var(--text3)}
+/* play button */
+.play-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text);transition:background .15s}
+.play-btn:hover{background:var(--bg3)}
+.play-btn.running{border-color:var(--teal-s);color:var(--teal-t);background:var(--teal-f)}
+/* comparison bar */
+.cmp-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.cmp-lbl{width:110px;font-size:11px;color:var(--text2);flex-shrink:0;text-align:right}
+.cmp-track{flex:1;height:22px;background:var(--bg2);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.cmp-fill{height:100%;border-radius:3px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;color:#fff;white-space:nowrap}
+.cmp-note{font-size:10px;color:var(--text3);flex-shrink:0;width:80px}
+/* quant grid */
+.bit-grid{display:flex;gap:2px;flex-wrap:wrap;margin:8px 0}
+.bit{width:16px;height:16px;border-radius:2px;font-size:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+/* spec decoding animation */
+.spec-row{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.spec-tok{padding:4px 8px;border-radius:4px;font-size:11px;font-weight:500;border:1px solid}
+.spec-draft{background:var(--blue-f);border-color:var(--blue-s);color:var(--blue-t)}
+.spec-accept{background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)}
+.spec-reject{background:var(--red-f);border-color:var(--red-s);color:var(--red-t);text-decoration:line-through}
+.spec-verify{background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)}
+/* pipeline steps */
+.pipe-step{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:6px;border:1px solid var(--border);background:var(--bg)}
+.pipe-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.pipe-body{flex:1}
+.pipe-title{font-size:13px;font-weight:500;margin-bottom:2px}
+.pipe-desc{font-size:12px;color:var(--text2)}
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>LLM Inference — How models run in production</h1>
+  <p>Prefill &amp; decode · KV cache · Quantization · Speculative decoding · Continuous batching</p></div>
+  <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Layer 6 — deployment</span>
+</header>
+
+<div class="tab-bar">
+  <button class="tab on"  onclick="showTab(0)">Why inference is hard</button>
+  <button class="tab"     onclick="showTab(1)">KV cache ★ animated</button>
+  <button class="tab"     onclick="showTab(2)">Quantization</button>
+  <button class="tab"     onclick="showTab(3)">Speculative decoding</button>
+  <button class="tab"     onclick="showTab(4)">Batching &amp; serving</button>
+</div>
+
+<!-- ══ TAB 0: WHY INFERENCE IS HARD ══ -->
+<div class="panel on" id="p0">
+  <div class="card">
+    <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The missing chapter in most LLM courses</span>
+    <div class="card-title">Training happens once — inference runs billions of times</div>
+    <div class="card-body">Everything covered so far — pretraining, SFT, RLHF, GRPO — describes how a model is built. But over 90% of the total cost of running an LLM in production is <strong>inference</strong>: the forward pass that converts your prompt into a response. Every API call, every chatbot reply, every code completion is an inference request. Understanding inference is the difference between a working demo and a scalable product.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">The two phases of every LLM response</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <div style="flex:1;min-width:220px;background:var(--teal-f);border:1px solid var(--teal-s);border-radius:var(--radius-sm);padding:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--teal-t);margin-bottom:6px">Phase 1 — Prefill</div>
+        <div style="font-size:12px;color:var(--teal-t);opacity:.9">All prompt tokens are processed <strong>in parallel</strong> in a single forward pass. The GPU is compute-bound — doing a lot of matrix multiplications simultaneously. Builds the initial KV cache. Fast for short prompts, slow for long ones (10K+ tokens). This is why there is a slight pause before the first word appears.</div>
+      </div>
+      <div style="flex:1;min-width:220px;background:var(--purple-f);border:1px solid var(--purple-s);border-radius:var(--radius-sm);padding:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--purple-t);margin-bottom:6px">Phase 2 — Decode</div>
+        <div style="font-size:12px;color:var(--purple-t);opacity:.9">Output tokens are generated <strong>one at a time</strong>, each requiring a full forward pass. The GPU is memory-bandwidth-bound — loading model weights from memory for each step. Output tokens cost 3–10× more than input tokens. This is why streaming feels different from the initial wait.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="three">
+    <div class="stat"><div class="stat-val">&gt;90%</div><div class="stat-lbl">of LLM cost is inference, not training</div></div>
+    <div class="stat"><div class="stat-val">3–10×</div><div class="stat-lbl">output tokens cost more than input</div></div>
+    <div class="stat"><div class="stat-val">1 token</div><div class="stat-lbl">generated per decode step — always</div></div>
+  </div>
+
+  <div class="two" style="margin-top:4px">
+    <div class="card">
+      <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The autoregressive bottleneck</span>
+      <div class="card-body">Language models generate one token at a time — each new token depends on every previous token. This sequential dependency cannot be parallelised across the output sequence. A 500-token response requires 500 separate decode steps regardless of how many GPUs you have. Inference optimisation is fundamentally about making each decode step as fast and cheap as possible.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">The five key techniques</span>
+      <div class="card-body"><strong>KV cache</strong> — don't recompute attention for past tokens.<br><strong>Quantization</strong> — shrink model weights to 4-bit or 8-bit.<br><strong>Speculative decoding</strong> — draft multiple tokens in parallel.<br><strong>Continuous batching</strong> — keep the GPU busy across users.<br><strong>FlashAttention</strong> — fuse attention computation on-chip.<br>Together these achieve 10–100× better throughput than naive inference.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Efficient Memory Management for Large Language Model Serving with PagedAttention</strong> — Kwon et al., UC Berkeley 2023 (SOSP 2023). Introduced vLLM and PagedAttention. Memory waste in KV cache was as high as 80% before this paper. Foundation of modern LLM serving.</div>
+  <div class="paper"><strong>Speculative Decoding: Exploiting Speculative Execution for Accelerating Seq2seq Generation</strong> — Xia et al. 2023. Demonstrated that a small draft model can generate tokens a large model then verifies in one parallel step — achieving 3–4× speedups.</div>
+</div>
+
+<!-- ══ TAB 1: KV CACHE (ANIMATED) ══ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">The single most important inference optimisation</span>
+    <div class="card-title">KV cache — never recompute attention for tokens you've already seen</div>
+    <div class="card-body">During the decode phase, each new token must attend to every previous token. Without a cache, the model recomputes the Key and Value vectors for all past tokens at every single step — an O(N²) cost. The KV cache stores these K and V vectors as they are computed, so each decode step only needs to compute new K and V for the one new token. This turns O(N²) into O(N) — a fundamental speedup.</div>
+  </div>
+
+  <div class="viz">
+    <div class="viz-title">Interactive animation — watch the KV cache grow token by token</div>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="play-btn" id="kv-play-btn" onclick="toggleKV()">▶ Run animation</button>
+      <button class="play-btn" onclick="resetKV()">↺ Reset</button>
+      <span style="font-size:12px;color:var(--text2)" id="kv-status">Press play to see how the cache builds</span>
+    </div>
+
+    <!-- Token sequence -->
+    <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Token sequence (green = prompt, purple = generated)</div>
+    <div class="tok-row" id="kv-toks"></div>
+
+    <!-- Cache state -->
+    <div style="font-size:11px;font-weight:600;color:var(--text3);margin:10px 0 6px">KV cache — each block stores K+V vectors for one token at every layer</div>
+    <div class="kv-grid" id="kv-blocks"></div>
+
+    <!-- Memory bar -->
+    <div style="font-size:11px;color:var(--text2);margin-top:8px">
+      Cache memory used: <span id="kv-mem" style="font-weight:600;color:var(--amber-t)">0 MB</span>
+      <span style="color:var(--text3);margin-left:8px">(Llama 3 8B: ~2.5 MB per token across all 32 layers)</span>
+    </div>
+  </div>
+
+  <!-- Without vs With comparison -->
+  <div class="card">
+    <div class="card-title">Without cache vs with cache — attention computation per decode step</div>
+    <div style="margin-top:10px">
+      <div class="cmp-row">
+        <div class="cmp-lbl">No cache (step 100)</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:100%;background:var(--red-s)">Recompute K+V for all 100 past tokens + 1 new = 101 operations</div></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-lbl">With KV cache (step 100)</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:1%;min-width:160px;background:var(--teal-s)">Just 1 new token</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:6px">At step 500: no cache needs 500 operations, KV cache always needs just 1. Linear vs constant per step.</div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Memory cost of the KV cache</span>
+      <div class="card-body">The KV cache is not free. Every token in the context window needs to store K and V vectors for every layer. Llama 3 8B: 32 layers × 2 (K+V) × 8 heads × 128 dims × 2 bytes (BF16) ≈ 2.5 MB per token. A 128K context window = 320 GB of KV cache alone — more than the model weights. This is why long-context inference is so expensive.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">PagedAttention &amp; vLLM</span>
+      <div class="card-body">Before vLLM (2023), KV cache memory was pre-allocated contiguously — up to 80% was wasted due to fragmentation. PagedAttention divides the cache into fixed-size "pages" (like OS virtual memory), allocating only as needed. This achieved near-zero waste and enabled much larger batch sizes, dramatically cutting cost per token in production.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Efficient Memory Management for Large Language Model Serving with PagedAttention</strong> — Kwon et al., UC Berkeley / SOSP 2023. Introduced PagedAttention and vLLM. Showed up to 24× higher serving throughput than HuggingFace Transformers.</div>
+</div>
+
+<!-- ══ TAB 2: QUANTIZATION ══ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Quantization — shrinking the model without breaking it</span>
+    <div class="card-title">Models trained in 16-bit can be served in 4-bit — with minimal quality loss</div>
+    <div class="card-body">A model's weights are floating-point numbers. During training they use BF16 or FP16 (16 bits each). Quantization converts these to lower-precision formats: INT8 (8 bits) or INT4 (4 bits). The result: half or quarter the memory, and faster matrix operations on hardware that supports lower-precision arithmetic. The decode phase is memory-bandwidth-bound — reading weights is the bottleneck — so 4-bit weights can be read up to 4× faster than 16-bit.</div>
+  </div>
+
+  <!-- Bit visualisation -->
+  <div class="viz">
+    <div class="viz-title">Visual: how many bits store one number — click to compare</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="play-btn" id="q-fp32" onclick="showQuant('fp32')">FP32 (training)</button>
+      <button class="play-btn" id="q-bf16" onclick="showQuant('bf16')">BF16 (standard)</button>
+      <button class="play-btn" id="q-int8" onclick="showQuant('int8')">INT8</button>
+      <button class="play-btn" id="q-int4" onclick="showQuant('int4')">INT4</button>
+    </div>
+    <div id="quant-bits" class="bit-grid"></div>
+    <div id="quant-desc" style="font-size:13px;color:var(--text2);margin-top:10px;line-height:1.6"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Memory savings across precision formats — Llama 3 70B</div>
+    <div style="margin-top:10px">
+      <div class="cmp-row">
+        <div class="cmp-lbl">FP32 (full precision)</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:100%;background:#888780">280 GB — needs 4+ A100 GPUs</div></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-lbl">BF16 (training default)</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:50%;background:var(--blue-s)">140 GB — 2 A100s</div></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-lbl">INT8</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:25%;background:var(--teal-s)">70 GB — 1 A100</div></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-lbl">INT4 (4-bit)</div>
+        <div class="cmp-track"><div class="cmp-fill" style="width:12.5%;min-width:100px;background:var(--green-s)">35 GB — 1 consumer GPU!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">GPTQ — post-training quantisation</span>
+      <div class="card-body">GPTQ quantizes a model after training with no retraining required. It uses a second-order method to compensate for quantization error layer by layer, finding the INT4 weights that minimize the change in output. Achieves near-FP16 quality at INT4 precision. Standard for running large models on consumer hardware. Used in llama.cpp, ExLlama, and GGUF format.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">AWQ — activation-aware quantisation</span>
+      <div class="card-body">AWQ (Lin et al. 2024) observes that not all weights are equally important — a small fraction of weights (those connected to large activation values) contribute disproportionately to the model's output. AWQ identifies and protects these "salient" weights from aggressive quantization while compressing the rest. Achieves better quality than GPTQ on most tasks at the same bit width. Default quantization method in vLLM.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">The outlier problem — why quantization is hard</span>
+    <div class="card-title">Activation outliers are the main challenge</div>
+    <div class="card-body">Weights are easy to quantize — they are fixed after training and can be analyzed carefully. Activations are harder — they change with every input and often contain a few very large "outlier" values. A single outlier at value 1,000 in an INT8 range forces the entire activation to be scaled to fit, wasting most of the precision on near-zero values. LLM.int8() (Dettmers 2022) solved this by separating outlier dimensions and keeping them in FP16 while quantizing the rest to INT8 — the first method to achieve good INT8 inference quality on large models.</div>
+  </div>
+
+  <div class="paper"><strong>GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers</strong> — Frantar et al. 2022 (arXiv:2210.17323). 4-bit quantization with near-FP16 quality. Foundation of GGUF and consumer LLM serving.</div>
+  <div class="paper"><strong>AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration</strong> — Lin et al. 2024 (arXiv:2306.00978). Identifies salient weights via activation analysis. Better quality than GPTQ at same bit width.</div>
+  <div class="paper"><strong>LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale</strong> — Dettmers et al. 2022 (arXiv:2208.07339). First practical INT8 inference for large models. Introduced mixed-precision decomposition for outliers.</div>
+</div>
+
+<!-- ══ TAB 3: SPECULATIVE DECODING ══ -->
+<div class="panel" id="p3">
+  <div class="card">
+    <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Speculative decoding — generate multiple tokens for the cost of one</span>
+    <div class="card-title">A small draft model guesses ahead — the large model verifies in parallel</div>
+    <div class="card-body">The core problem with autoregressive decoding: the large model must run once per output token. Speculative decoding sidesteps this by using a small, fast draft model to generate k candidate tokens (typically 3–7). The large "target" model then verifies all k tokens in a single parallel forward pass — the same computation as generating one token normally. If the draft was correct, you get k tokens for the cost of 1. If not, you fall back to the target model's correction.</div>
+  </div>
+
+  <!-- Animated speculative decoding -->
+  <div class="viz">
+    <div class="viz-title">Step-by-step: how one speculative decoding round works</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="play-btn" id="spec-btn" onclick="runSpec()">▶ Run one round</button>
+      <button class="play-btn" onclick="resetSpec()">↺ Reset</button>
+      <span style="font-size:12px;color:var(--text2)" id="spec-status">Press play to see speculative decoding</span>
+    </div>
+
+    <!-- Context -->
+    <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:5px">Context (already generated)</div>
+    <div class="spec-row" id="spec-context"></div>
+
+    <!-- Draft model output -->
+    <div style="font-size:11px;font-weight:600;color:var(--blue-t);margin:8px 0 5px" id="spec-draft-label">Draft model generates k=4 candidate tokens simultaneously…</div>
+    <div class="spec-row" id="spec-draft"></div>
+
+    <!-- Verification -->
+    <div style="font-size:11px;font-weight:600;color:var(--teal-t);margin:8px 0 5px" id="spec-verify-label">Large model verifies all 4 in one parallel pass…</div>
+    <div class="spec-row" id="spec-verify"></div>
+
+    <!-- Result -->
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin:8px 0 5px" id="spec-result-label"></div>
+    <div class="spec-row" id="spec-result"></div>
+
+    <div id="spec-summary" style="font-size:12px;color:var(--text2);margin-top:8px;padding:8px;background:var(--bg);border-radius:5px;border:1px solid var(--border)"></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Why this works</span>
+      <div class="card-body">Verifying k tokens in the large model costs the same as generating 1 token — both process k+1 positions in a single forward pass. On tasks where the draft model is accurate (code completion, factual text), acceptance rates of 70–90% are common, meaning you effectively get 3–5 tokens per large model step instead of 1. Speedups of 2–4× are typical for coding tasks.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Draft model choices</span>
+      <div class="card-body"><strong>Separate small model:</strong> A 1–7B model drafts for a 70B model. Works well for general text. <strong>EAGLE / Medusa:</strong> A lightweight head on the target model itself drafts future tokens using the hidden states — no separate model needed. <strong>n-gram lookup:</strong> Ultra-fast draft using repeated phrases from context. Great for code with repetitive patterns. Used by default in vLLM.</div>
+    </div>
+  </div>
+
+  <div class="three">
+    <div class="stat"><div class="stat-val">2–4×</div><div class="stat-lbl">typical speedup for coding tasks</div></div>
+    <div class="stat"><div class="stat-val">70–90%</div><div class="stat-lbl">token acceptance rate on domain tasks</div></div>
+    <div class="stat"><div class="stat-val">k=4</div><div class="stat-lbl">typical draft length (3–7 tokens)</div></div>
+  </div>
+
+  <div class="paper"><strong>Fast Inference from Transformers via Speculative Decoding</strong> — Leviathan et al., Google 2023 (arXiv:2211.17192). Proved that a draft+verify scheme produces identical output distribution to the target model — exact, not approximate. 2–3× speedup on T5 and GPT-2.</div>
+  <div class="paper"><strong>EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty</strong> — Li et al. 2024 (arXiv:2401.15077). Auto-regressive draft head trained on the target model's hidden states. 3× speedup without a separate draft model.</div>
+</div>
+
+<!-- ══ TAB 4: BATCHING & SERVING ══ -->
+<div class="panel" id="p4">
+  <div class="card">
+    <span class="badge" style="background:var(--green-f);color:var(--green-t)">Serving LLMs at scale</span>
+    <div class="card-title">Continuous batching — keep the GPU busy across hundreds of users</div>
+    <div class="card-body">A GPU is only efficient when it is processing many requests simultaneously. Early LLM servers used "static batching" — wait for a full batch of N requests, process them all together, then wait again. The problem: requests finish at different times, leaving the GPU idle while waiting for the slowest request. Continuous batching (also called iteration-level batching or in-flight batching) inserts new requests as soon as any sequence completes — keeping GPU utilisation near 100% continuously.</div>
+  </div>
+
+  <!-- Batching comparison viz -->
+  <div class="viz">
+    <div class="viz-title">Static batching vs continuous batching — GPU utilisation over time</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--red-t);margin-bottom:4px">Static batching — GPU idles while waiting for slow requests to finish</div>
+      <div style="display:flex;gap:2px;height:32px;align-items:stretch;margin-bottom:8px">
+        <div style="background:var(--teal-s);border-radius:3px;flex:3;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">Req A,B,C processing</div>
+        <div style="background:var(--red-f);border:1px solid var(--red-s);border-radius:3px;flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--red-t)">GPU idle</div>
+        <div style="background:var(--teal-s);border-radius:3px;flex:3;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">Next batch</div>
+        <div style="background:var(--red-f);border:1px solid var(--red-s);border-radius:3px;flex:2;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--red-t)">GPU idle</div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--teal-t);margin-bottom:4px">Continuous batching — new requests fill slots as soon as any request finishes</div>
+      <div style="display:flex;gap:2px;height:32px;align-items:stretch">
+        <div style="background:var(--teal-s);border-radius:3px;flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">A</div>
+        <div style="background:var(--teal-s);border-radius:3px;flex:2;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">B</div>
+        <div style="background:var(--teal-s);border-radius:3px;flex:1.5;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">D (new)</div>
+        <div style="background:var(--teal-s);border-radius:3px;flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">E</div>
+        <div style="background:var(--teal-s);border-radius:3px;flex:1.5;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600">F</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:6px">GPU stays ≥95% utilised. Continuous batching cuts per-token cost by ~85% at 32 concurrent requests.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">The complete inference optimisation stack</div>
+    <div style="margin-top:8px">
+      <div class="pipe-step" style="border-left:3px solid var(--teal-s)">
+        <div class="pipe-num" style="background:var(--teal-f);color:var(--teal-t)">1</div>
+        <div class="pipe-body">
+          <div class="pipe-title">KV cache + PagedAttention</div>
+          <div class="pipe-desc">Never recompute past attention. Allocate cache memory like OS virtual memory — near-zero waste. Prerequisite for everything else.</div>
+        </div>
+      </div>
+      <div class="pipe-step" style="border-left:3px solid var(--coral-s)">
+        <div class="pipe-num" style="background:var(--coral-f);color:var(--coral-t)">2</div>
+        <div class="pipe-body">
+          <div class="pipe-title">Quantization (INT4/INT8/FP8)</div>
+          <div class="pipe-desc">Shrink model from 140 GB to 35 GB. Read weights 4× faster in decode phase. Use AWQ or GPTQ for near-lossless quality.</div>
+        </div>
+      </div>
+      <div class="pipe-step" style="border-left:3px solid var(--blue-s)">
+        <div class="pipe-num" style="background:var(--blue-f);color:var(--blue-t)">3</div>
+        <div class="pipe-body">
+          <div class="pipe-title">Continuous batching</div>
+          <div class="pipe-desc">Serve 32+ users simultaneously. Keep GPU utilisation above 95%. Cuts per-token cost by ~85% vs single-request serving.</div>
+        </div>
+      </div>
+      <div class="pipe-step" style="border-left:3px solid var(--purple-s)">
+        <div class="pipe-num" style="background:var(--purple-f);color:var(--purple-t)">4</div>
+        <div class="pipe-body">
+          <div class="pipe-title">Speculative decoding</div>
+          <div class="pipe-desc">Draft 4 tokens with a small model, verify with the large model in one pass. 2–4× latency improvement for coding and structured outputs.</div>
+        </div>
+      </div>
+      <div class="pipe-step" style="border-left:3px solid var(--green-s)">
+        <div class="pipe-num" style="background:var(--green-f);color:var(--green-t)">5</div>
+        <div class="pipe-body">
+          <div class="pipe-title">FlashAttention (kernel-level)</div>
+          <div class="pipe-desc">Fuse attention computation on-chip to avoid slow GPU memory reads. 2–4× speedup for attention layers. On by default in all major inference engines.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <span class="badge" style="background:var(--green-f);color:var(--green-t)">Inference engines in production</span>
+      <div class="card-body"><strong>vLLM</strong> — fastest path to production, PagedAttention, 60s cold start, broad model support. Open source, UC Berkeley.<br><br><strong>SGLang</strong> — best for shared-prefix workloads (RAG, chatbots). RadixAttention achieves higher cache hit rates.<br><br><strong>TensorRT-LLM</strong> — peak throughput after compilation (28-min cold start). NVIDIA. 13% faster than vLLM at high concurrency.</div>
+    </div>
+    <div class="card">
+      <span class="badge" style="background:var(--green-f);color:var(--green-t)">Prefix caching</span>
+      <div class="card-body">If many requests share the same prefix — a long system prompt, the same RAG document, the same code file — you can compute the KV cache for that prefix once and reuse it for all users. Prefix caching eliminates up to 90% of prefill cost for workloads with shared context. Standard in SGLang (RadixAttention), vLLM (hash-based), and Anthropic's prompt caching API.</div>
+    </div>
+  </div>
+
+  <div class="paper"><strong>Continuous Batching: How vLLM Achieves 24x Higher Throughput</strong> — Kwon et al. SOSP 2023. PagedAttention + continuous batching together. Showed 24× throughput improvement over HuggingFace Transformers in serving scenarios.</div>
+  <div class="paper"><strong>FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</strong> — Dao 2023 (arXiv:2307.08691). 2× speedup over FlashAttention-1. Standard attention kernel in all frontier model training and inference.</div>
+</div>
+
+<script>
+function showTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('on',i===j));
+  if(i===1) initKV();
+  if(i===2) showQuant('fp32');
+  if(i===3) initSpec();
+}
+
+// ══ TAB 1: KV CACHE ANIMATION ══
+const PROMPT=['The','cat','sat','on'];
+const GENERATED=['the','mat','and','looked'];
+let kvTimer=null,kvStep=0,kvRunning=false;
+const KV_MEM_PER_TOKEN=2.5;
+
+function initKV(){
+  const toks=document.getElementById('kv-toks');
+  const blocks=document.getElementById('kv-blocks');
+  toks.innerHTML='';blocks.innerHTML='';
+  document.getElementById('kv-mem').textContent='0 MB';
+  document.getElementById('kv-status').textContent='Press play to see how the cache builds';
+  kvStep=0;
+}
+
+function buildKVState(step){
+  const allWords=[...PROMPT,...GENERATED].slice(0,step);
+  const toks=document.getElementById('kv-toks');
+  const blocks=document.getElementById('kv-blocks');
+  toks.innerHTML='';blocks.innerHTML='';
+  allWords.forEach((w,i)=>{
+    const t=document.createElement('div');
+    t.className='tok '+(i<PROMPT.length?'tok-input':'tok-gen');
+    t.textContent=w;
+    if(i===step-1) t.style.animation='tokenPop .4s ease forwards';
+    toks.appendChild(t);
+  });
+  // current token being generated
+  if(step<PROMPT.length+GENERATED.length){
+    const cur=[...PROMPT,...GENERATED][step];
+    if(step>=PROMPT.length){
+      const ct=document.createElement('div');
+      ct.className='tok tok-active';
+      ct.textContent='→ predicting…';
+      toks.appendChild(ct);
+    }
+  }
+  // KV blocks
+  for(let i=0;i<PROMPT.length+GENERATED.length;i++){
+    const b=document.createElement('div');
+    b.className='kv-block '+(i<step?'kv-filled':'kv-empty');
+    b.textContent=i<step?([...PROMPT,...GENERATED][i]).slice(0,3):'';
+    if(i===step-1) b.classList.replace('kv-filled','kv-new');
+    blocks.appendChild(b);
+  }
+  document.getElementById('kv-mem').textContent=(step*KV_MEM_PER_TOKEN).toFixed(1)+' MB';
+  const phases=['','','','',
+    'Prefill complete — cache built for all prompt tokens.','Decoding: new token attends to cached K+V. Only 1 new computation.','Decoding: cache grows by 1. Past tokens never recomputed.','Decoding: cache holds all past tokens. Each step is O(1) not O(N).'];
+  const status=document.getElementById('kv-status');
+  if(step===0) status.textContent='Press play to see how the cache builds';
+  else if(step<=PROMPT.length) status.textContent='Prefill phase: processing prompt token "'+PROMPT[step-1]+'". Computing K+V and storing in cache…';
+  else status.textContent='Decode step '+(step-PROMPT.length)+': generating "'+(GENERATED[step-PROMPT.length-1] || '...')+'" — reading cached K+V for all '+(step-1)+' past tokens, computing 1 new K+V.';
+}
+
+function toggleKV(){
+  if(kvRunning){
+    clearInterval(kvTimer);kvRunning=false;
+    document.getElementById('kv-play-btn').textContent='▶ Resume';
+    document.getElementById('kv-play-btn').classList.remove('running');
+  } else {
+    kvRunning=true;
+    document.getElementById('kv-play-btn').textContent='⏸ Pause';
+    document.getElementById('kv-play-btn').classList.add('running');
+    kvTimer=setInterval(()=>{
+      kvStep++;
+      buildKVState(kvStep);
+      if(kvStep>=PROMPT.length+GENERATED.length){
+        clearInterval(kvTimer);kvRunning=false;
+        document.getElementById('kv-play-btn').textContent='▶ Run again';
+        document.getElementById('kv-play-btn').classList.remove('running');
+        document.getElementById('kv-status').textContent='Animation complete. The cache stored K+V for '+(PROMPT.length+GENERATED.length)+' tokens. Each decode step only computed 1 new K+V — the rest came from cache.';
+      }
+    },900);
+  }
+}
+
+function resetKV(){
+  clearInterval(kvTimer);kvRunning=false;
+  kvStep=0;
+  document.getElementById('kv-play-btn').textContent='▶ Run animation';
+  document.getElementById('kv-play-btn').classList.remove('running');
+  initKV();
+}
+
+// ══ TAB 2: QUANTIZATION ══
+const QUANT={
+  fp32:{bits:32,color:'#888780',label:'FP32 — 32 bits per weight',desc:'Full 32-bit floating point — 1 sign bit, 8 exponent bits, 23 mantissa bits. Enormous precision but enormous memory. Used during training but almost never at inference. A 70B model needs 280 GB in FP32.'},
+  bf16:{bits:16,color:'#378ADD',label:'BF16 — 16 bits per weight',desc:'BF16 keeps the same 8 exponent bits as FP32 (same range, no overflow) but reduces mantissa to 7 bits. Standard for training and inference. 70B model = 140 GB. Used by default in all frontier model inference.'},
+  int8:{bits:8,color:'#1D9E75',label:'INT8 — 8 bits per weight',desc:'Integer quantization to 8 bits. Weights are scaled so the full range of -128 to 127 covers the weight distribution. 70B model = 70 GB — fits on a single A100. Near-identical quality to BF16 with careful quantization (LLM.int8(), SmoothQuant).'},
+  int4:{bits:4,color:'#639922',label:'INT4 — 4 bits per weight',desc:'Only 16 possible values per weight! Weights are grouped into small blocks, each with its own scale factor (GPTQ, AWQ). 70B model = 35 GB — fits on a single consumer GPU (RTX 4090 = 24 GB with 4-bit). 1–2% quality drop on most tasks. The sweet spot for consumer deployment.'},
+};
+
+function showQuant(key){
+  document.querySelectorAll('#p2 .play-btn').forEach(b=>b.classList.remove('running'));
+  document.getElementById('q-'+key).classList.add('running');
+  const q=QUANT[key];
+  const grid=document.getElementById('quant-bits');
+  grid.innerHTML='';
+  // Show bits as colored squares — one row of q.bits
+  for(let i=0;i<q.bits;i++){
+    const b=document.createElement('div');
+    b.className='bit';
+    const roles={fp32:{0:'S',1:'E',2:'E',3:'E',4:'E',5:'E',6:'E',7:'E',8:'E',9:'M'},
+                 bf16:{0:'S',1:'E',2:'E',3:'E',4:'E',5:'E',6:'E',7:'E',8:'E',9:'M'},
+                 int8:{0:'S'},int4:{0:'S'}};
+    const isSign=(key==='fp32'||key==='bf16')&&i===0;
+    const isExp=(key==='fp32'&&i>=1&&i<=8)||(key==='bf16'&&i>=1&&i<=8);
+    const isMant=(key==='fp32'&&i>=9)||(key==='bf16'&&i>=9);
+    const isSignI=(key==='int8'||key==='int4')&&i===0;
+    let bg=q.color;
+    if(isSign||isSignI) bg='#E24B4A';
+    else if(isExp) bg='#7F77DD';
+    else if(isMant) bg='#5f5e5a';
+    b.style.background=bg;
+    b.title=isSign||isSignI?'Sign':isExp?'Exponent':isMant?'Mantissa':'Data';
+    grid.appendChild(b);
+  }
+  // legend
+  const legend=document.createElement('div');
+  legend.style.cssText='display:flex;gap:10px;margin-top:8px;flex-wrap:wrap';
+  if(key==='fp32'||key==='bf16'){
+    legend.innerHTML='<span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="background:#E24B4A;width:12px;height:12px;border-radius:2px;display:inline-block"></span>Sign (1 bit)</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="background:#7F77DD;width:12px;height:12px;border-radius:2px;display:inline-block"></span>Exponent (8 bits)</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="background:#5f5e5a;width:12px;height:12px;border-radius:2px;display:inline-block"></span>Mantissa ('+(key==='fp32'?'23':'7')+' bits)</span>';
+  } else {
+    legend.innerHTML='<span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="background:#E24B4A;width:12px;height:12px;border-radius:2px;display:inline-block"></span>Sign</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="background:'+q.color+';width:12px;height:12px;border-radius:2px;display:inline-block"></span>Data bits</span><span style="font-size:10px;color:var(--text2)">Only '+(Math.pow(2,q.bits))+' possible values per weight</span>';
+  }
+  grid.appendChild(legend);
+  document.getElementById('quant-desc').innerHTML='<strong style="color:var(--text)">'+q.label+'</strong><br>'+q.desc;
+}
+
+// ══ TAB 3: SPECULATIVE DECODING ANIMATION ══
+const SPEC_CONTEXT_WORDS=['The','quick','brown','fox'];
+const SPEC_DRAFT_WORDS=['jumps','over','the','lazy'];
+const SPEC_ACCEPT=[true,true,true,false]; // last one rejected
+let specPhase=0,specTimer=null;
+
+function initSpec(){
+  specPhase=0;
+  const ctx=document.getElementById('spec-context');
+  ctx.innerHTML='';
+  SPEC_CONTEXT_WORDS.forEach(w=>{
+    const t=document.createElement('div');t.className='spec-tok spec-draft';t.textContent=w;ctx.appendChild(t);
+  });
+  ['spec-draft','spec-verify','spec-result'].forEach(id=>{document.getElementById(id).innerHTML='';});
+  document.getElementById('spec-draft-label').textContent='Draft model will generate k=4 candidate tokens…';
+  document.getElementById('spec-verify-label').textContent='Large model will verify all 4 in one parallel pass…';
+  document.getElementById('spec-result-label').textContent='';
+  document.getElementById('spec-summary').textContent='';
+  document.getElementById('spec-status').textContent='Press play to see one round of speculative decoding';
+  document.getElementById('spec-btn').textContent='▶ Run one round';
+  document.getElementById('spec-btn').classList.remove('running');
+}
+
+function resetSpec(){initSpec();}
+
+function runSpec(){
+  if(specPhase>0){initSpec();return;}
+  const btn=document.getElementById('spec-btn');
+  btn.textContent='⏳ Running…';btn.classList.add('running');
+  document.getElementById('spec-status').textContent='Step 1: draft model generating 4 tokens simultaneously…';
+  // Phase 1: show draft tokens appearing one by one
+  specPhase=1;
+  let di=0;
+  const draftEl=document.getElementById('spec-draft');
+  document.getElementById('spec-draft-label').textContent='Draft model (small, fast) — generates all k=4 tokens in parallel:';
+  const draftTimer=setInterval(()=>{
+    if(di>=SPEC_DRAFT_WORDS.length){
+      clearInterval(draftTimer);
+      // Phase 2: verification
+      setTimeout(()=>{
+        document.getElementById('spec-status').textContent='Step 2: large target model verifies all 4 tokens in one forward pass…';
+        document.getElementById('spec-verify-label').textContent='Target model (large, accurate) — checks each draft token:';
+        const verEl=document.getElementById('spec-verify');
+        let vi=0;
+        const verTimer=setInterval(()=>{
+          if(vi>=SPEC_DRAFT_WORDS.length){
+            clearInterval(verTimer);
+            // Phase 3: result
+            setTimeout(()=>{
+              document.getElementById('spec-result-label').textContent='Result — accepted tokens added to context:';
+              const resEl=document.getElementById('spec-result');
+              let accepted=0;
+              SPEC_DRAFT_WORDS.forEach((w,i)=>{
+                if(SPEC_ACCEPT[i]){
+                  const t=document.createElement('div');t.className='spec-tok spec-accept';t.textContent=w+' ✓';resEl.appendChild(t);accepted++;
+                } else {
+                  const t=document.createElement('div');t.className='spec-tok spec-reject';t.textContent=w+' ✗';resEl.appendChild(t);
+                  const fix=document.createElement('div');fix.className='spec-tok';fix.style.cssText='background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)';fix.textContent='jumped ← target corrects';resEl.appendChild(fix);
+                }
+              });
+              document.getElementById('spec-summary').innerHTML=`<strong>${accepted} of ${SPEC_DRAFT_WORDS.length} draft tokens accepted.</strong> We got ${accepted} output tokens for the cost of 1 target model step (instead of generating them one at a time). On this round: <span style="color:var(--teal-t)">${accepted}× speedup</span> over standard decoding.`;
+              document.getElementById('spec-status').textContent='Done! '+accepted+' tokens generated for the cost of 1 target model step.';
+              btn.textContent='↺ Reset';btn.classList.remove('running');
+            },500);
+            return;
+          }
+          const t=document.createElement('div');
+          t.className='spec-tok '+(SPEC_ACCEPT[vi]?'spec-accept':'spec-reject');
+          t.textContent=SPEC_DRAFT_WORDS[vi]+(SPEC_ACCEPT[vi]?' ✓':' ✗');
+          verEl.appendChild(t);vi++;
+        },350);
+      },600);
+      return;
+    }
+    const t=document.createElement('div');t.className='spec-tok spec-draft';t.textContent=SPEC_DRAFT_WORDS[di];t.style.animation='tokenPop .35s ease forwards';
+    draftEl.appendChild(t);di++;
+  },300);
+}
+
+// init
+initKV();
+showQuant('fp32');
+initSpec();
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_08'), 500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 4 — Transformer Block Internals</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);
+  --radius:10px;--radius-sm:6px;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg3); color:var(--text); line-height:1.6; padding-bottom:40px; }
+header { background:var(--bg); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+header h1 { font-size:18px; font-weight:500; }
+header p { font-size:12px; color:var(--text2); }
+.badge { display:inline-block; font-size:10px; font-weight:600; padding:4px 10px; border-radius:4px; }
+.panel { padding:30px; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+.card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.card-title { font-size:16px; font-weight:600; margin:10px 0; color:var(--teal-t); }
+.card-body { font-size:14px; color:var(--text2); line-height:1.7; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+
+/* Interactive Assembly Line Styles */
+.factory { background:var(--bg2); border-radius:var(--radius-sm); padding:20px; border:1px dashed var(--border); min-height:400px; position:relative; overflow:hidden; perspective: 1000px; }
+.track { position:absolute; top:50%; left:0; width:100%; height:4px; background:var(--border); transform:translateY(-50%); z-index:1; }
+.station { position:absolute; top:50%; width:100px; height:80px; transform:translate(-50%, -50%); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-direction:column; font-size:11px; font-weight:bold; z-index:3; border:2px solid; color:#fff; text-align:center; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.station span { font-size:9px; font-weight:normal; opacity:0.8; margin-top:4px; }
+.station.processing { transform:translate(-50%, -50%) scale(1.15); box-shadow: 0 0 20px currentColor; }
+
+#st-attn { left:30%; background:var(--teal-f); border-color:var(--teal-s); }
+#st-norm { left:50%; background:var(--coral-f); border-color:var(--coral-s); }
+#st-ffn { left:70%; background:var(--blue-f); border-color:var(--blue-s); }
+
+.token-box { position:absolute; top:50%; left:5%; width:50px; height:50px; transform:translate(-50%, -50%); background:var(--purple-s); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; z-index:4; box-shadow:0 10px 20px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); }
+
+/* Residual connection lines */
+@keyframes flow { to { stroke-dashoffset: -20; } }
+.residual-path { position:absolute; border:2px dashed var(--text3); z-index:2; border-bottom:0; transition:border-color 0.3s, box-shadow 0.3s; }
+.res-1 { top:30%; left:5%; width:45%; height:20%; border-radius:10px 10px 0 0; }
+.res-2 { top:70%; left:5%; width:65%; height:20%; border-top:0; border-bottom:2px dashed var(--text3); border-radius:0 0 10px 10px; }
+.residual-path.active { animation: data-flow 0.5s linear infinite; }
+
+@keyframes data-flow {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 0; }
+}
+
+.btn { display:inline-block; padding:10px 20px; background:var(--teal-s); color:#fff; border:none; border-radius:var(--radius-sm); font-weight:bold; cursor:pointer; margin-right:10px; transition:all 0.2s; }
+.btn:hover { filter:brightness(1.2); transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; transform: none; }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>Layer 4 — Transformer Block Internals</h1><p>The Factory Assembly Line making sure parts fit together perfectly</p></div>
+  <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">Course File: L4</span>
+</header>
+
+
+<div class="panel">
+  <div class="card" style="border-top:3px solid var(--teal-s)">
+    <div class="badge" style="background:var(--teal-f);color:var(--teal-t)">The "Assembly Line" Analogy</div>
+    <div class="card-title">How Data Gets Processed</div>
+    <div class="card-body">
+      Think of a Transformer Block like a car manufacturing plant. Your starting word (the "token") is just a raw piece of metal coming in.
+      <br><br>
+      The <strong>Attention Mechanism</strong> is the manager deciding what other words this token should connect with. But it doesn't stop there! The token has to go through the <strong>Layer Normalization (LayerNorm)</strong> quality control station to make sure the math doesn't explode. Finally, it hits the <strong>Feed-Forward Network (FFN)</strong>, which acts like independent factory workers cementing the facts and logic into the token.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: The Factory Floor</div>
+    <div class="card-body">
+      Click "Send Token" to watch a word get processed through a single Transformer block. Notice the dashed <strong>Residual Connections</strong>—they act like safety bypass tracks so early information isn't lost if the machines mess up!
+    </div>
+    
+    <div class="factory">
+      <div class="track"></div>
+      
+      <!-- Skip connections -->
+      <div class="residual-path res-1" id="res1"></div>
+      <div class="residual-path res-2" id="res2"></div>
+
+      <div class="station" id="st-attn" style="color:var(--teal-t)">ATTENTION<br><span>(Connects words)</span></div>
+      <div class="station" id="st-norm" style="color:var(--coral-t)">LAYER NORM<br><span>(Stabilizes Math)</span></div>
+      <div class="station" id="st-ffn"  style="color:var(--blue-t)">FEED-FORWARD<br><span>(Stores Facts)</span></div>
+
+      <div class="token-box" id="animated-token">"cat"</div>
+    </div>
+    <div style="margin-top:20px;">
+      <button class="btn" id="start-btn" onclick="runFactory()">Send Token</button>
+      <span id="status-text" style="font-size:14px;color:var(--text2);margin-left:10px;">Waiting for token...</span>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--coral-f);color:var(--coral-t)">Quality Control</div>
+      <div class="card-title">Layer Normalization</div>
+      <div class="card-body">
+        As the AI calculates millions of numbers, some values can get way too big (like a speaker volume exploding) or incredibly small (fading out). <br><br>
+        LayerNorm is simply a magical reset button. Every time the data passes through it, it forces the average volume back to a healthy zero, ensuring the network remains stable across 96+ consecutive layers! <strong style="color:var(--coral-t)">This depicts Pre-Norm</strong>, the modern standard where normalization happens <em>before</em> the sublayer, rather than after.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--blue-f);color:var(--blue-t)">The Fact Database</div>
+      <div class="card-title">Feed-Forward Network</div>
+      <div class="card-body">
+        While Attention handles <em>relationships</em> between words, the FFN is essentially the AI's encyclopedic memory. It operates on every word <strong>individually</strong>. <br><br>
+        Modern models use <strong style="color:var(--blue-t)">SwiGLU</strong> logic gates to process these facts:<br>
+        <div style="background:var(--bg2);padding:10px;border-radius:4px;font-family:monospace;text-align:center;margin:10px 0;">
+          SwiGLU(x) = (xW₁ ⊗ σ(xW₁))W₂
+        </div>
+        This is where the AI stores facts. If the query was "capital of France", the FFN is the part of the brain that fires up and says, "Aha! I know this mathematical pattern maps to 'Paris'."
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function runFactory() {
+  const token = document.getElementById('animated-token');
+  const btn = document.getElementById('start-btn');
+  const status = document.getElementById('status-text');
+  
+  const attn = document.getElementById('st-attn');
+  const norm = document.getElementById('st-norm');
+  const ffn = document.getElementById('st-ffn');
+  
+  const res1 = document.getElementById('res1');
+  const res2 = document.getElementById('res2');
+
+  // Reset
+  btn.disabled = true;
+  token.style.transition = 'none';
+  token.style.left = '5%';
+  token.style.transform = 'translate(-50%, -50%) scale(1)';
+  token.style.background = 'var(--purple-s)';
+  token.innerHTML = '"cat"';
+  attn.classList.remove('processing'); norm.classList.remove('processing'); ffn.classList.remove('processing');
+  res1.style.borderColor = 'var(--text3)'; res2.style.borderColor = 'var(--text3)';
+  res1.classList.remove('active'); res2.classList.remove('active');
+  
+  // Wait a frame
+  await new Promise(r => setTimeout(r, 50));
+  token.style.transition = 'left 1.2s cubic-bezier(0.34, 1.2, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s';
+
+  // Step 1 -> Attention
+  status.innerHTML = 'Token enters Attention...';
+  token.style.left = '30%';
+  res1.style.borderColor = 'var(--purple-s)'; // bypass track lights up
+  res1.classList.add('active'); // data flow animation
+  
+  await new Promise(r => setTimeout(r, 1200));
+  token.style.transform = 'translate(-50%, -50%) scale(1.3)';
+  attn.classList.add('processing');
+  status.innerHTML = '<span style="color:var(--teal-t)">Attention mixes context from other words!</span>';
+  
+  await new Promise(r => setTimeout(r, 800));
+  token.style.transform = 'translate(-50%, -50%) scale(1)';
+  attn.classList.remove('processing');
+  token.style.background = 'var(--teal-s)';
+  token.innerHTML = 'ctx';
+  res1.style.borderColor = 'var(--text3)';
+  res1.classList.remove('active');
+
+  // Step 2 -> Norm
+  status.innerHTML = 'Token enters LayerNorm...';
+  token.style.left = '50%';
+  
+  await new Promise(r => setTimeout(r, 1200));
+  token.style.transform = 'translate(-50%, -50%) scale(0.85) rotate(15deg)';
+  norm.classList.add('processing');
+  status.innerHTML = '<span style="color:var(--coral-t)">LayerNorm stabilizes the numbers!</span>';
+  
+  await new Promise(r => setTimeout(r, 800));
+  token.style.transform = 'translate(-50%, -50%) scale(1) rotate(0deg)';
+  norm.classList.remove('processing');
+
+  // Step 3 -> FFN
+  status.innerHTML = 'Token enters Feed-Forward Network...';
+  token.style.left = '70%';
+  res2.style.borderColor = 'var(--teal-s)';
+  res2.classList.add('active'); // data flow animation
+  
+  await new Promise(r => setTimeout(r, 1200));
+  token.style.transform = 'translate(-50%, -50%) scale(1.3)';
+  ffn.classList.add('processing');
+  status.innerHTML = '<span style="color:var(--blue-t)">FFN injects factual knowledge!</span>';
+  
+  await new Promise(r => setTimeout(r, 800));
+  token.style.transform = 'translate(-50%, -50%) scale(1)';
+  ffn.classList.remove('processing');
+  token.style.background = 'var(--blue-s)';
+  token.innerHTML = 'out';
+  res2.style.borderColor = 'var(--text3)';
+  res2.classList.remove('active');
+
+  // End
+  status.innerHTML = 'Process complete! Ready for the next Layer.';
+  token.style.left = '95%';
+  
+  await new Promise(r => setTimeout(r, 1200));
+  btn.disabled = false;
+}
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_13'), 500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vision & Speech Transformers — 10 Slides</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);--radius:10px;--radius-sm:6px;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+  --purple-f:#26215C;--purple-s:#7F77DD;--purple-t:#CECBF6;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+  --coral-f:#4A1B0C;--coral-s:#D85A30;--coral-t:#F5C4B3;
+  --red-f:#501313;--red-s:#E24B4A;--red-t:#F7C1C1;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+  --pink-f:#4B1528;--pink-s:#D4537E;--pink-t:#F4C0D1;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body {
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg3);
+  color:var(--text);
+  line-height:1.6;
+  overflow-x: hidden; /* Hide horizontal scrollbar, GSAP drives it via vertical scroll */
+}
+
+/* GSAP Horizontal Structure */
+.scroll-container {
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+.horizontal-wrap {
+  display: flex;
+  width: 1000vw; /* 10 slides * 100vw */
+  height: 100vh;
+}
+.slide {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px 80px;
+  overflow-y: auto; /* Allow internal scrolling if content is really tall */
+}
+.slide-content-wrapper {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* Slide Typo */
+.sh{margin-bottom: 24px; text-align: center;}
+.stag{font-size:12px;font-weight:700;color:var(--purple-t);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.stitle{font-size:32px;font-weight:600;color:var(--text);line-height:1.2;margin-bottom:12px; font-family: 'Playfair Display', serif;}
+.ssub{font-size:16px;color:var(--text2);margin-bottom:14px}
+.sc{padding: 0;}
+
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);}
+.card-title{font-size:16px;font-weight:600;margin-bottom:8px;}
+.card-body{font-size:14px;color:var(--text2);line-height:1.7;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;margin-bottom:12px; letter-spacing: 0.05em; text-transform: uppercase;}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+@media(max-width:768px){.two,.three{grid-template-columns:1fr}}
+.stat{background:var(--bg2);border-radius:var(--radius-sm);padding:16px;text-align:center; border: 1px solid var(--border);}
+.stat-val{font-size:24px;font-weight:600;color:var(--text); letter-spacing:-0.5px;}
+.stat-lbl{font-size:12px;color:var(--text2);margin-top:4px}
+.paper{background:var(--bg2);border-left:4px solid var(--border);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--text2)}
+.paper strong{color:var(--text);font-weight:600}
+
+.flow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:12px 0 20px;flex-wrap:nowrap}
+.fbox{flex-shrink:0;padding:12px 18px;border-radius:var(--radius-sm);border:2px solid;font-size:13px;font-weight:600;text-align:center;line-height:1.3;}
+.farr{flex-shrink:0;padding:0 10px;color:var(--text3);font-size:18px}
+
+.patch-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:140px}
+.patch{width:100%;aspect-ratio:1;border-radius:2px;background:var(--blue-f);border:1px solid var(--blue-s)}
+.patch.hi{background:var(--purple-s)}
+
+/* Fixed Top Progress / Navigation Bar */
+.master-nav {
+  position: fixed;
+  top: 0; left: 0; width: 100%;
+  background: rgba(30,30,28,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+.nav-pips {
+  display: flex;
+  width: 100%;
+  height: 50px;
+}
+.nav-pip {
+  flex: 1;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+.nav-pip:last-child { border-right: none; }
+.nav-pip:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.nav-pip.active {
+  color: var(--text);
+  background: rgba(255,255,255,0.02);
+}
+.nav-pip.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; width: 100%; height: 3px;
+  background: var(--purple-s);
+}
+.progress-bar-container {
+  width: 100%;
+  height: 3px;
+  background: var(--bg2);
+}
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--teal-s);
+  transition: width 0.1s;
+}
+
+/* Audio viz */
+.wave{display:flex;align-items:flex-end;gap:2px;height:50px}
+.wave-bar{width:6px;border-radius:2px 2px 0 0;background:var(--amber-s)}
+.spec{display:flex;gap:1px;height:60px;overflow:hidden;border-radius:4px}
+.spec-col{flex:1;display:flex;flex-direction:column;gap:1px}
+.spec-cell{flex:1;border-radius:1px}
+
+/* Mobile adjustments */
+@media(max-width:768px){
+  .nav-pip { text-indent: -9999px; } /* Hide text on mobile, just show bars */
+}
+</style>
+
+<!-- GSAP Dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollToPlugin.min.js"></script>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<!-- FIXED NAVBAR -->
+<div class="master-nav">
+  <div class="nav-pips" id="nav-pips">
+    <div class="nav-pip active" onclick="jumpToSlide(0)">01 - Intro</div>
+    <div class="nav-pip" onclick="jumpToSlide(1)">02 - ViT Grid</div>
+    <div class="nav-pip" onclick="jumpToSlide(2)">03 - CLS Token</div>
+    <div class="nav-pip" onclick="jumpToSlide(3)">04 - ViT vs CNN</div>
+    <div class="nav-pip" onclick="jumpToSlide(4)">05 - CLIP</div>
+    <div class="nav-pip" onclick="jumpToSlide(5)">06 - Spec</div>
+    <div class="nav-pip" onclick="jumpToSlide(6)">07 - Wav2Vec</div>
+    <div class="nav-pip" onclick="jumpToSlide(7)">08 - Whisper</div>
+    <div class="nav-pip" onclick="jumpToSlide(8)">09 - Multimodal</div>
+    <div class="nav-pip" onclick="jumpToSlide(9)">10 - Review</div>
+  </div>
+  <div class="progress-bar-container"><div class="progress-bar" id="progress-bar"></div></div>
+</div>
+
+<!-- HORIZONTAL CONTAINER -->
+<div class="scroll-container" id="scroll-container">
+  <div class="horizontal-wrap" id="horizontal-wrap">
+
+    <!-- SLIDE 1 -->
+    <div class="slide" id="s0">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--amber-s)">Slide 1 of 10</div>
+          <div class="stitle">Transformers beyond text</div>
+          <div class="ssub">The exact same core architecture that reads and writes can also see and listen.</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">The Big Idea</span>
+            <div class="card-title">One universal architecture</div>
+            <div class="card-body">You have already learned how transformers process textual language by natively translating syntax strings into embeddings matrices. That exact same mechanism functions perfectly on images and audio waves. The only hurdle is physically converting pure pixels and acoustic pressures into functional matrix arrays. Once translated, the Attention engine fundamentally cannot tell the difference.</div>
+          </div>
+          <div class="flow" style="margin-left: 20px;">
+            <div class="fbox" style="background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)">Text<br>tokens</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Image<br>patches</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--pink-f);border-color:var(--pink-s);color:var(--pink-t)">Audio<br>frames</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--bg2);border-color:var(--border);color:var(--text2)">Embedding<br>vectors</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--purple-s);border-color:#534AB7;color:#fff">Transformer<br>attention × N</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Output</div>
+          </div>
+          <div class="three">
+            <div class="stat"><div class="stat-val">ViT</div><div class="stat-lbl">Vision Transformers (2020)</div></div>
+            <div class="stat"><div class="stat-val">CLIP</div><div class="stat-lbl">Contrastive Language-Image (2021)</div></div>
+            <div class="stat"><div class="stat-val">Whisper</div><div class="stat-lbl">Speech Transcription (2022)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide" id="s1">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--purple-t)">Slide 2 of 10</div>
+          <div class="stitle">Turning a photograph into a sentence</div>
+          <div class="ssub">An image is worth 16×16 words — Dosovitskiy et al., Google Brain 2020</div>
+        </div>
+        <div class="sc">
+          <div class="two">
+            <div class="card">
+              <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The Core Problem</span>
+              <div class="card-title">Images are 2D Grids</div>
+              <div class="card-body">A transformer absolutely requires a flat sequence of tokens. The central revelation of ViT: treat a photograph identically to a sentence by algorithmically slicing it into square microscopic patches, feeding those patches as 'tokens'.</div>
+            </div>
+            <div class="card">
+              <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">The Geometric Slicing</span>
+              <div class="card-title">196 Patches per Photo</div>
+              <div class="card-body">A standard 224×224 image shredded into 16×16 chunks yields exactly 196 patches. Each fragment is forcefully flattened into an exact 768-number array before reaching the mathematical encoder.</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:10px; color:var(--purple-s)">Visualizing the Patch Pipeline</div>
+            <div class="flow" style="justify-content:center;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                <div class="patch-grid">
+                  <div class="patch hi"></div><div class="patch"></div><div class="patch"></div>
+                  <div class="patch"></div><div class="patch"></div><div class="patch"></div>
+                  <div class="patch"></div><div class="patch"></div><div class="patch"></div>
+                  <div class="patch"></div><div class="patch"></div><div class="patch"></div>
+                  <div class="patch"></div><div class="patch"></div><div class="patch"></div>
+                  <div class="patch"></div><div class="patch"></div><div class="patch"></div>
+                </div>
+                <div style="font-size:11px;color:var(--text2)">224×224 image</div>
+              </div>
+              <div class="farr" style="padding:0 20px">→</div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div style="background:var(--amber-f);border:2px solid var(--amber-s);border-radius:4px;width:30px;height:100px;display:flex;align-items:center;justify-content:center">
+                  <span style="writing-mode:vertical-rl;font-size:11px;color:var(--amber-t);font-weight:700">768 Array</span>
+                </div>
+                <div style="font-size:11px;color:var(--text2)">Flatten</div>
+              </div>
+              <div class="farr" style="padding:0 20px">→</div>
+              <div class="fbox" style="background:var(--purple-s);border-color:#534AB7;color:#fff;padding:12px 24px">Transformer<br>Engine</div>
+            </div>
+          </div>
+          <div class="paper"><strong>An Image is Worth 16×16 Words (ViT)</strong> — Dosovitskiy et al. The original Vision Transformer paper proving Transformers can brutally override CNNs at scale.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide" id="s2">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--purple-t)">Slide 3 of 10</div>
+          <div class="stitle">The [CLS] Summary Token</div>
+          <div class="ssub">Extracting global understanding natively from fractured 196-patch grids</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Classification Mechanics</span>
+            <div class="card-title">Extracting a Singular Conclusion</div>
+            <div class="card-body">After explicitly passing 196 microscopic image patches through the deep Transformer blocks, the system outputs 196 geometric variables. To classify an image as a exactly a "Dog", we prepend a specialized `[CLS]` token physically onto the front of the image sequence. <strong>Because of self-attention calculations</strong>, this single token actively peers into all 196 patches mathematically, effectively summarizing the whole image.</div>
+          </div>
+          <div class="card" style="text-align: center; border-color: var(--purple-s)">
+            <div class="card-title" style="margin-bottom:20px; color:var(--purple-t)">Attention Funneling</div>
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:12px">
+              <div style="background:var(--purple-s);color:#fff;border-radius:6px;padding:8px 12px;font-size:14px;font-weight:700">[CLS]</div>
+              <div style="background:var(--purple-f);border:1px solid var(--purple-s);color:var(--purple-t);border-radius:6px;padding:8px 12px;font-size:14px">P₁</div>
+              <div style="background:var(--purple-f);border:1px solid var(--purple-s);color:var(--purple-t);border-radius:6px;padding:8px 12px;font-size:14px">P₂</div>
+              <div style="background:var(--purple-f);border:1px solid var(--purple-s);color:var(--purple-t);border-radius:6px;padding:8px 12px;font-size:14px">P₃</div>
+              <div style="color:var(--text3);padding:8px 4px;font-size:14px">… P₁₉₆</div>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:10px">[CLS] forcefully attaches its logic nodes to all Patches across every layer.</div>
+          </div>
+          <div class="card" style="border-left: 4px solid var(--teal-s);">
+            <div class="card-title">Positional Embeddings in 2D</div>
+            <div class="card-body">Because native mathematical arrays don't securely understand spatial dimensions, the original image's XY coordinate structure is explicitly mathematically stamped onto every patch array before runtime. </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide" id="s3">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--teal-t)">Slide 4 of 10</div>
+          <div class="stitle">ViT vs Convolutional CNNs</div>
+          <div class="ssub">Divergent architectural ideologies interpreting exactly the same picture</div>
+        </div>
+        <div class="sc">
+          <div class="two">
+            <div class="card" style="border-top:3px solid var(--teal-s)">
+              <span class="badge" style="background:var(--teal-f);color:var(--teal-t)">CNN — Local First</span>
+              <div class="card-title">Sliding Geometry Window</div>
+              <div class="card-body">A CNN algorithmically restricts its vision, sliding a small 3×3 physical window slowly across the grid. It is forced to understand microscopic edges heavily before looking globally. Extremely data efficient, but struggles heavily evaluating objects spaced on opposite sides of a picture.</div>
+            </div>
+            <div class="card" style="border-top:3px solid var(--purple-s)">
+              <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">ViT — Global Dominance</span>
+              <div class="card-title">Simultaneous Field Calculation</div>
+              <div class="card-body">ViT abandons all strict constraints. The very first Attention layer is fully capable of calculating explicit overlaps between a pixel in the top-left and bottom-right natively in 1 step. </div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="badge" style="background:var(--purple-f);color:var(--purple-t)">Modern ViT Family Tree</span>
+            <div class="card-body">
+              <strong>DeiT (2021)</strong> — Distilled ViTs mimicking CNN efficiencies to avoid immense Google data walls.<br><br>
+              <strong>Swin Transformer (2021)</strong> — Microsoft's sliding-window hierarchal variant, crushing Object Detection ceilings.<br><br>
+              <strong>Masked Autoencoders (MAE)</strong> — 2022's revelation. Physically blacking out 75% of image patches and forcing the algorithm to hallucinate the voids for zero-shot mastery.<br><br>
+              <strong>ViT-22B (2023)</strong> — Google's sheer 22 Billion parameter vision supercomputer.
+            </div>
+          </div>
+          <div class="three">
+            <div class="stat"><div class="stat-val">196</div><div class="stat-lbl">Patches for 224px</div></div>
+            <div class="stat"><div class="stat-val">22Bn</div><div class="stat-lbl">Parameter Ceiling</div></div>
+            <div class="stat"><div class="stat-val">75%</div><div class="stat-lbl">MAE Dropout Map</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 -->
+    <div class="slide" id="s4">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--blue-t)">Slide 5 of 10</div>
+          <div class="stitle">CLIP: Vision meets Language</div>
+          <div class="ssub">Contrastive Pre-training securely binds pixel arrangements exclusively to lexical strings.</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Breakthrough Algorithm</span>
+            <div class="card-title">Contrastive Mapping Alignment</div>
+            <div class="card-body">CLIP runs dual independent massive brains: a text transformer and an image transformer. Given an image of a dog and the caption "A fluffy dog", the objective function violently drags both mathematical representations into the exact same numerical cluster, punishing combinations explicitly that don't match.</div>
+          </div>
+          <div class="card" style="text-align: center; border-color: var(--blue-s)">
+            <div class="flow" style="justify-content:center; padding-bottom: 0;">
+              <div class="fbox" style="flex:1;background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">ViT Encoder<br><span style="font-size:10px; opacity:0.8">Image</span></div>
+              <div class="farr">→</div>
+              <div style="flex:2;background:var(--blue-f);border:2px solid var(--blue-s);border-radius:var(--radius-sm);padding:24px;">
+                <div style="font-size:14px;font-weight:700;color:var(--blue-t)">Dot Product Intersection Map</div>
+              </div>
+              <div class="farr">←</div>
+              <div class="fbox" style="flex:1;background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">GPT Encoder<br><span style="font-size:10px; opacity:0.8">Text</span></div>
+            </div>
+          </div>
+          <div class="two">
+            <div class="card">
+              <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Generative Engine Core</span>
+              <div class="card-body">Because CLIP maps grammar precisely to pixel arrays, Generative UI arrays like DALL-E exclusively utilize frozen CLIP encoders as their internal compass dictating exactly how diffusion pixels align to prompts.</div>
+            </div>
+            <div class="card">
+              <span class="badge" style="background:var(--blue-f);color:var(--blue-t)">Zero-Shot Omniscience</span>
+              <div class="card-body">Expose CLIP an alien photo, and ask it to compare it manually to 1000 written classes. It will instantly cluster the photo to the tightest lexical variable. It achieves ResNet-50 flawless accuracy with absolutely zero dedicated fine-tuning paths.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 -->
+    <div class="slide" id="s5">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--amber-t)">Slide 6 of 10</div>
+          <div class="stitle">Understanding Sonic Transcription</div>
+          <div class="ssub">Algorithmically morphing pressure waves completely into rigid transformer arrays</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Audio Matrix Theory</span>
+            <div class="card-title">16,000 Numbers per Second</div>
+            <div class="card-body">Standard acoustic files capture 16kHz audio. Therefore a mere 30-second speech excerpt contains 480,000 individual variables. Submitting over a half-million data points explicitly into standard $O(N^2)$ Transformer Attention creates an instantaneous mathematical VRAM explosion.</div>
+          </div>
+          <div class="card" style="overflow: hidden; border-color: var(--amber-s)">
+            <div style="display:flex;gap:20px;align-items:center;">
+              <div style="flex: 1.5">
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">1. Raw Waveform</div>
+                <div class="wave" id="wave-viz"></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">480k Samples</div>
+              </div>
+              <div style="font-size:24px;color:var(--text3)">→</div>
+              <div style="flex: 2">
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">2. Log-Mel Spectrogram</div>
+                <div class="spec" id="spec-viz"></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px">80 Bins × 3k Frames (Tractable!)</div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="border-left: 4px solid var(--amber-s)">
+            <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Spectrogram Compression</span>
+            <div class="card-body">A Spectrogram visually graphs frequency magnitude across temporal lines. By aggressively warping this using a "Mel" filter (an algorithm mapping to biological inner-ear constraints), we drastically compress pure waveforms into highly textured visual 'images' fully capable of being interpreted by standard machine-vision networks natively.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 -->
+    <div class="slide" id="s6">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--coral-t)">Slide 7 of 10</div>
+          <div class="stitle">Wav2Vec 2.0: Self-Supervised Speech</div>
+          <div class="ssub">Training a speech engine flawlessly using purely silent unlabelled tapes</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">The BERT Parallel</span>
+            <div class="card-title">Predicting Masked Audio Voids</div>
+            <div class="card-body">Just like NLP BERT mathematically blacks out words, Wav2Vec 2.0 ingests millions of hours of unlabelled radio and aggressively blanks out the vocal track. It utilizes deep attention arrays to predict exactly what the 'missing sound' frequency must be based securely on the environmental audio padding it.</div>
+          </div>
+          <div class="flow" style="justify-content: center; margin-bottom: 12px;">
+            <div class="fbox" style="background:var(--coral-f);border-color:var(--coral-s);color:var(--coral-t)">Raw Wave</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)">Deep CNN<br>Features</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Encoder Engine<br>(Random Dropout)</div>
+            <div class="farr">→</div>
+            <div class="fbox" style="background:var(--coral-f);border-color:var(--coral-s);color:var(--coral-t)">Reconstruction<br>Map</div>
+          </div>
+          <div class="two">
+            <div class="card">
+              <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Extreme Efficiency</span>
+              <div class="card-body">After completely mastering human linguistics via structural silence prediction on a Million hours, you can securely fine-tune the finalized algorithm safely using merely exactly 10 Minutes of explicit transcript labels.</div>
+            </div>
+            <div class="card">
+              <span class="badge" style="background:var(--coral-f);color:var(--coral-t)">Microsoft WavLM Integration</span>
+              <div class="card-body">Advanced iterations purposefully inject extreme environmental chaos variables during masking (overlapping overlapping speakers simultaneously) forcing brutal denoising parameters directly into the mathematical baseline.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 -->
+    <div class="slide" id="s7">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--pink-t)">Slide 8 of 10</div>
+          <div class="stitle">The Whisper Revolution</div>
+          <div class="ssub">Throwing out self-supervision in favor of explicitly massive supervised compute</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Brute Force Domination</span>
+            <div class="card-title">680,000 Labelled Hours</div>
+            <div class="card-body">OpenAI definitively abandoned the subtle elegant Wav2Vec approach completely. Whisper scrapes thousands of gigabytes of (audio, transcript) labels explicitly from the internet cleanly using standard pure Encoder-Decoder cross-attention architectures. Whisper performs real-time language detection, translation, and transcription concurrently!</div>
+          </div>
+          <div class="card" style="text-align: center; border-color: var(--pink-s)">
+            <div class="card-title" style="margin-bottom:12px; color:var(--pink-t)">Encoder-Decoder Native Handoff</div>
+            <div class="flow" style="justify-content:center; padding-bottom:0;">
+              <div class="fbox" style="background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)">Log-Mel<br>Spectrogram</div>
+              <div class="farr" style="font-size:12px;padding:0 8px">Ingests ↑</div>
+              <div class="fbox" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Encoder<br>Loop ×N</div>
+              <div class="farr" style="font-size:12px;padding:0 8px">Cross-Attn →</div>
+              <div class="fbox" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Decoder<br>Auto-regressor</div>
+              <div class="farr" style="font-size:12px;padding:0 8px">Writes ↑</div>
+              <div class="fbox" style="background:var(--pink-f);border-color:var(--pink-s);color:var(--pink-t)">"The AI<br>Transcibes…"</div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="badge" style="background:var(--pink-f);color:var(--pink-t)">Architectural Hallucinations</span>
+            <div class="card-body">Whisper's fatal flaw is its extreme reliance on explicit language modelling constraints. Because the decoder is explicitly an LLM under the hood trying to 'read' the audio, if it hits a patch of harsh silence or aggressive static, the mathematical auto-regressor frequently violently 'guesses' a logical end-of-sentence structure, hallucinating perfect prose over purely empty static air space.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 -->
+    <div class="slide" id="s8">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--blue-t)">Slide 9 of 10</div>
+          <div class="stitle">Modern Omniscient LLMs</div>
+          <div class="ssub">Simultaneously reading Text, Vision, and Audio flawlessly within a solitary pipeline</div>
+        </div>
+        <div class="sc">
+          <div class="card">
+            <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">The Great Unification Phase</span>
+            <div class="card-title">Everything Degrades to Tokens</div>
+            <div class="card-body">Bleeding edge monolithic architectures like Gemini 1.5, GPT-4o, and Claude 3.5 Sonnet discard utilizing different isolated brains. When every picture can be heavily smashed into a 768-D sequence, and every audio wave identically converted into discrete acoustic patch variables, you merely pipe ALL OF THEM sequentially straight into the exact same Transformer engine side-by-side using unified arrays.</div>
+          </div>
+          <div class="flow" style="justify-content:center; gap: 8px;">
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+              <div class="fbox" style="background:var(--amber-f);border-color:var(--amber-s);color:var(--amber-t)">Text Tokens</div>
+              <div class="fbox" style="background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)">Image Tokens</div>
+              <div class="fbox" style="background:var(--pink-f);border-color:var(--pink-s);color:var(--pink-t)">Audio Matrix</div>
+            </div>
+            <div style="font-size:24px;color:var(--text3)">→</div>
+            <div style="flex:1.5;background:var(--purple-f);border:2px solid var(--purple-s);border-radius:var(--radius);padding:30px;text-align:center">
+              <div style="font-size:18px;font-weight:700;color:#fff">GPT-4 Omni Engine</div>
+            </div>
+            <div style="font-size:24px;color:var(--text3)">→</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+              <div class="fbox" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Live Speech</div>
+              <div class="fbox" style="background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)">Syntax Data</div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Native Reaction Latency</span>
+            <div class="card-body">By bypassing rigid translation chains (e.g., Speech-To-Text model → Text Engine → Text-to-Speech Engine), the GPT-4o native omni-model reacts strictly across pure acoustics simultaneously in effectively ~232ms, allowing completely flawless conversational interruptions visually relying purely on unified data streams.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10 -->
+    <div class="slide" id="s9">
+      <div class="slide-content-wrapper">
+        <div class="sh">
+          <div class="stag" style="color:var(--green-t)">Slide 10 of 10</div>
+          <div class="stitle">Summary: The Cross-Modality Ecosystem</div>
+          <div class="ssub">Synthesizing pure physics heavily into mathematical parameters</div>
+        </div>
+        <div class="sc">
+          <div class="card" style="padding: 10px; overflow-x: auto; background: var(--bg2)">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr>
+                  <th style="padding:12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text);font-weight:700">Sensory Modality</th>
+                  <th style="padding:12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text);font-weight:700">Hardware Filter Step</th>
+                  <th style="padding:12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text);font-weight:700">Flagship Models</th>
+                  <th style="padding:12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text);font-weight:700">Engine Output Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--amber-t);font-weight:600">Pure Text</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">BPE Tokenization → Dict Lookup</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">GPT, LLaMA, Claude</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Auto-Regressive Generative</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--purple-t);font-weight:600">Photographic</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Square Grid Splitting → Arrays</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">ViT, CLIP, Swin</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Deep Dimensional Matching</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--pink-t);font-weight:600">Acoustic Audio</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Log-Mel Convolution → Frame Arrays</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Whisper, Wav2Vec 2.0</td>
+                  <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text2)">Explicit Transcription</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card" style="margin-top: 20px;">
+            <span class="badge" style="background:var(--green-f);color:var(--green-t)">Research Directives</span>
+            <div class="card-body" style="line-height:2.0; font-family: monospace;">
+              > ViT — Dosovitskiy et al., (arXiv:2010.11929)<br>
+              > MAE — He et al., Meta 2022 (arXiv:2111.06377)<br>
+              > CLIP — Radford et al., OpenAI 2021 (arXiv:2103.00020)<br>
+              > Whisper — Radford et al., OpenAI 2022 (arXiv:2212.04356)<br>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- End Wrap -->
+</div> <!-- End Container -->
+
+<script>
+  // DOM setup for visualizations
+  const w = document.getElementById('wave-viz');
+  const hts=[20,35,15,45,30,50,25,40,18,42,28,48,22,38,16,44,32,26,43,19,36,27,47,13,39,33,46,21,37,14, 20,35,15,45,30];
+  if(w){
+    hts.forEach(h=>{const d=document.createElement('div');d.className='wave-bar';d.style.height=h+'px';w.appendChild(d);});
+  }
+
+  const sp = document.getElementById('spec-viz');
+  const cols=['#185FA5','#378ADD','#85B7EB','#B5D4F4','#85B7EB','#378ADD','#185FA5','#042C53','#185FA5','#378ADD','#B5D4F4','#85B7EB','#378ADD','#185FA5'];
+  if(sp){
+    cols.forEach(c=>{const col=document.createElement('div');col.className='spec-col';for(let i=0;i<6;i++){const cell=document.createElement('div');cell.className='spec-cell';cell.style.background=c;cell.style.opacity=(0.4+Math.random()*0.6).toFixed(2);col.appendChild(cell);}sp.appendChild(col);});
+  }
+
+  // --- GSAP HORIZONTAL SCROLL LOGIC ---
+  gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+
+  const container = document.getElementById("scroll-container");
+  const wrap = document.getElementById("horizontal-wrap");
+  const sections = gsap.utils.toArray(".slide");
+  const pips = document.querySelectorAll('.nav-pip');
+  const bar = document.getElementById('progress-bar');
+
+  // Create the massive horizontal GSAP timeline linked perfectly to the vertical scroll
+  let tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: container,
+      pin: true,
+      scrub: 1, // Smooth dampening effect
+      snap: {
+        snapTo: 1 / (sections.length - 1),
+        duration: {min: 0.2, max: 0.5},
+        ease: "power1.inOut" // Ensure snapping is completely seamless between slides
+      },
+      end: () => "+=" + wrap.offsetWidth,
+      onUpdate: (self) => {
+        // Sync progress bar
+        bar.style.width = (self.progress * 100) + "%";
+        
+        // Find explicitly which slide is maximally visible
+        const currentProgress = self.progress;
+        const index = Math.round(currentProgress * (sections.length - 1));
+        
+        pips.forEach((pip, i) => {
+          if (i === index) pip.classList.add('active');
+          else pip.classList.remove('active');
+        });
+      }
+    }
+  });
+
+  // Pull the wrap directly to the left over the scroll duration
+  tl.to(sections, {
+    xPercent: -100 * (sections.length - 1),
+    ease: "none"
+  });
+
+  // Navigation click hand-off
+  function jumpToSlide(index) {
+    // We calculate exactly how far down the page to scroll vertically
+    // to force the ScrollTrigger to match the slide
+    const scrollEnd = wrap.offsetWidth; 
+    const targetScroll = (index / (sections.length - 1)) * scrollEnd;
+    
+    gsap.to(window, {
+      scrollTo: targetScroll,
+      duration: 0.8,
+      ease: "power2.inOut"
+    });
+  }
+
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_04'), 500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hugging Face & Git LFS</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;
+  --border:rgba(255,255,255,0.1);--radius:10px;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+  --green-f:#173404;--green-s:#639922;--green-t:#C0DD97;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:40px;}
+.header{text-align:center;margin-bottom:40px;}
+.badge{display:inline-block;padding:6px 12px;background:var(--amber-f);color:var(--amber-t);border-radius:4px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+h1{font-size:32px;margin-bottom:10px;color:var(--text);}
+p.sub{color:var(--text2);font-size:16px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:30px;}
+.terminal{background:#000;border:1px solid #333;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;color:#0f0;line-height:1.6;overflow-x:auto;}
+.term-cmt{color:#888;}
+.term-cmd{color:#fff;}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="badge">Ecosystem Course File</div>
+    <h1>Hugging Face & Git LFS</h1>
+    <p class="sub">Cloning 40GB neural networks locally from the absolute center of open-source AI.</p>
+  </div>
+  
+  <div class="grid">
+    <!-- Left Column -->
+    <div class="card">
+      <h2 style="color:var(--blue-t); margin-bottom:15px; font-size:20px;">The GitHub of Machine Learning</h2>
+      <p style="color:var(--text2); margin-bottom:20px; line-height:1.6; font-size:14px;">Hugging Face is the central nervous system for open-source intelligence. It hosts hundreds of thousands of base models, fine-tunes, datasets, and LoRA adapters. Almost every researcher and engineer relies entirely on this public registry.</p>
+      
+      <div style="background:var(--bg3); border-radius:6px; padding:20px; border:1px solid var(--border); position: relative;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:15px;">
+           <div style="font-weight:bold; font-size:18px;">🤗 meta-llama / Meta-Llama-3-8B</div>
+           <div>♡ 12.4k</div>
+        </div>
+        <p style="font-size:13px; color:var(--text2);">Model Card: Llama 3 is an auto-regressive language model that uses an optimized transformer architecture.</p>
+        <div style="margin-top:20px;">
+           <span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; font-size:11px;">GGUF</span>
+           <span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; font-size:11px;">PyTorch</span>
+           <span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; font-size:11px;">Safetensors</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="card">
+      <h2 style="color:var(--amber-t); margin-bottom:15px; font-size:20px;">Git Large File Storage (LFS)</h2>
+      <p style="color:var(--text2); margin-bottom:20px; line-height:1.6; font-size:14px;">Because models are fundamentally just massive matrices of floating-point numbers stored in generic `.bin` or `.safetensors` files, they weigh dozens of gigabytes. Standard Git immediately crashes trying to download files this large. You must orchestrate `Git LFS` (Large File Storage) to bypass the buffer limit.</p>
+      
+      <div class="terminal">
+        <span class="term-cmt"># 1. Install Git LFS specifically</span><br>
+        <span class="term-cmd">$ git lfs install</span><br>
+        <span class="term-cmt">> Git LFS initialized.</span><br><br>
+        
+        <span class="term-cmt"># 2. Clone the massive repository</span><br>
+        <span class="term-cmd">$ git clone https://huggingface.co/meta-llama/Meta-Llama-3-8B</span><br>
+        <span class="term-cmt">> Cloning into 'Meta-Llama-3-8B'...</span><br>
+        <span class="term-cmt">> remote: Enumerating objects: 45, done.</span><br>
+        <span class="term-cmt">> Filtering content: 100% (4/4), 14.8 GB | 45.1 MB/s, done.</span><br><br>
+        
+        <span class="term-cmt"># 3. Model is now physically localized onto your drive</span><br>
+        <span class="term-cmd">$ ls -lh</span><br>
+        <span class="term-cmt">> -rw-r--r-- 1 user 14.8G model-00001-of-00004.safetensors</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

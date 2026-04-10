@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Token Pipeline — Layer 0</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+    padding-bottom: 50px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+  /* Input Stage */
+  .stage-box {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 20px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  }
+  .stage-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+  }
+  
+  .input-ui {
+    display: flex;
+    gap: 15px;
+  }
+  .prompt-input {
+    flex: 1;
+    background: #111;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 15px 20px;
+    font-size: 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .prompt-input:focus { border-color: var(--teal-s); }
+  
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 15px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-align: center;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); }
+  .btn.btn-teal { border-color: var(--teal-t); color: var(--teal-t); }
+  .btn.btn-purple { border-color: var(--purple-t); color: var(--purple-t); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: var(--border); color: var(--text-muted); }
+
+  /* Token Stage */
+  #token-stage, #embed-stage {
+    display: none;
+  }
+  .tokens-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-height: 80px;
+  }
+  .token-chunk {
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  .t-text {
+    padding: 10px 15px;
+    font-size: 16px;
+    font-family: monospace;
+    font-weight: bold;
+    text-align: center;
+  }
+  .t-id {
+    background: #000;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 5px;
+    text-align: center;
+    border-top: 1px dashed #333;
+  }
+
+  /* Embedding Stage */
+  .embed-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .embed-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    background: #111;
+    border: 1px solid #222;
+    padding: 12px;
+    border-radius: 8px;
+    animation: slideIn 0.5s ease-out forwards;
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  .embed-id-tag {
+    background: var(--purple-f);
+    color: var(--purple-t);
+    border: 1px solid var(--purple-s);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: bold;
+    min-width: 60px;
+    text-align: center;
+  }
+  .embed-vector {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+  }
+  .vec-val {
+    background: #1a1a1a;
+    color: #888;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 3px;
+  }
+  .vec-val.active { color: var(--teal-t); background: #0a1f1a; border: 1px solid var(--teal-f); }
+  .vec-fade { 
+    color: #444; 
+    font-style: italic; 
+    padding: 4px; 
+    font-size: 12px;
+  }
+
+  /* Arrows */
+  .down-arrow {
+    text-align: center;
+    font-size: 24px;
+    color: var(--text-muted);
+    margin: 10px 0;
+    display: none;
+    animation: pulseArrow 2s infinite;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes pulseArrow {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 0.8; transform: translateY(5px); }
+  }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>Layer 0: The Token Pipeline</h1>
+    <p>Before a neural network can process text, the language must be converted into math. Enter any sentence below to watch how <strong>Byte-Pair Encoding (BPE)</strong> shatters text into numeric tokens, and how the <strong>Embedding Table</strong> projects those integers into massive floating-point vectors.</p>
+  </div>
+
+  <!-- Stage 1: Input -->
+  <div class="stage-box">
+    <div class="stage-title">1. Raw Text Input</div>
+    <div class="input-ui">
+      <input type="text" id="prompt-input" class="prompt-input" value="The neural network is learning." autocomplete="off">
+      <button class="btn btn-teal" id="btn-tokenize" onclick="runTokenize()">Tokenize Text →</button>
+    </div>
+  </div>
+
+  <div class="down-arrow" id="arrow-1">↓</div>
+
+  <!-- Stage 2: Tokens -->
+  <div class="stage-box" id="token-stage">
+    <div class="stage-title" style="color:var(--teal-t)">2. Subword Tokens (BPE)</div>
+    <div class="tokens-container" id="tokens-render"></div>
+    <div style="margin-top:20px; text-align:right;">
+      <button class="btn btn-purple" style="display:inline-block;" id="btn-embed" onclick="runEmbed()">Project into Vectors ↓</button>
+    </div>
+  </div>
+
+  <div class="down-arrow" id="arrow-2">↓</div>
+
+  <!-- Stage 3: Embedding -->
+  <div class="stage-box" id="embed-stage">
+    <div class="stage-title" style="color:var(--purple-t)">3. Vector Embeddings (Lookup Table)</div>
+    <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">Each discrete Token ID looks up a dense row of floats representing semantic meaning. (Showing 8 of 4096 dimensions).</p>
+    <div class="embed-grid" id="embed-render"></div>
+  </div>
+</div>
+
+<script>
+  // Simple simulated token boundaries for demonstration
+  function pseudoTokenize(text) {
+    if (!text) return [];
+    
+    // Split roughly by spaces, keeping spaces attached to the start of words where applicable
+    // This mimics how standard LLM tokenizers often treat strings.
+    const chunks = text.match(/[\w]+|[^\s\w]+|\s+[\w]+/g) || text.split(/(\s+)/).filter(x=>x);
+    
+    return chunks.map(chunk => {
+      // Hash string to pseudo-deterministic ID 0-50000
+      let hash = 0;
+      for(let i = 0; i < chunk.length; i++){ hash = Math.imul(31, hash) + chunk.charCodeAt(i) | 0; }
+      const id = Math.abs(hash) % 50000 + 10; 
+      
+      // Assign a consistent pastel border color based on ID
+      const hues = [160, 20, 260, 210, 340, 100];
+      const hc = hues[id % hues.length];
+      const color = `hsl(${hc}, 70%, 40%)`;
+      const bg = `hsl(${hc}, 50%, 15%)`;
+      
+      return { text: chunk.replace(/ /g, "\u00A0"), id, color, bg };
+    });
+  }
+
+  function randomVector(seed) {
+    // Generate an array of realistic looking small floats based on a numerical seed
+    const v = [];
+    for(let i=0; i<8; i++) {
+        let n = Math.sin(seed * (i+1)) * 2;
+        v.push(n.toFixed(4));
+    }
+    return v;
+  }
+
+  let currentTokens = [];
+
+  function runTokenize() {
+    const input = document.getElementById('prompt-input');
+    const val = input.value.trim() || input.placeholder;
+    if(!val) return;
+
+    // UI Updates
+    document.getElementById('btn-tokenize').innerText = "Re-Tokenize";
+    document.getElementById('arrow-1').style.display = 'block';
+    const stage = document.getElementById('token-stage');
+    stage.style.display = 'block';
+    
+    // Hide trailing stages
+    document.getElementById('embed-stage').style.display = 'none';
+    document.getElementById('arrow-2').style.display = 'none';
+
+    currentTokens = pseudoTokenize(val);
+    
+    const container = document.getElementById('tokens-render');
+    container.innerHTML = '';
+    
+    currentTokens.forEach((tok, i) => {
+        const el = document.createElement('div');
+        el.className = 'token-chunk';
+        el.style.animationDelay = `${i * 0.1}s`;
+        el.style.borderColor = tok.color;
+        
+        el.innerHTML = `
+            <div class="t-text" style="background:${tok.bg}; color:#fff">${tok.text}</div>
+            <div class="t-id">ID: ${tok.id}</div>
+        `;
+        container.appendChild(el);
+    });
+  }
+
+  function runEmbed() {
+    document.getElementById('arrow-2').style.display = 'block';
+    const stage = document.getElementById('embed-stage');
+    stage.style.display = 'block';
+    
+    const container = document.getElementById('embed-render');
+    container.innerHTML = '';
+    
+    currentTokens.forEach((tok, i) => {
+        const vecData = randomVector(tok.id);
+        
+        const row = document.createElement('div');
+        row.className = 'embed-row';
+        row.style.animationDelay = `${i * 0.15}s`;
+        row.style.borderColor = tok.bg;
+        
+        let vecHTML = vecData.map((v, j) => {
+            const isPos = parseFloat(v) > 0;
+            const cls = isPos ? 'vec-val active' : 'vec-val';
+            return `<div class="${cls}">${v}</div>`;
+        }).join('');
+        
+        row.innerHTML = `
+            <div class="embed-id-tag" style="background:${tok.bg}; border-color:${tok.color}">[${tok.id}]</div>
+            <div style="color:#555; padding:0 5px;">→</div>
+            <div class="embed-vector">
+                <span class="vec-fade">[</span>
+                ${vecHTML}
+                <span class="vec-fade">... 4088 more]</span>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+    
+    // Scroll to bottom
+    setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 100);
+  }
+</script>
+
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_21'), 500);
+});
+</script>
+</body>
+</html>

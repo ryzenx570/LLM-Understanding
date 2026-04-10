@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encoder vs Decoder</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+  .split {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .half {
+    flex: 1;
+    min-width: 350px;
+    background: #0d0d0f;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .half h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  
+  .encoder-theme h2 { color: var(--teal-t); }
+  .decoder-theme h2 { color: var(--purple-t); }
+
+  /* Sentence styling */
+  .sentence-box {
+    margin: 30px 0;
+    padding: 20px;
+    background: #111;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 18px;
+    line-height: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+  }
+
+  .token {
+    padding: 5px 10px;
+    background: var(--bg2);
+    border-radius: 4px;
+    border: 1px solid #333;
+    transition: all 0.3s;
+  }
+
+  .mask-token {
+    background: rgba(255,100,100,0.2);
+    border-color: var(--red-s);
+    color: var(--red-t);
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  /* Decoder causal mask */
+  .causal-overlay {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+    border-left: 2px dashed var(--purple-s);
+    transition: width 0.3s ease-in-out;
+  }
+
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.3s;
+    display: inline-block;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); }
+  
+  .encoder-theme .btn { border-color: var(--teal-s); }
+  .decoder-theme .btn { border-color: var(--purple-s); }
+
+  .explanation {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 15px;
+    min-height: 60px;
+  }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>Inspector vs. Storyteller</h1>
+    <p>Transformers process sequences differently based on their architecture. <strong>Encoders</strong> (like BERT) look at the entire sentence at once in both directions, making them great at analyzing text. <strong>Decoders</strong> (like GPT) are causally masked, meaning they can only see the past and must generate the future one word at a time, making them master storytellers.</p>
+  </div>
+
+  <div class="split">
+    <!-- ENCODER -->
+    <div class="half encoder-theme">
+      <h2>The Inspector (Encoder)</h2>
+      <p style="font-size:14px; color:#aaa;">Bidirectional Attention. Reads left-to-right AND right-to-left simultaneously.</p>
+      
+      <div class="sentence-box" id="enc-box">
+        <div class="token">The</div>
+        <div class="token" id="enc-1" style="transition: all 0.3s;">detective</div>
+        <div class="token">found</div>
+        <div class="token">the</div>
+        <div class="token mask-token" id="enc-mask" onclick="solveEncoder()">[MASK]</div>
+        <div class="token">on</div>
+        <div class="token">the</div>
+        <div class="token" id="enc-2" style="transition: all 0.3s;">bloody</div>
+        <div class="token" id="enc-3" style="transition: all 0.3s;">floor.</div>
+      </div>
+      
+      <div class="btn" id="enc-btn" onclick="solveEncoder()">Predict Mask</div>
+      <div class="btn" onclick="resetEncoder()" style="margin-left: 10px; border-color:#555">Reset</div>
+      <div class="explanation" id="enc-exp">Click to predict the missing word. Watch the bidirectional gaze pull context from both sides before solving.</div>
+    </div>
+
+    <!-- DECODER -->
+    <div class="half decoder-theme">
+      <h2>The Storyteller (Decoder)</h2>
+      <p style="font-size:14px; color:#aaa;">Autoregressive Causally Masked Attention. Only sees the past.</p>
+      
+      <div class="sentence-box" id="dec-box">
+        <div class="token">The</div>
+        <div class="token">detective</div>
+        <div class="token" style="opacity: 0.2" id="dt-2">found</div>
+        <div class="token" style="opacity: 0.2" id="dt-3">the</div>
+        <div class="token" style="opacity: 0.2" id="dt-4">weapon</div>
+        <div class="token" style="opacity: 0.2" id="dt-5">on</div>
+        <div class="token" style="opacity: 0.2" id="dt-6">the</div>
+        <div class="token" style="opacity: 0.2" id="dt-7">bloody</div>
+        <div class="token" style="opacity: 0.2" id="dt-8">floor.</div>
+        
+        <!-- Causal block -->
+        <div class="causal-overlay" id="causal-mask" style="width: 75%;"></div>
+      </div>
+      
+      <div class="btn" onclick="stepDecoder()">Generate Next Word</div>
+      <div class="btn" onclick="resetDecoder()" style="margin-left: 10px; border-color:#555">Reset</div>
+      <div class="explanation" id="dec-exp">The model is literally blind to the right side of the screen. It can only guess what comes next based strictly on what has already been typed.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let encSolved = false;
+  async function solveEncoder() {
+    if (encSolved) return;
+    
+    document.getElementById('enc-exp').innerHTML = '<span style="color:var(--text)">Gazing bidirectionally...</span>';
+    
+    // Highlight past context
+    document.getElementById('enc-1').style.background = 'var(--teal-f)';
+    document.getElementById('enc-1').style.borderColor = 'var(--teal-t)';
+    
+    // Highlight future context
+    document.getElementById('enc-2').style.background = 'var(--teal-f)';
+    document.getElementById('enc-2').style.borderColor = 'var(--teal-t)';
+    document.getElementById('enc-3').style.background = 'var(--teal-f)';
+    document.getElementById('enc-3').style.borderColor = 'var(--teal-t)';
+    
+    // Wait to simulate thinking
+    await new Promise(r => setTimeout(r, 1200));
+
+    const mask = document.getElementById('enc-mask');
+    mask.innerText = "weapon";
+    mask.style.background = "var(--teal-f)";
+    mask.style.color = "var(--teal-t)";
+    mask.style.borderColor = "var(--teal-s)";
+    
+    document.getElementById('enc-exp').innerHTML = '<span style="color:var(--teal-t)">Solved!</span> Because it had access to "detective" AND "bloody floor" simultaneously, it easily deduced "weapon". It is an excellent inspector, but incapable of open-ended generation.';
+    encSolved = true;
+  }
+  
+  function resetEncoder() {
+    encSolved = false;
+    const mask = document.getElementById('enc-mask');
+    mask.innerText = "[MASK]";
+    mask.style.background = "rgba(255,100,100,0.2)";
+    mask.style.color = "var(--red-t)";
+    mask.style.borderColor = "var(--red-s)";
+    
+    const targets = ['enc-1', 'enc-2', 'enc-3'];
+    targets.forEach(id => {
+       document.getElementById(id).style.background = 'var(--bg2)';
+       document.getElementById(id).style.borderColor = '#333';
+    });
+    
+    document.getElementById('enc-exp').innerHTML = 'Click to predict the missing word. Watch the bidirectional gaze pull context from both sides before solving.';
+  }
+
+  let decStep = 2;
+  const totalTokens = 9;
+  
+  function updateDecoderMask() {
+    const box = document.getElementById('dec-box');
+    const mask = document.getElementById('causal-mask');
+    
+    // We want the mask to cover whatever hasn't been generated
+    // Very simple math: each step roughly exposes 11% of the box
+    const percent = 100 - (decStep / totalTokens) * 100;
+    mask.style.width = Math.max(0, percent) + '%';
+    
+    // Reveal tokens
+    for(let i=2; i<totalTokens; i++) {
+        const t = document.getElementById('dt-'+i);
+        if (i < decStep) {
+            t.style.opacity = '1';
+            t.style.background = "var(--purple-f)";
+            t.style.borderColor = "var(--purple-s)";
+            t.style.color = "var(--purple-t)";
+        } else {
+            t.style.opacity = '0.2';
+            t.style.background = "var(--bg2)";
+            t.style.borderColor = "#333";
+            t.style.color = "var(--text)";
+        }
+    }
+  }
+
+  function stepDecoder() {
+    if (decStep > totalTokens) return;
+    decStep++;
+    updateDecoderMask();
+    
+    if (decStep > totalTokens) {
+        document.getElementById('dec-exp').innerHTML = '<span style="color:var(--purple-t)">Generation Complete.</span> It successfully wrote the story from left to right. This causal masking is the foundation of all modern AI Assistants like ChatGPT.';
+    }
+  }
+  
+  function resetDecoder() {
+    decStep = 2;
+    document.getElementById('dec-exp').innerText = 'The model is literally blind to the right side of the screen. It can only guess what comes next based strictly on what has already been typed.';
+    updateDecoderMask();
+  }
+
+  updateDecoderMask();
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_19'), 500);
+});
+</script>
+</body>
+</html>

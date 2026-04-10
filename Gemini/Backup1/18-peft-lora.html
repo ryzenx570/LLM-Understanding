@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoRA vs Full Fine-Tuning</title>
+<link rel="stylesheet" href="sub-clone-style.css">
+<style>
+  body {
+    padding-top: 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .header-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    padding: 30px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 30px;
+  }
+  .header-card h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text); margin-bottom: 10px; }
+  .header-card p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+  .layout {
+    display: flex;
+    gap: 30px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .arena {
+    flex: 2;
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: inset 0 10px 30px rgba(0,0,0,0.8);
+  }
+
+  .sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* GPU Stats */
+  .gpu-monitor {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .vram-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .vram-bar {
+    width: 100%;
+    height: 30px;
+    background: #222;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .vram-fill {
+    height: 100%;
+    width: 5%;
+    background: var(--teal-s);
+    transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.3s;
+  }
+  .vram-text {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+
+  /* Buttons */
+  .btn {
+    background: var(--bg-gradient);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 15px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s;
+    text-align: center;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .btn.active {
+    background: var(--purple-f);
+    color: var(--purple-t);
+    border-color: var(--purple-t);
+  }
+  
+  /* The Brain and Backpack */
+  .brain-container {
+    position: relative;
+    width: 250px;
+    height: 250px;
+  }
+  
+  .brain {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #3a3a4a, #11111a);
+    box-shadow: 0 0 40px rgba(100,100,150,0.2);
+    border: 4px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: rgba(255,255,255,0.5);
+    font-family: monospace;
+    font-size: 14px;
+    transition: all 0.5s;
+  }
+  
+  .brain strong { font-size: 24px; color: #fff; }
+  
+  .backpack {
+    position: absolute;
+    right: -20px;
+    bottom: -10px;
+    width: 80px;
+    height: 100px;
+    background: var(--green-t);
+    border-radius: 10px;
+    border: 2px solid var(--green-s);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+    color: #fff;
+    opacity: 0.5;
+    transition: all 0.5s;
+    transform-origin: bottom right;
+  }
+  
+  /* Animations */
+  @keyframes shake {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-8px, 4px) rotate(-2deg); }
+    50% { transform: translate(8px, -4px) rotate(2deg); }
+    75% { transform: translate(-8px, -4px) rotate(0deg); }
+    100% { transform: translate(8px, 4px) rotate(-2deg); }
+  }
+  
+  @keyframes pulse-lora {
+    0% { transform: scale(1); box-shadow: 0 0 10px var(--green-s); }
+    50% { transform: scale(1.1); box-shadow: 0 0 30px var(--green-t); }
+    100% { transform: scale(1); box-shadow: 0 0 10px var(--green-s); }
+  }
+
+  .state-ff {
+    /* Full Fine-Tuning state */
+  }
+  .state-ff .brain {
+    animation: shake 0.3s infinite;
+    background: radial-gradient(circle at 30% 30%, #8a3a3a, #3a1111);
+    border-color: var(--red-s);
+    box-shadow: 0 0 50px rgba(255,0,0,0.4);
+    color: #fff;
+  }
+  .state-ff .backpack {
+    opacity: 0.1;
+  }
+  
+  .state-lora {
+    /* LoRA state */
+  }
+  .state-lora .brain {
+    background: radial-gradient(circle at 30% 30%, #1a2a3a, #050a11);
+    border-color: #2a3a4a;
+    box-shadow: 0 0 20px rgba(0,100,255,0.1);
+  }
+  .state-lora .backpack {
+    opacity: 1;
+    animation: pulse-lora 1.5s infinite;
+  }
+
+  #warning-toast {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--red-f);
+    color: var(--red-t);
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-card">
+    <h1>The Frozen Brain (LoRA)</h1>
+    <p>To teach a massive 70B-parameter Base Model a new skill, we could update all its weights (Full Fine-Tuning) — but that requires clusters of extremely expensive GPUs. <strong>LoRA (Low-Rank Adaptation)</strong> freezes the big brain entirely and only trains a tiny "backpack" matrix of weights attached to it. The forward pass becomes: <span style="font-family:'DM Mono',monospace;background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px">h = W₀x + (α/r)BAx</span>.</p>
+  </div>
+
+  <div class="layout">
+    <div class="arena" id="arena">
+      <div id="warning-toast">OUT OF MEMORY (OOM) ERROR!</div>
+      
+      <div class="brain-container">
+        <div class="brain" id="brain">
+          <strong>Base Model</strong>
+          <span>Frozen Space</span>
+          <span>70,000,000,000 params</span>
+        </div>
+        <div class="backpack" id="backpack">
+          LoRA<br>Adapter<br><br>10M
+        </div>
+      </div>
+    </div>
+    
+    <div class="sidebar">
+      <div class="gpu-monitor">
+        <div class="vram-title">GPU VRAM Usage</div>
+        <div class="vram-bar">
+          <div class="vram-fill" id="vram-fill"></div>
+          <div class="vram-text" id="vram-text">Idle (5%)</div>
+        </div>
+      </div>
+      
+      <div class="gpu-monitor" style="margin-top:10px;">
+        <div class="vram-title">Alpha Scaler (α / r)</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+          Rank (r) is the bottle neck size (e.g. 8). Alpha (α) scales the LoRA weights up. <strong style="color:var(--green-t)">Golden Rule: α = 2r</strong>.
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="range" id="alpha-slider" min="1" max="64" value="16" style="flex:1" oninput="updateAlpha()">
+          <span id="alpha-val" style="font-family:monospace;font-weight:bold;width:40px;text-align:right">16</span>
+        </div>
+        <div style="font-family:monospace;font-size:12px;color:#fff;margin-top:8px;background:#111;padding:4px;border-radius:4px;text-align:center;">
+          Scale Factor = <span id="scale-factor" style="color:var(--green-t)">2.00</span>x
+        </div>
+      </div>
+      
+      <div class="btn" onclick="triggerLora()">Simulate LoRA<br><span style="font-size:12px;font-weight:normal;opacity:0.7">Consumer GPU (1x 24GB)</span></div>
+      <div class="btn" style="border-color: var(--red-t); color: var(--red-t)" onclick="triggerFFT()">Simulate Full FT<br><span style="font-size:12px;font-weight:normal;opacity:0.7">Enterprise Cluster (8x 80GB)</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const arena = document.getElementById('arena');
+  const vramFill = document.getElementById('vram-fill');
+  const vramText = document.getElementById('vram-text');
+  const warning = document.getElementById('warning-toast');
+  const brain = document.getElementById('brain');
+  
+  function updateAlpha() {
+    const alpha = document.getElementById('alpha-slider').value;
+    const r = 8; // Fixed assumption for this visualizer
+    const scale = alpha / r;
+    
+    document.getElementById('alpha-val').innerText = alpha;
+    document.getElementById('scale-factor').innerText = scale.toFixed(2);
+    
+    // Scale the backpack glow based on the scale factor
+    if (arena.className.includes('state-lora')) {
+      const glowStr = Math.min(30 + scale * 10, 80);
+      document.getElementById('backpack').style.boxShadow = `0 10px ${glowStr}px rgba(0,255,100,0.8)`;
+      document.getElementById('backpack').style.transform = `scale(${Math.min(1 + scale * 0.05, 1.3)})`;
+    }
+  }
+
+  function triggerLora() {
+    arena.className = 'arena state-lora';
+    warning.style.opacity = '0';
+    
+    vramFill.style.width = '18%';
+    vramFill.style.background = 'var(--teal-s)';
+    vramText.innerText = '18% - Adapter Updates Only';
+    
+    brain.querySelector('span').innerText = "FROZEN";
+    updateAlpha(); // re-apply dynamic alpha scale
+  }
+  
+  function triggerFFT() {
+    arena.className = 'arena state-ff';
+    
+    // Simulate VRAM creeping up and causing OOM
+    vramFill.style.transition = 'width 1.5s linear';
+    vramFill.style.width = '100%';
+    vramFill.style.background = 'var(--red-s)';
+    vramText.innerText = '100% - Gradient Explosion';
+    
+    brain.querySelector('span').innerText = "CALCULATING GRADIENTS";
+    document.getElementById('backpack').style.transform = 'scale(1)';
+    document.getElementById('backpack').style.boxShadow = 'none';
+    
+    setTimeout(() => {
+      warning.style.opacity = '1';
+      vramText.innerText = 'OOM CRASH';
+    }, 1500);
+  }
+  
+  // Set initial alpha
+  updateAlpha();
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_18'), 500);
+});
+</script>
+</body>
+</html>

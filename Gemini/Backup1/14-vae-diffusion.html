@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 15 — VAE & Stable Diffusion</title>
+<style>
+:root{
+  --bg:#1e1e1c;--bg2:#252522;--bg3:#2c2c29;--text:#e8e6de;--text2:#a8a69e;--text3:#6e6c66;
+  --border:rgba(255,255,255,0.1);
+  --radius:10px;--radius-sm:6px;
+  --teal-f:#04342C;--teal-s:#1D9E75;--teal-t:#9FE1CB;
+  --amber-f:#412402;--amber-s:#BA7517;--amber-t:#FAC775;
+  --blue-f:#042C53;--blue-s:#378ADD;--blue-t:#B5D4F4;
+  --pink-f:#4B1528;--pink-s:#D4537E;--pink-t:#F4C0D1;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg3); color:var(--text); line-height:1.6; padding-bottom:40px; }
+header { background:var(--bg); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+header h1 { font-size:18px; font-weight:500; }
+header p { font-size:12px; color:var(--text2); }
+.badge { display:inline-block; font-size:10px; font-weight:600; padding:4px 10px; border-radius:4px; }
+.panel { padding:30px; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+.card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.card-title { font-size:16px; font-weight:600; margin:10px 0; color:var(--amber-t); }
+.card-body { font-size:14px; color:var(--text2); line-height:1.7; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+
+/* Interactive Canvas Styles */
+.canvas-container { background:var(--bg2); border-radius:var(--radius-sm); padding:20px; border:1px dashed var(--border); display:flex; flex-direction:column; align-items:center; gap:20px; text-align:center; }
+#diff-canvas { background:#fff; border-radius:8px; width:200px; height:200px; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.controls { display:flex; flex-direction:column; gap:10px; width:100%; max-width:400px; }
+input[type="range"] { width:100%; accent-color:var(--amber-s); cursor:pointer; }
+.slider-labels { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); }
+
+.btn { display:inline-block; padding:10px 20px; background:var(--amber-s); color:#fff; border:none; border-radius:var(--radius-sm); font-weight:bold; cursor:pointer; transition:all 0.2s; }
+.btn:hover { filter:brightness(1.2); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+</style>
+<script src="audio-narrator.js" defer></script>
+</head>
+<body>
+<header>
+  <div><h1>Layer 15 — VAE & Stable Diffusion</h1><p>Unblurring the Static to Generate Art</p></div>
+  <span class="badge" style="background:var(--amber-f);color:var(--amber-t)">Course File: L15</span>
+</header>
+
+<div class="panel">
+  <div class="card" style="border-top:3px solid var(--amber-s)">
+    <div class="badge" style="background:var(--amber-f);color:var(--amber-t)">The "TV Static" Analogy</div>
+    <div class="card-title">How do you teach an AI to draw?</div>
+    <div class="card-body">
+      If you tell an AI "draw a cat", it has no hands and no imagination. But what if you take a picture of a cat, and slowly add "static" (like a broken old TV screen) until the cat is completely gone? <br><br>
+      As you do this, you force the AI to watch. The AI's only job is to try and guess what the picture looked like <em>one step before</em> you added the static. It learns to "un-smudge" the noise. This is called a <strong>Diffusion Model</strong>.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Interactive: The Denoising Process</div>
+    <div class="card-body" style="margin-bottom:15px;">
+      1. Drag the slider to the right to completely destroy the picture until it's just pure Random Noise. <br>
+      2. Then, click "Reverse Diffusion (AI Un-smudge)" to watch the AI mathematically peel away the noise and generate a brand new image from scratch!
+    </div>
+    
+    <div class="canvas-container">
+      <canvas id="diff-canvas" width="200" height="200"></canvas>
+      
+      <div class="controls">
+        <div class="slider-labels">
+          <span>Clear Picture</span>
+          <span style="font-weight:bold;color:var(--amber-t);" id="noise-level">Noise: 0%</span>
+          <span>Pure Static</span>
+        </div>
+        <input type="range" id="noise-slider" min="0" max="100" value="0">
+        <button class="btn" id="reverse-btn" onclick="runReverseDiffusion()">Reverse Diffusion (AI Un-smudge)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="badge" style="background:var(--pink-f);color:var(--pink-t)">Why it's so fast</div>
+      <div class="card-title">VAE (The Zip File)</div>
+      <div class="card-body">
+        If you look closely at a 4K image, there are over 8 million pixels. Un-smudging 8 million pixels one by one takes forever! <br><br>
+        Enter the <strong>Variational Autoencoder (VAE)</strong>. It essentially acts like a ZIP file compressor. It shrinks the giant image down into a tiny, mathematical "Latent Space". The AI adds static to this <em>tiny</em> file instead of the huge image. This makes rendering images extremely fast, running easily on standard home computers.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge" style="background:var(--blue-f);color:var(--blue-t)">Controlling the Art</div>
+      <div class="card-title">Text Prompts (CLIP)</div>
+      <div class="card-body">
+        How does the AI know it should un-smudge the static into a <em>Dog</em> instead of a <em>Cat</em>? <br><br>
+        We use an extra system called <strong>CLIP</strong>. CLIP connects text to images. When you type "A cyberpunk dog", CLIP translates those words into a mathematical compass. As the AI un-smudges the static, it follows the CLIP compass, shifting its brushstrokes so the final image matches your words!
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('diff-canvas');
+const ctx = canvas.getContext('2d');
+const slider = document.getElementById('noise-slider');
+const noiseLabel = document.getElementById('noise-level');
+const reverseBtn = document.getElementById('reverse-btn');
+
+let baseImageObj = null;
+let currentNoiseLevel = 0;
+let isAnimating = false;
+
+// Draw a simple base image using canvas (a cat emoji, nice and simple but visually distinct)
+function drawBaseImage() {
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 200; tempCanvas.height = 200;
+  const tCtx = tempCanvas.getContext('2d');
+  
+  tCtx.fillStyle = '#FFB347'; // orange bg
+  tCtx.fillRect(0,0,200,200);
+  
+  tCtx.font = '100px Arial';
+  tCtx.textAlign = 'center';
+  tCtx.textBaseline = 'middle';
+  tCtx.fillText('🐱', 100, 110);
+  
+  return tCtx.getImageData(0,0,200,200);
+}
+
+// Generate an alternate "Generated" image
+function drawGeneratedImage() {
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 200; tempCanvas.height = 200;
+  const tCtx = tempCanvas.getContext('2d');
+  
+  tCtx.fillStyle = '#AEC6CF'; // blue bg
+  tCtx.fillRect(0,0,200,200);
+  
+  tCtx.font = '100px Arial';
+  tCtx.textAlign = 'center';
+  tCtx.textBaseline = 'middle';
+  tCtx.fillText('🐶', 100, 110);
+  
+  return tCtx.getImageData(0,0,200,200);
+}
+
+const catImageData = drawBaseImage();
+const dogImageData = drawGeneratedImage();
+
+// Apply noise to an image
+function applyNoise(imageData, amount) {
+  const newImg = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+  const factor = amount / 100;
+  
+  for(let i = 0; i < newImg.data.length; i+=4) {
+    // Generate static
+    const staticVal = Math.random() * 255;
+    
+    // Blend original with static
+    newImg.data[i]   = newImg.data[i] * (1 - factor) + staticVal * factor;
+    newImg.data[i+1] = newImg.data[i+1] * (1 - factor) + staticVal * factor;
+    newImg.data[i+2] = newImg.data[i+2] * (1 - factor) + staticVal * factor;
+  }
+  return newImg;
+}
+
+function updateCanvas(val) {
+  currentNoiseLevel = val;
+  noiseLabel.innerText = 'Noise: ' + val + '%';
+  // If we are at 100% noise and animating down, we morph into the Dog image!
+  const targetImg = (isAnimating && val < 99) ? dogImageData : catImageData;
+  const noisyImg = applyNoise(targetImg, val);
+  ctx.putImageData(noisyImg, 0, 0);
+  
+  if(val == 100) {
+    reverseBtn.disabled = false;
+    reverseBtn.innerText = "Reverse Diffusion (Create Dog)";
+  } else if(!isAnimating && val < 60) {
+    reverseBtn.disabled = true;
+    reverseBtn.innerText = "Drag to 100% to generate!";
+  }
+}
+
+slider.addEventListener('input', (e) => {
+  if(isAnimating) return;
+  updateCanvas(parseInt(e.target.value));
+});
+
+function runReverseDiffusion() {
+  if(currentNoiseLevel < 100) return;
+  isAnimating = true;
+  slider.disabled = true;
+  reverseBtn.disabled = true;
+  reverseBtn.innerText = "Denoising...";
+  
+  let val = 100;
+  
+  function step() {
+    // Easing: start fast, slow down as it gets clearer
+    const drop = Math.max(0.5, val * 0.05); 
+    val -= drop;
+    
+    if(val <= 0) {
+      val = 0;
+      updateCanvas(0);
+      isAnimating = false;
+      slider.disabled = false;
+      slider.value = 0;
+      reverseBtn.innerText = "Generation Complete!";
+      canvas.style.boxShadow = "0 0 40px #AEC6CF";
+      return;
+    }
+    slider.value = val;
+    updateCanvas(val);
+    requestAnimationFrame(step);
+  }
+  
+  // reset shadow from before
+  canvas.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
+  requestAnimationFrame(step);
+}
+
+// Init
+updateCanvas(0);
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => window.Narrator?.play('course_14'), 500);
+});
+</script>
+</body>
+</html>
